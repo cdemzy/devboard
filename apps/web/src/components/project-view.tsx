@@ -3,17 +3,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
+  FolderKanban,
   LayoutDashboard,
   Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { api, json } from "@/lib/api";
 import { moveTask } from "@/lib/board";
 import type { Project, Status, Task } from "@/lib/types";
 import { Button } from "./ui/button";
 import { ConfirmDialog } from "./ui/confirm-dialog";
 import { Tooltip } from "./ui/tooltip";
+import { SectionLoader } from "./ui/section-loader";
 import { ProjectEditor, TaskEditor } from "./editors";
 import { KanbanBoard } from "./kanban-board";
 export function ProjectView({
@@ -60,12 +63,17 @@ export function ProjectView({
       alive = false;
     };
   }, [project.id]);
-  async function action(work: () => Promise<void>, label = "Saving...") {
+  async function action(
+    work: () => Promise<void>,
+    label = "Saving...",
+    successMessage?: string,
+  ) {
     setBusy(true);
     setActivity(label);
     setError("");
     try {
       await work();
+      if (successMessage) toast.success(successMessage);
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Something went wrong.",
@@ -142,14 +150,18 @@ export function ProjectView({
                   project.archived ? "Restore project" : "Archive project"
                 }
                 disabled={busy}
-              onClick={() =>
-                void action(async () => {
-                  await api(
-                      `/projects/${project.id}`,
-                      json("PATCH", { archived: !project.archived }),
-                  );
-                  await refresh();
-                }, project.archived ? "Restoring..." : "Archiving...")
+                onClick={() =>
+                  void action(
+                    async () => {
+                      await api(
+                        `/projects/${project.id}`,
+                        json("PATCH", { archived: !project.archived }),
+                      );
+                      await refresh();
+                    },
+                    project.archived ? "Restoring..." : "Archiving...",
+                    project.archived ? "Project restored" : "Project archived",
+                  )
                 }
               >
                 {project.archived ? (
@@ -210,9 +222,10 @@ export function ProjectView({
           </div>
         )}
         {loading ? (
-          <p role="status" className="py-12 text-muted-foreground">
-            Loading tasks...
-          </p>
+          <SectionLoader
+            icon={project.archived ? Archive : FolderKanban}
+            label="Loading board..."
+          />
         ) : (
           <KanbanBoard
             tasks={tasks}

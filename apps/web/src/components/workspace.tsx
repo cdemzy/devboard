@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import {
   Archive,
   ChevronDown,
@@ -12,6 +13,7 @@ import { api, json } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
 import type { Project } from "@/lib/types";
 import { Button } from "./ui/button";
+import { SectionLoader } from "./ui/section-loader";
 import { ProjectEditor } from "./editors";
 import { ProjectView } from "./project-view";
 export function Workspace({ email }: { email: string }) {
@@ -164,38 +166,48 @@ export function Workspace({ email }: { email: string }) {
           </div>
         )}
         {loading ? (
-          <p role="status" className="p-10 text-muted-foreground">
-            Loading projects...
-          </p>
-        ) : project ? (
-          <ProjectView
-            key={project.id}
-            project={project}
-            update={(updated) =>
-              setProjects((previous) =>
-                previous.map((p) => (p.id === updated.id ? updated : p)),
-              )
-            }
-            refresh={load}
+          <SectionLoader
+            icon={archived ? Archive : FolderKanban}
+            label={archived ? "Loading archived projects..." : "Loading projects..."}
           />
         ) : (
-          <div className="flex min-h-[65vh] flex-col items-center justify-center p-8 text-center">
-            <FolderKanban size={32} className="mb-5 text-primary" />
-            <h1 className="text-xl font-semibold">
-              {archived ? "Nothing archived" : "Make room for your next idea"}
-            </h1>
-            <p className="mb-6 mt-2 max-w-sm text-sm text-muted-foreground">
-              {archived
-                ? "Archived projects will appear here when you need them again."
-                : "Create a project, add a few tasks, and take it one step at a time."}
-            </p>
-            {!archived && (
-              <Button onClick={() => setCreating(true)}>
-                <Plus size={15} />
-                Create your first project
-              </Button>
+          <motion.div
+            key={archived ? "archived" : "projects"}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {project ? (
+              <ProjectView
+                key={project.id}
+                project={project}
+                update={(updated) =>
+                  setProjects((previous) =>
+                    previous.map((p) => (p.id === updated.id ? updated : p)),
+                  )
+                }
+                refresh={load}
+              />
+            ) : (
+              <div className="flex min-h-[65vh] flex-col items-center justify-center p-8 text-center">
+                <FolderKanban size={32} className="mb-5 text-primary" />
+                <h1 className="text-xl font-semibold">
+                  {archived ? "Nothing archived" : "Make room for your next idea"}
+                </h1>
+                <p className="mb-6 mt-2 max-w-sm text-sm text-muted-foreground">
+                  {archived
+                    ? "Archived projects will appear here when you need them again."
+                    : "Create a project, add a few tasks, and take it one step at a time."}
+                </p>
+                {!archived && (
+                  <Button onClick={() => setCreating(true)}>
+                    <Plus size={15} />
+                    Create your first project
+                  </Button>
+                )}
+              </div>
             )}
-          </div>
+          </motion.div>
         )}
       </main>
       {creating && (
