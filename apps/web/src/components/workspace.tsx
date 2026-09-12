@@ -20,6 +20,7 @@ export function Workspace({ email }: { email: string }) {
   const [active, setActive] = useState<string | null>(null);
   const [archivesOpen, setArchivesOpen] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archivesLoaded, setArchivesLoaded] = useState(false);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -45,7 +46,9 @@ export function Workspace({ email }: { email: string }) {
     setArchiveLoading(true);
     try {
       setArchivedProjects(await api<Project[]>("/projects?archived=true"));
+      setArchivesLoaded(true);
     } catch (error) {
+      setArchivesLoaded(false);
       setError(error instanceof Error ? error.message : "Unable to load archived projects.");
     } finally {
       setArchiveLoading(false);
@@ -55,10 +58,13 @@ export function Workspace({ email }: { email: string }) {
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) void load();
+      if (!cancelled) {
+        void load();
+        void loadArchived();
+      }
     });
     return () => { cancelled = true; };
-  }, [load]);
+  }, [load, loadArchived]);
   const project = projects.find((project) => project.id === active);
 
   async function restore(project: Project) {
@@ -81,7 +87,7 @@ export function Workspace({ email }: { email: string }) {
         <div className="px-3 pb-4">
           <button onClick={() => void load()} className="flex w-full items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-foreground"><FolderKanban size={16} />Projects</button>
           <button
-            onClick={() => { const nextOpen = !archivesOpen; setArchivesOpen(nextOpen); if (nextOpen) void loadArchived(); }}
+            onClick={() => { const nextOpen = !archivesOpen; setArchivesOpen(nextOpen); if (nextOpen && !archivesLoaded) void loadArchived(); }}
             className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
             aria-expanded={archivesOpen}
           >
@@ -109,7 +115,7 @@ export function Workspace({ email }: { email: string }) {
       </aside>
       <main className="min-w-0 flex-1">
         {error && <div role="alert" className="m-6 flex items-center gap-4 rounded-lg border border-rose-900 bg-rose-950/20 p-4 text-rose-200">{error}<Button variant="outline" onClick={() => void load()}>Retry</Button></div>}
-        {loading ? <SectionLoader icon={FolderKanban} label="Loading projects..." /> : <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>{project ? <ProjectView key={project.id} project={project} update={(updated) => setProjects((previous) => previous.map((project) => project.id === updated.id ? updated : project))} refresh={load} /> : <div className="flex min-h-[65vh] flex-col items-center justify-center p-8 text-center"><FolderKanban size={32} className="mb-5 text-primary" /><h1 className="text-xl font-semibold">Make room for your next idea</h1><p className="mb-6 mt-2 max-w-sm text-sm text-muted-foreground">Create a project, add a few tasks, and take it one step at a time.</p><Button onClick={() => setCreating(true)}><Plus size={15} />Create your first project</Button></div>}</motion.div>}
+        {loading ? <SectionLoader icon={FolderKanban} label="Loading projects..." /> : <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>{project ? <ProjectView key={project.id} project={project} update={(updated) => setProjects((previous) => previous.map((project) => project.id === updated.id ? updated : project))} refresh={async () => { await Promise.all([load(), loadArchived()]); }} /> : <div className="flex min-h-[65vh] flex-col items-center justify-center p-8 text-center"><FolderKanban size={32} className="mb-5 text-primary" /><h1 className="text-xl font-semibold">Make room for your next idea</h1><p className="mb-6 mt-2 max-w-sm text-sm text-muted-foreground">Create a project, add a few tasks, and take it one step at a time.</p><Button onClick={() => setCreating(true)}><Plus size={15} />Create your first project</Button></div>}</motion.div>}
       </main>
       {creating && <ProjectEditor close={() => setCreating(false)} save={async (data) => { const created = await api<Project>("/projects", json("POST", data)); setProjects((previous) => [...previous, created]); setActive(created.id); }} />}
       <ConfirmDialog open={Boolean(archivedToDelete)} onOpenChange={(open) => !open && setArchivedToDelete(null)} title="Delete project?" description={`This will permanently delete "${archivedToDelete?.name ?? "this project"}" and all of its tasks.`} confirmLabel="Delete project" onConfirm={async () => { if (archivedToDelete) await deleteArchivedProject(archivedToDelete); }} />
