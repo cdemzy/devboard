@@ -74,5 +74,6 @@ class TaskOut(TaskCreate):
     position: int
     ticket_number: int
     ticket_id: str
+    archived: bool
     created_at: datetime
     updated_at: datetime

@@ -114,3 +114,16 @@ def test_project_tags_are_reusable_per_owner(client):
     client.post("/projects", json={"name": "One", "tags": ["Frontend", "Urgent"]})
     client.post("/projects", json={"name": "Two", "tags": ["urgent", "Backend"]})
     assert client.get("/project-tags").json() == ["Backend", "Frontend", "Urgent"]
+
+
+def test_task_archive_restore_and_permanent_delete(client):
+    pid = project(client)
+    archived = task(client, pid, "Archive me")
+    assert client.post(f"/tasks/{archived['id']}/archive").status_code == 200
+    assert client.get(f"/projects/{pid}/tasks").json() == []
+    archived_tasks = client.get(f"/projects/{pid}/tasks?archived=true").json()
+    assert [item["id"] for item in archived_tasks] == [archived["id"]]
+    assert client.post(f"/tasks/{archived['id']}/restore").status_code == 200
+    assert [item["id"] for item in client.get(f"/projects/{pid}/tasks").json()] == [archived["id"]]
+    assert client.post(f"/tasks/{archived['id']}/archive").status_code == 200
+    assert client.delete(f"/tasks/{archived['id']}").status_code == 204

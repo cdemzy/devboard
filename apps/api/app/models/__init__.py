@@ -62,6 +62,7 @@ class Task(Base):
     position: Mapped[int] = mapped_column(Integer, default=0)
     ticket_number: Mapped[int] = mapped_column(Integer)
     ticket_id: Mapped[str] = mapped_column(String(16))
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

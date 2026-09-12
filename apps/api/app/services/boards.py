@@ -110,6 +110,30 @@ def update_task(db: Session, user: UUID, task_id: UUID, data: TaskUpdate):
     return task
 
 
+def archive_task(db: Session, user: UUID, task_id: UUID):
+    task = owned_task(db, task_id, user)
+    project = writable_project(db, task.project_id, user)
+    tasks = project_tasks(db, task.project_id)
+    task.archived = True
+    normalize([item for item in tasks if item.id != task.id])
+    project.updated_at = utcnow()
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def restore_task(db: Session, user: UUID, task_id: UUID):
+    task = owned_task(db, task_id, user)
+    project = writable_project(db, task.project_id, user)
+    tasks = project_tasks(db, task.project_id)
+    task.archived = False
+    task.position = sum(item.status == task.status for item in tasks)
+    project.updated_at = utcnow()
+    db.commit()
+    db.refresh(task)
+    return task
+
+
 def delete_task(db: Session, user: UUID, task_id: UUID):
     task = owned_task(db, task_id, user)
     project = writable_project(db, task.project_id, user)
