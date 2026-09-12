@@ -24,13 +24,13 @@ import {
   Circle,
   CircleDashed,
   CircleCheck,
+  Archive,
   GripVertical,
   Plus,
   AlignLeft,
   SignalHigh,
   SignalMedium,
   SignalLow,
-  Trash2,
 } from "lucide-react";
 import { columnTasks } from "@/lib/board";
 import { statuses, statusLabels, type Status, type Task } from "@/lib/types";
@@ -50,12 +50,12 @@ function collisionDetectionStrategy(...args: Parameters<typeof pointerWithin>) {
 function TaskCard({
   task,
   edit,
-  remove,
+  archive,
   disabled,
 }: {
   task: Task;
   edit: (task: Task) => void;
-  remove: (task: Task) => void;
+  archive: (task: Task) => void;
   disabled: boolean;
 }) {
   const { active, over } = useDndContext();
@@ -108,7 +108,7 @@ function TaskCard({
           <PriorityIcon size={13} />
           {task.priority}
         </span>
-        <Tooltip label="Delete"><button onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); remove(task); }} disabled={disabled} aria-label={`Delete ${task.ticket_id}`} className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-950/40 hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"><Trash2 size={14} /></button></Tooltip>
+        <Tooltip label="Archive"><button onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); archive(task); }} disabled={disabled} aria-label={`Archive ${task.ticket_id}`} className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"><Archive size={14} /></button></Tooltip>
       </div>
     </motion.article>
   );
@@ -135,14 +135,14 @@ function Column({
   status,
   tasks,
   edit,
-  remove,
+  archive,
   create,
   disabled,
 }: {
   status: Status;
   tasks: Task[];
   edit: (task: Task) => void;
-  remove: (task: Task) => void;
+  archive: (task: Task) => void;
   create: (status: Status) => void;
   disabled: boolean;
 }) {
@@ -192,7 +192,7 @@ function Column({
               key={task.id}
               task={task}
               edit={edit}
-              remove={remove}
+              archive={archive}
               disabled={disabled}
             />
           ))}
@@ -220,14 +220,14 @@ function Column({
 export function KanbanBoard({
   tasks,
   edit,
-  remove,
+  archive,
   create,
   move,
   disabled,
 }: {
   tasks: Task[];
   edit: (task: Task) => void;
-  remove: (task: Task) => void;
+  archive: (task: Task) => void;
   create: (status: Status) => void;
   move: (id: string, status: Status, position: number) => void;
   disabled: boolean;
@@ -274,7 +274,7 @@ export function KanbanBoard({
               status={status}
               tasks={columnTasks(tasks, status)}
               edit={edit}
-              remove={remove}
+              archive={archive}
               create={create}
               disabled={disabled}
             />

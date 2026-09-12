@@ -27,6 +27,7 @@ export type Task = {
   position: number;
   ticket_number: number;
   ticket_id: string;
+  archived: boolean;
   created_at: string;
   updated_at: string;
 };

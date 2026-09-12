@@ -11,6 +11,7 @@ const task = (id: string, status: Task["status"], position: number): Task => ({
   project_id: "project",
   description: "",
   priority: "medium",
+  archived: false,
   created_at: "",
   updated_at: "",
 });
