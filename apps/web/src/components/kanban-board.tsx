@@ -79,7 +79,7 @@ function TaskCard({
       onClick={() => edit(task)}
       {...attributes}
       {...listeners}
-      className={`group relative touch-none rounded-lg border border-border bg-[#161b22] p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${disabled ? "cursor-default" : "cursor-grab active:scale-[0.98] active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? "after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full after:bg-primary after:shadow-[0_0_8px_rgb(47_129_247_/_0.9)]" : ""}`}
+      className={`group relative min-h-24 touch-none rounded-lg border border-border bg-[#161b22] p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${disabled ? "cursor-default" : "cursor-grab active:scale-[0.98] active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? "after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full after:bg-primary after:shadow-[0_0_8px_rgb(47_129_247_/_0.9)]" : ""}`}
     >
       <div className="flex items-start gap-1">
         <button
@@ -200,7 +200,7 @@ function Column({
       </SortableContext>
       {isOver && tasks.length > 0 && <div aria-hidden="true" className="mx-2 mt-3 h-0.5 rounded-full bg-primary shadow-[0_0_8px_rgb(47_129_247_/_0.9)]" />}
       {tasks.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border px-4 py-9 text-center text-xs text-muted-foreground">
+        <p className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
           No tasks yet
         </p>
       )}
