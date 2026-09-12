@@ -252,8 +252,8 @@ test("account flow, project and task CRUD, drag persistence, rollback, and logou
     page.getByRole("button", { name: "API complete", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "API complete", exact: true }).click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete task", exact: true }).click();
+  await page.getByRole("button", { name: "Delete task", exact: true }).last().click();
   await expect(
     page.getByRole("button", { name: "API complete", exact: true }),
   ).toHaveCount(0);
@@ -288,10 +288,10 @@ test("account flow, project and task CRUD, drag persistence, rollback, and logou
   await expect(
     page.getByRole("heading", { name: "Portal MVP", exact: true }),
   ).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: "Delete project", exact: true })
     .click();
+  await page.getByRole("button", { name: "Delete project", exact: true }).last().click();
   await expect(
     page.getByRole("button", { name: "Create your first project" }),
   ).toBeVisible();

@@ -26,6 +26,7 @@ import {
   SignalHigh,
   SignalMedium,
   SignalLow,
+  Trash2,
 } from "lucide-react";
 import { columnTasks } from "@/lib/board";
 import { statuses, statusLabels, type Status, type Task } from "@/lib/types";
@@ -38,10 +39,12 @@ const statusIcons = {
 function TaskCard({
   task,
   edit,
+  remove,
   disabled,
 }: {
   task: Task;
   edit: (task: Task) => void;
+  remove: (task: Task) => void;
   disabled: boolean;
 }) {
   const {
@@ -67,6 +70,7 @@ function TaskCard({
         <button
           disabled={disabled}
           onClick={() => edit(task)}
+          aria-label={task.title}
           className="min-w-0 flex-1 text-left focus-visible:outline-primary"
         >
           <span className="mb-1 block text-[10px] font-medium tracking-wide text-primary">
@@ -75,6 +79,18 @@ function TaskCard({
           <span className="block break-words text-[13px] leading-5 font-medium">
             {task.title}
           </span>
+        </button>
+        <button
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            remove(task);
+          }}
+          disabled={disabled}
+          aria-label={`Delete ${task.ticket_id}`}
+          className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-950/40 hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"
+        >
+          <Trash2 size={14} />
         </button>
         <button
           {...attributes}
@@ -104,12 +120,14 @@ function Column({
   status,
   tasks,
   edit,
+  remove,
   create,
   disabled,
 }: {
   status: Status;
   tasks: Task[];
   edit: (task: Task) => void;
+  remove: (task: Task) => void;
   create: (status: Status) => void;
   disabled: boolean;
 }) {
@@ -155,6 +173,7 @@ function Column({
               key={task.id}
               task={task}
               edit={edit}
+              remove={remove}
               disabled={disabled}
             />
           ))}
@@ -181,12 +200,14 @@ function Column({
 export function KanbanBoard({
   tasks,
   edit,
+  remove,
   create,
   move,
   disabled,
 }: {
   tasks: Task[];
   edit: (task: Task) => void;
+  remove: (task: Task) => void;
   create: (status: Status) => void;
   move: (id: string, status: Status, position: number) => void;
   disabled: boolean;
@@ -227,6 +248,7 @@ export function KanbanBoard({
               status={status}
               tasks={columnTasks(tasks, status)}
               edit={edit}
+              remove={remove}
               create={create}
               disabled={disabled}
             />

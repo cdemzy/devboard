@@ -12,6 +12,7 @@ import { api, json } from "@/lib/api";
 import { moveTask } from "@/lib/board";
 import type { Project, Status, Task } from "@/lib/types";
 import { Button } from "./ui/button";
+import { ConfirmDialog } from "./ui/confirm-dialog";
 import { ProjectEditor, TaskEditor } from "./editors";
 import { KanbanBoard } from "./kanban-board";
 export function ProjectView({
@@ -32,6 +33,8 @@ export function ProjectView({
   const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(
     null,
   );
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [confirmProjectDelete, setConfirmProjectDelete] = useState(false);
   const loadTasks = useCallback(async () => {
     const result = await api<Task[]>(`/projects/${project.id}/tasks`);
     setTasks(result);
@@ -153,17 +156,7 @@ export function ProjectView({
               size="icon"
               aria-label="Delete project"
               disabled={busy}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Permanently delete "${project.name}" and all its tasks?`,
-                  )
-                )
-                  void action(async () => {
-                    await api(`/projects/${project.id}`, json("DELETE"));
-                    await refresh();
-                  });
-              }}
+              onClick={() => setConfirmProjectDelete(true)}
             >
               <Trash2 size={15} />
             </Button>
@@ -215,6 +208,7 @@ export function ProjectView({
             tasks={tasks}
             disabled={busy || project.archived}
             edit={(task) => setEditor({ task })}
+            remove={setTaskToDelete}
             create={(status) => setEditor({ status })}
             move={(...args) => void move(...args)}
           />
@@ -260,17 +254,36 @@ export function ProjectView({
           remove={
             editor.task
               ? async () => {
-                  await api(`/tasks/${editor.task!.id}`, json("DELETE"));
-                  await loadTasks().catch(() =>
-                    setError(
-                      "Changes were saved, but the board could not reload. Use Reload board to see the saved state.",
-                    ),
-                  );
+                  setTaskToDelete(editor.task!);
+                  setEditor(null);
                 }
               : undefined
           }
         />
       )}
+      <ConfirmDialog
+        open={Boolean(taskToDelete)}
+        onOpenChange={(open) => !open && setTaskToDelete(null)}
+        title="Delete task?"
+        description={`This will permanently delete ${taskToDelete?.ticket_id ?? "this task"}.`}
+        confirmLabel="Delete task"
+        onConfirm={async () => {
+          if (!taskToDelete) return;
+          await api(`/tasks/${taskToDelete.id}`, json("DELETE"));
+          await loadTasks();
+        }}
+      />
+      <ConfirmDialog
+        open={confirmProjectDelete}
+        onOpenChange={setConfirmProjectDelete}
+        title="Delete project?"
+        description={`This will permanently delete "${project.name}" and all of its tasks.`}
+        confirmLabel="Delete project"
+        onConfirm={async () => {
+          await api(`/projects/${project.id}`, json("DELETE"));
+          await refresh();
+        }}
+      />
     </>
   );
 }

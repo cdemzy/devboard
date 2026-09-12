@@ -228,10 +228,7 @@ export function TaskEditor({
                 variant="ghost"
                 className="text-rose-300"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm("Delete this task permanently?"))
-                    void run(remove);
-                }}
+                onClick={() => void remove()}
               >
                 Delete task
               </Button>
