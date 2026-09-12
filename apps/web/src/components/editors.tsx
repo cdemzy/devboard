@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircle, Minimize2, Trash2 } from "lucide-react";
+import { LoaderCircle, Minimize2, Trash2, X } from "lucide-react";
 import type { Priority, Project, Status, Task, TaskInput } from "@/lib/types";
 import { statusLabels, statuses } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
+import { api } from "@/lib/api";
 
 function capitalizeFirst(value: string) {
   return value ? value[0].toUpperCase() + value.slice(1) : value;
@@ -15,13 +16,46 @@ function capitalizeFirst(value: string) {
 export function ProjectEditor({ project, close, save }: {
   project?: Project;
   close: () => void;
-  save: (data: { name: string; description: string }) => Promise<void>;
+  save: (data: { name: string; description: string; tags: string[] }) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [tags, setTags] = useState<string[]>(project?.tags ?? []);
+  const [tagInput, setTagInput] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void api<string[]>("/project-tags").then((savedTags) => {
+      if (active) setSuggestions(savedTags);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  function addTag(value = tagInput) {
+    const tag = value.trim();
+    if (!tag) return;
+    if (tag.length > 40) { setError("Tags can be up to 40 characters."); return; }
+    if (tags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) {
+      setTagInput("");
+      return;
+    }
+    if (tags.length >= 20) { setError("A project can have up to 20 tags."); return; }
+    setTags((current) => [...current, tag]);
+    setTagInput("");
+    setSuggestionsOpen(false);
+    setError("");
+  }
+
+  const matchingSuggestions = suggestions.filter((tag) =>
+    !tags.some((selected) => selected.toLowerCase() === tag.toLowerCase())
+    && tag.toLowerCase().includes(tagInput.trim().toLowerCase()),
+  );
+
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }}>
-      <DialogContent>
+      <DialogContent onPointerDownOutside={(event) => event.preventDefault()}>
         <DialogTitle className="text-lg font-semibold">{project ? "Edit project" : "New project"}</DialogTitle>
         <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">Give your work a place to take shape.</DialogDescription>
         <form className="space-y-4" onSubmit={async (event) => {
@@ -30,12 +64,24 @@ export function ProjectEditor({ project, close, save }: {
           const name = String(form.get("name")).trim();
           if (!name) { setError("Enter a project name."); return; }
           setBusy(true); setError("");
-          try { await save({ name, description: String(form.get("description")) }); close(); }
+          try { await save({ name, description: String(form.get("description")), tags }); close(); }
           catch (error) { setError(error instanceof Error ? error.message : "Unable to save."); }
           finally { setBusy(false); }
         }}>
           <label>Project name<input name="name" defaultValue={project?.name} required maxLength={120} placeholder="e.g. Developer portal" autoFocus /></label>
           <label>Description<textarea name="description" defaultValue={project?.description} maxLength={10000} placeholder="What are you building? (optional)" /></label>
+          <div className="grid gap-2 text-[13px]">
+            <span>Project tags</span>
+            <span className="text-xs font-normal text-muted-foreground">Optional — add labels to organize this project.</span>
+            <div className="rounded-md border border-border bg-[#0d1117] p-2 focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-1">
+              {tags.length > 0 && <div className="mb-2 flex flex-wrap gap-1.5">{tags.map((tag) => <span key={tag} className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-1 text-xs text-primary"><span>{tag}</span><button type="button" onClick={(event) => { event.stopPropagation(); setTags((current) => current.filter((item) => item !== tag)); }} className="rounded-full hover:text-foreground" aria-label={`Remove ${tag} tag`}><X size={12} /></button></span>)}</div>}
+              <div className="relative flex gap-2">
+                <input value={tagInput} onChange={(event) => { setTagInput(event.target.value); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} maxLength={40} placeholder="Type a tag and press Enter" aria-label="Add project tag" aria-expanded={suggestionsOpen && matchingSuggestions.length > 0} aria-controls="project-tag-suggestions" />
+                <Button type="button" variant="outline" onClick={() => addTag()} disabled={!tagInput.trim()}>Add</Button>
+                {suggestionsOpen && matchingSuggestions.length > 0 && <div id="project-tag-suggestions" role="listbox" className="absolute left-0 right-12 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-md border border-border bg-[#161b22] p-1 shadow-lg">{matchingSuggestions.map((tag) => <button key={tag} type="button" role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => addTag(tag)} className="flex w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"><span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{tag}</span></button>)}</div>}
+              </div>
+            </div>
+          </div>
           {error && <p role="alert" className="text-rose-300">{error}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={close} disabled={busy}>Cancel</Button>

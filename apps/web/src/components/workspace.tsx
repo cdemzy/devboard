@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Archive, ChevronDown, FolderKanban, Layers3, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, FolderKanban, Layers3, LogOut, PanelLeftClose, PanelLeftOpen, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, json } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
@@ -22,6 +22,7 @@ export function Workspace({ email }: { email: string }) {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archivesLoaded, setArchivesLoaded] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [archivedToDelete, setArchivedToDelete] = useState<Project | null>(null);
@@ -82,8 +83,18 @@ export function Workspace({ email }: { email: string }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex shrink-0 flex-col border-b border-border bg-[#161b22] md:sticky md:top-0 md:h-screen md:w-60 md:border-r md:border-b-0">
-        <div className="flex items-center gap-2.5 px-5 py-6 text-base font-semibold tracking-tight"><Layers3 size={22} className="text-primary" />DevBoard</div>
+      <aside className={`flex shrink-0 flex-col border-b border-border bg-[#161b22] transition-[width] duration-200 md:sticky md:top-0 md:h-screen md:border-r md:border-b-0 ${sidebarOpen ? "md:w-60" : "md:w-16"}`}>
+        <div className={`flex py-5 text-base font-semibold tracking-tight ${sidebarOpen ? "items-center gap-2.5 px-5" : "flex-col items-center gap-2 px-2"}`}>
+          <Layers3 size={22} className="shrink-0 text-primary" />
+          {sidebarOpen && <span className="min-w-0 flex-1 truncate">DevBoard</span>}
+          <Tooltip label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
+            <Button variant="ghost" size="icon" className="shrink-0" aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} onClick={() => setSidebarOpen((open) => !open)}>
+              {sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
+            </Button>
+          </Tooltip>
+        </div>
+        <AnimatePresence initial={false}>
+          {sidebarOpen && <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.16, ease: "easeOut" }} className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="px-3 pb-4">
           <button onClick={() => void load()} className="flex w-full items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-foreground"><FolderKanban size={16} />Projects</button>
           <button
@@ -122,6 +133,8 @@ export function Workspace({ email }: { email: string }) {
           {projects.map((project) => <button key={project.id} onClick={() => setActive(project.id)} aria-current={active === project.id ? "page" : undefined} className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[13px] ${active === project.id ? "bg-primary/15 text-[#58a6ff]" : "text-muted-foreground hover:bg-accent"}`}><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/15 text-[10px] font-semibold">{project.name.slice(0, 1).toUpperCase()}</span><span className="truncate">{project.name}</span></button>)}
         </nav>
         <div className="flex items-center gap-2 border-t border-border p-4"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#30363d] text-xs">{email.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{email}</span><Tooltip label="Log out"><Button variant="ghost" size="icon" aria-label="Log out" onClick={async () => { try { const { error } = await getSupabase().auth.signOut(); if (error) throw error; } catch (error) { setError(error instanceof Error ? error.message : "Unable to log out."); } }}><LogOut size={15} /></Button></Tooltip></div>
+          </motion.div>}
+        </AnimatePresence>
       </aside>
       <main className="flex min-h-screen min-w-0 flex-1 flex-col">
         {error && <div role="alert" className="m-6 flex items-center gap-4 rounded-lg border border-rose-900 bg-rose-950/20 p-4 text-rose-200">{error}<Button variant="outline" onClick={() => void load()}>Retry</Button></div>}
