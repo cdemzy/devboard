@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@theme inline {
+  --color-background: #141518;
+  --color-foreground: #ececef;
+  --color-primary: #8273ed;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #28292f;
+  --color-border: #2b2c33;
+  --color-muted-foreground: #999aa7;
+  --color-destructive: #c44d61;
+  --color-ring: #9d90ff;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #1c1d22;
+  padding: 9px 11px;
+  color: var(--color-foreground);
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 1px;
+}
+label {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+}
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+select {
+  color-scheme: dark;
+}
+::selection {
+  background: #8273ed55;
+}
