@@ -64,19 +64,23 @@ function TaskCard({
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group rounded-lg border border-border bg-[#202126] p-3 shadow-sm ${isDragging ? "z-20 opacity-50" : "hover:border-[#454650]"}`}
+      onClick={() => edit(task)}
+      className={`group cursor-pointer rounded-lg border border-border bg-[#202126] p-3 shadow-sm ${isDragging ? "z-20 opacity-50" : "hover:border-[#454650]"}`}
     >
       <div className="flex items-start gap-1">
         <button
           disabled={disabled}
-          onClick={() => edit(task)}
+          onClick={(event) => {
+            event.stopPropagation();
+            edit(task);
+          }}
           aria-label={task.title}
           className="min-w-0 flex-1 text-left focus-visible:outline-primary"
         >
           <span className="mb-1 block text-[10px] font-medium tracking-wide text-primary">
             {task.ticket_id}
           </span>
-          <span className="block break-words text-[13px] leading-5 font-medium">
+          <span className="block wrap-break-word first-letter:uppercase text-[13px] leading-5 font-medium">
             {task.title}
           </span>
         </button>
@@ -96,6 +100,7 @@ function TaskCard({
           {...attributes}
           {...listeners}
           disabled={disabled}
+          onClick={(event) => event.stopPropagation()}
           aria-label={`Move ${task.title}`}
           className="touch-none rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:ring-2 cursor-grab"
         >
@@ -137,7 +142,7 @@ function Column({
     <section
       ref={setNodeRef}
       aria-label={statusLabels[status]}
-      className={`min-h-72 min-w-[260px] flex-1 rounded-lg p-2 ${isOver ? "bg-primary/8" : "bg-[#17181c]"}`}
+      className={`min-h-72 min-w-65 flex-1 rounded-lg p-2 ${isOver ? "bg-primary/8" : "bg-[#17181c]"}`}
     >
       <header className="mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon

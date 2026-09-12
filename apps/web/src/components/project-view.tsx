@@ -206,7 +206,7 @@ export function ProjectView({
         ) : (
           <KanbanBoard
             tasks={tasks}
-            disabled={busy || project.archived}
+            disabled={project.archived}
             edit={(task) => setEditor({ task })}
             remove={setTaskToDelete}
             create={(status) => setEditor({ status })}
@@ -238,27 +238,33 @@ export function ProjectView({
           task={editor.task}
           initialStatus={editor.status}
           close={() => setEditor(null)}
-          save={async (data) => {
-            await api(
-              editor.task
-                ? `/tasks/${editor.task.id}`
+          save={async (data, taskId) => {
+            if (taskId) {
+              setTasks((previous) =>
+                previous.map((task) =>
+                  task.id === taskId
+                    ? { ...task, ...data, updated_at: new Date().toISOString() }
+                    : task,
+                ),
+              );
+            }
+            const saved = await api<Task>(
+              taskId
+                ? `/tasks/${taskId}`
                 : `/projects/${project.id}/tasks`,
-              json(editor.task ? "PATCH" : "POST", data),
+              json(taskId ? "PATCH" : "POST", data),
             );
             await loadTasks().catch(() =>
               setError(
                 "Changes were saved, but the board could not reload. Use Reload board to see the saved state.",
               ),
             );
+            return saved;
           }}
-          remove={
-            editor.task
-              ? async () => {
-                  setTaskToDelete(editor.task!);
-                  setEditor(null);
-                }
-              : undefined
-          }
+          remove={(task) => {
+            setTaskToDelete(task);
+            setEditor(null);
+          }}
         />
       )}
       <ConfirmDialog

@@ -150,9 +150,8 @@ test("account flow, project and task CRUD, drag persistence, rollback, and logou
   for (const title of ["Write API", "Build interface"]) {
     await page.getByRole("button", { name: "New task", exact: true }).click();
     await page.getByLabel("Title", { exact: true }).fill(title);
-    await page
-      .getByRole("button", { name: "Create task", exact: true })
-      .click();
+    await expect(page.getByText("All changes saved", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Minimize task", exact: true }).click();
     await expect(
       page.getByRole("button", { name: title, exact: true }),
     ).toBeVisible();
@@ -247,7 +246,8 @@ test("account flow, project and task CRUD, drag persistence, rollback, and logou
   await page.getByRole("button", { name: "Write API", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("API complete");
   await page.getByLabel("Priority").selectOption("high");
-  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByText("All changes saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Minimize task", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "API complete", exact: true }),
   ).toBeVisible();
