@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Pencil,
   Plus,
-  RefreshCw,
   RotateCcw,
   Trash2,
 } from "lucide-react";
@@ -223,7 +222,7 @@ export function ProjectView({
           </div>
         </header>
         <div className="mb-5 flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-1"><span className="flex items-center gap-2 text-xs font-medium"><LayoutDashboard size={14} className="text-primary" />Board</span><Tooltip label="Reload board"><Button variant="ghost" size="icon" aria-label="Reload board" disabled={busy} onClick={() => void loadTasks()}><RefreshCw size={14} /></Button></Tooltip></div>
+          <span className="flex items-center gap-2 text-xs font-medium"><LayoutDashboard size={14} className="text-primary" />Board</span>
           <div className="flex items-center gap-3"><Tooltip label="Archived tasks"><Button variant="ghost" size="sm" disabled={busy} onClick={() => { const nextOpen = !archivedTasksOpen; setArchivedTasksOpen(nextOpen); if (nextOpen) void loadArchivedTasks(); }}><Archive size={14} />Archived tasks</Button></Tooltip><span className="text-xs text-muted-foreground" aria-live="polite">{`${tasks.length} tasks · ${completed} completed`}</span></div>
         </div>
         {archivedTasksOpen && <section className="mb-5 rounded-lg border border-border bg-[#161b22] p-3"><div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-semibold"><Archive size={15} className="text-muted-foreground" />Archived tasks</h2><Button variant="ghost" size="sm" onClick={() => setArchivedTasksOpen(false)}>Close</Button></div>{archivedTasksLoading ? <p className="text-sm text-muted-foreground">Loading archived tasks…</p> : archivedTasks.length === 0 ? <p className="text-sm text-muted-foreground">No archived tasks.</p> : <div className="space-y-2">{archivedTasks.map((task) => <div key={task.id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3"><div className="min-w-0 flex-1"><span className="text-xs font-medium text-primary">{task.ticket_id}</span><p className="truncate text-sm font-medium">{task.title}</p></div><Tooltip label="Restore"><Button variant="ghost" size="icon" aria-label={`Restore ${task.ticket_id}`} disabled={busy || project.archived} onClick={() => restoreTask(task)}><RotateCcw size={15} /></Button></Tooltip><Tooltip label="Delete permanently"><Button variant="ghost" size="icon" aria-label={`Delete ${task.ticket_id}`} disabled={busy} className="text-rose-300" onClick={() => setTaskToDelete(task)}><Trash2 size={15} /></Button></Tooltip></div>)}</div>}</section>}
