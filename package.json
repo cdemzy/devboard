@@ -10,8 +10,5 @@
     "lint": "npm run lint -w apps/web",
     "test": "npm run test -w apps/web",
     "typecheck": "npm run typecheck -w apps/web"
-  },
-  "dependencies": {
-    "@vercel/analytics": "^2.0.1"
   }
 }
