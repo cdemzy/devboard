@@ -29,9 +29,9 @@ no private data is rendered into the public HTML shell.
 ## Supabase setup
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/202609120001_initial.sql` once in its SQL editor.
-   The migration creates projects and tasks, UUID primary keys, ownership and project
-   foreign keys, indexes, checks, timestamps, and API-only table access.
+2. Run the files in `supabase/migrations/` in filename order in its SQL editor.
+   They create projects and tasks, UUID primary keys, ownership and project foreign
+   keys, indexes, checks, timestamps, API-only table access, and generated ticket IDs.
    Do not use SQLAlchemy `create_all` for a deployed database: it intentionally does
    not manage Supabase's `auth.users` table or install the migration's RLS/grants.
 3. Enable the Email provider in Authentication. Configure the minimum password length

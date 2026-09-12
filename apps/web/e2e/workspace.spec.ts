@@ -64,6 +64,7 @@ test("account flow, project and task CRUD, drag persistence, rollback, and logou
       const project = {
         id: "project-1",
         owner_id: user.id,
+        ticket_prefix: "DE",
         ...body,
         archived: false,
         created_at: now,
@@ -94,6 +95,8 @@ test("account flow, project and task CRUD, drag persistence, rollback, and logou
         id: `task-${tasks.length + 1}`,
         project_id: "project-1",
         position: tasks.filter((t) => t.status === body.status).length,
+        ticket_number: tasks.length + 1,
+        ticket_id: `DE-${tasks.length + 1}`,
         created_at: now,
         updated_at: now,
       };

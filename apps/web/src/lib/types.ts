@@ -10,6 +10,7 @@ export type Project = {
   id: string;
   owner_id: string;
   name: string;
+  ticket_prefix: string;
   description: string;
   archived: boolean;
   created_at: string;
@@ -23,6 +24,8 @@ export type Task = {
   status: Status;
   priority: Priority;
   position: number;
+  ticket_number: number;
+  ticket_id: string;
   created_at: string;
   updated_at: string;
 };

@@ -67,9 +67,14 @@ function TaskCard({
         <button
           disabled={disabled}
           onClick={() => edit(task)}
-          className="min-w-0 flex-1 text-left text-[13px] leading-5 font-medium break-words focus-visible:outline-primary"
+          className="min-w-0 flex-1 text-left focus-visible:outline-primary"
         >
-          {task.title}
+          <span className="mb-1 block text-[10px] font-medium tracking-wide text-primary">
+            {task.ticket_id}
+          </span>
+          <span className="block break-words text-[13px] leading-5 font-medium">
+            {task.title}
+          </span>
         </button>
         <button
           {...attributes}

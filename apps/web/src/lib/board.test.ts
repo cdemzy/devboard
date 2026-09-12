@@ -6,6 +6,8 @@ const task = (id: string, status: Task["status"], position: number): Task => ({
   status,
   position,
   title: id,
+  ticket_number: position + 1,
+  ticket_id: `DE-${position + 1}`,
   project_id: "project",
   description: "",
   priority: "medium",

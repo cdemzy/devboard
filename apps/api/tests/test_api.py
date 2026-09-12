@@ -49,6 +49,7 @@ def test_task_create_update_move_and_persistence(client):
     pid = project(client)
     a, b, c = [task(client, pid, title) for title in ("a", "b", "c")]
     assert [a["position"], b["position"], c["position"]] == [0, 1, 2]
+    assert [a["ticket_id"], b["ticket_id"], c["ticket_id"]] == ["DE-1", "DE-2", "DE-3"]
     moved = client.post(f"/tasks/{a['id']}/move", json={"status": "todo", "position": 2})
     assert moved.status_code == 200
     assert [t["title"] for t in moved.json()] == ["b", "c", "a"]
@@ -68,6 +69,20 @@ def test_task_create_update_move_and_persistence(client):
     assert sorted(t["position"] for t in persisted if t["status"] == "todo") == [0, 1]
     assert client.delete(f"/tasks/{c['id']}").status_code == 204
     assert client.get(f"/tasks/{c['id']}").status_code == 404
+
+
+def test_project_prefixes_are_unique_per_owner_and_task_ids_are_not_reused(client):
+    devboard = client.post("/projects", json={"name": "DevBoard"}).json()
+    denver = client.post("/projects", json={"name": "DenverExample"}).json()
+    assert devboard["ticket_prefix"] == "DE"
+    assert denver["ticket_prefix"] == "DN"
+
+    renamed = client.patch(f"/projects/{devboard['id']}", json={"name": "Renamed"}).json()
+    assert renamed["ticket_prefix"] == "DE"
+
+    first = task(client, devboard["id"], "First")
+    assert client.delete(f"/tasks/{first['id']}").status_code == 204
+    assert task(client, devboard["id"], "Second")["ticket_id"] == "DE-2"
 
 
 def test_validation_and_mass_assignment(client):

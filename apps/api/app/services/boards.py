@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models import Project, Task, utcnow
 from app.repositories.projects import owned_project, owned_task, project_tasks
 from app.schemas import ProjectCreate, ProjectUpdate, TaskCreate, TaskUpdate
+from app.services.tickets import project_ticket_prefix
 
 
 def list_projects(db: Session, user: UUID, archived: bool):
@@ -20,7 +21,11 @@ def list_projects(db: Session, user: UUID, archived: bool):
 
 
 def create_project(db: Session, user: UUID, data: ProjectCreate):
-    project = Project(owner_id=user, **data.model_dump())
+    project = Project(
+        owner_id=user,
+        ticket_prefix=project_ticket_prefix(db, user, data.name),
+        **data.model_dump(),
+    )
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -60,8 +65,11 @@ def create_task(db: Session, user: UUID, project_id: UUID, data: TaskCreate):
     task = Task(
         project_id=project_id,
         position=sum(t.status == data.status for t in tasks),
+        ticket_number=project.next_ticket_number,
+        ticket_id=f"{project.ticket_prefix}-{project.next_ticket_number}",
         **data.model_dump(),
     )
+    project.next_ticket_number += 1
     db.add(task)
     project.updated_at = utcnow()
     db.commit()

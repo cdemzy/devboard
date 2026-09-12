@@ -38,6 +38,7 @@ class ProjectOut(ProjectCreate):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     owner_id: UUID
+    ticket_prefix: str
     archived: bool
     created_at: datetime
     updated_at: datetime
@@ -68,5 +69,7 @@ class TaskOut(TaskCreate):
     id: UUID
     project_id: UUID
     position: int
+    ticket_number: int
+    ticket_id: str
     created_at: datetime
     updated_at: datetime
