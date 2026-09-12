@@ -5,6 +5,7 @@ import { LoaderCircle, Minimize2, Trash2 } from "lucide-react";
 import type { Priority, Project, Status, Task, TaskInput } from "@/lib/types";
 import { statusLabels, statuses } from "@/lib/types";
 import { Button } from "./ui/button";
+import { Tooltip } from "./ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 
 function capitalizeFirst(value: string) {
@@ -118,8 +119,8 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
       <DialogContent hideClose className="h-[80vh] w-[80vw] max-w-none">
         <DialogTitle className="text-lg font-semibold">{currentTask ? "Task details" : "New task"}</DialogTitle>
         <div className="absolute right-4 top-4 flex items-center gap-1">
-          {currentTask && remove && <Button type="button" variant="ghost" size="icon" className="text-rose-300" onClick={() => remove(currentTask)} disabled={busy} aria-label="Delete task" title="Delete task"><Trash2 size={15} /></Button>}
-          <Button type="button" variant="ghost" size="icon" onClick={minimize} aria-label="Minimize task" title="Minimize task"><Minimize2 size={16} /></Button>
+          {currentTask && remove && <Tooltip label="Delete"><Button type="button" variant="ghost" size="icon" className="text-rose-300" onClick={() => remove(currentTask)} disabled={busy} aria-label="Delete task"><Trash2 size={15} /></Button></Tooltip>}
+          <Tooltip label="Minimize"><Button type="button" variant="ghost" size="icon" onClick={minimize} aria-label="Minimize task"><Minimize2 size={16} /></Button></Tooltip>
         </div>
         <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">{currentTask ? "Update the details and keep work moving." : "Start with a clear next step."}</DialogDescription>
         <div className="space-y-4">

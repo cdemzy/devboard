@@ -31,6 +31,7 @@ import {
 import { columnTasks } from "@/lib/board";
 import { statuses, statusLabels, type Status, type Task } from "@/lib/types";
 import { Button } from "./ui/button";
+import { Tooltip } from "./ui/tooltip";
 const statusIcons = {
   todo: CircleDashed,
   in_progress: Circle,
@@ -84,28 +85,32 @@ function TaskCard({
             {task.title}
           </span>
         </button>
-        <button
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            remove(task);
-          }}
-          disabled={disabled}
-          aria-label={`Delete ${task.ticket_id}`}
-          className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-950/40 hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"
-        >
-          <Trash2 size={14} />
-        </button>
-        <button
-          {...attributes}
-          {...listeners}
-          disabled={disabled}
-          onClick={(event) => event.stopPropagation()}
-          aria-label={`Move ${task.title}`}
-          className="touch-none rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:ring-2 cursor-grab"
-        >
-          <GripVertical size={15} />
-        </button>
+        <Tooltip label="Delete">
+          <button
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              remove(task);
+            }}
+            disabled={disabled}
+            aria-label={`Delete ${task.ticket_id}`}
+            className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-950/40 hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"
+          >
+            <Trash2 size={14} />
+          </button>
+        </Tooltip>
+        <Tooltip label="Drag">
+          <button
+            {...attributes}
+            {...listeners}
+            disabled={disabled}
+            onClick={(event) => event.stopPropagation()}
+            aria-label={`Move ${task.title}`}
+            className="touch-none cursor-grab rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:ring-2"
+          >
+            <GripVertical size={15} />
+          </button>
+        </Tooltip>
       </div>
       <div className="mt-4 flex items-center justify-between text-muted-foreground">
         <span
@@ -115,7 +120,9 @@ function TaskCard({
           {task.priority}
         </span>
         {task.description && (
-          <AlignLeft size={13} aria-label="Has description" />
+          <Tooltip label="Description">
+            <AlignLeft size={13} aria-label="Has description" />
+          </Tooltip>
         )}
       </div>
     </article>
@@ -157,16 +164,18 @@ function Column({
         />
         <h2 className="text-xs font-semibold">{statusLabels[status]}</h2>
         <span className="text-xs text-muted-foreground">{tasks.length}</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="ml-auto"
-          aria-label={`Add task to ${statusLabels[status]}`}
-          disabled={disabled}
-          onClick={() => create(status)}
-        >
-          <Plus size={15} />
-        </Button>
+        <Tooltip label="Add">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto"
+            aria-label={`Add task to ${statusLabels[status]}`}
+            disabled={disabled}
+            onClick={() => create(status)}
+          >
+            <Plus size={15} />
+          </Button>
+        </Tooltip>
       </header>
       <SortableContext
         items={tasks.map((task) => task.id)}

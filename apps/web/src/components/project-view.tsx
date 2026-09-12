@@ -13,6 +13,7 @@ import { moveTask } from "@/lib/board";
 import type { Project, Status, Task } from "@/lib/types";
 import { Button } from "./ui/button";
 import { ConfirmDialog } from "./ui/confirm-dialog";
+import { Tooltip } from "./ui/tooltip";
 import { ProjectEditor, TaskEditor } from "./editors";
 import { KanbanBoard } from "./kanban-board";
 export function ProjectView({
@@ -27,6 +28,7 @@ export function ProjectView({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [activity, setActivity] = useState("Saving...");
   const moving = useRef(false);
   const [error, setError] = useState("");
   const [editProject, setEditProject] = useState(false);
@@ -58,8 +60,9 @@ export function ProjectView({
       alive = false;
     };
   }, [project.id]);
-  async function action(work: () => Promise<void>) {
+  async function action(work: () => Promise<void>, label = "Saving...") {
     setBusy(true);
+    setActivity(label);
     setError("");
     try {
       await work();
@@ -75,6 +78,7 @@ export function ProjectView({
     if (moving.current || busy) return;
     moving.current = true;
     setBusy(true);
+    setActivity("Moving...");
     setError("");
     const previous = tasks;
     setTasks(moveTask(tasks, id, status, position));
@@ -119,47 +123,53 @@ export function ProjectView({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Edit project"
-              disabled={busy}
-              onClick={() => setEditProject(true)}
-            >
-              <Pencil size={15} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={
-                project.archived ? "Restore project" : "Archive project"
-              }
-              disabled={busy}
+            <Tooltip label="Edit">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Edit project"
+                disabled={busy}
+                onClick={() => setEditProject(true)}
+              >
+                <Pencil size={15} />
+              </Button>
+            </Tooltip>
+            <Tooltip label={project.archived ? "Restore" : "Archive"}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={
+                  project.archived ? "Restore project" : "Archive project"
+                }
+                disabled={busy}
               onClick={() =>
                 void action(async () => {
                   await api(
-                    `/projects/${project.id}`,
-                    json("PATCH", { archived: !project.archived }),
+                      `/projects/${project.id}`,
+                      json("PATCH", { archived: !project.archived }),
                   );
                   await refresh();
-                })
-              }
-            >
-              {project.archived ? (
-                <ArrowLeft size={15} />
-              ) : (
-                <Archive size={15} />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete project"
-              disabled={busy}
-              onClick={() => setConfirmProjectDelete(true)}
-            >
-              <Trash2 size={15} />
-            </Button>
+                }, project.archived ? "Restoring..." : "Archiving...")
+                }
+              >
+                {project.archived ? (
+                  <ArrowLeft size={15} />
+                ) : (
+                  <Archive size={15} />
+                )}
+              </Button>
+            </Tooltip>
+            <Tooltip label="Delete">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Delete project"
+                disabled={busy}
+                onClick={() => setConfirmProjectDelete(true)}
+              >
+                <Trash2 size={15} />
+              </Button>
+            </Tooltip>
             {!project.archived && (
               <Button
                 className="ml-3"
@@ -179,7 +189,7 @@ export function ProjectView({
           </span>
           <span className="text-xs text-muted-foreground" aria-live="polite">
             {busy
-              ? "Saving..."
+              ? activity
               : `${tasks.length} tasks · ${completed} completed`}
           </span>
         </div>
