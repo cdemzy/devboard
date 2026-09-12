@@ -66,7 +66,7 @@ function TaskCard({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       onClick={() => edit(task)}
-      className={`group cursor-pointer rounded-lg border border-border bg-[#202126] p-3 shadow-sm ${isDragging ? "z-20 opacity-50" : "hover:border-[#454650]"}`}
+      className={`group cursor-pointer rounded-lg border border-border bg-[#161b22] p-3 shadow-sm ${isDragging ? "z-20 opacity-50" : "hover:border-[#484f58]"}`}
     >
       <div className="flex items-start gap-1">
         <button
@@ -149,7 +149,7 @@ function Column({
     <section
       ref={setNodeRef}
       aria-label={statusLabels[status]}
-      className={`min-h-72 min-w-65 flex-1 rounded-lg p-2 ${isOver ? "bg-primary/8" : "bg-[#17181c]"}`}
+      className={`min-h-72 min-w-65 flex-1 rounded-lg p-2 ${isOver ? "bg-primary/8" : "bg-[#0d1117]"}`}
     >
       <header className="mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon

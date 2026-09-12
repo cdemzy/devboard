@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { Archive, ChevronDown, FolderKanban, Layers3, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, json } from "@/lib/api";
@@ -82,8 +82,8 @@ export function Workspace({ email }: { email: string }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex shrink-0 flex-col border-b border-border bg-[#101114] md:sticky md:top-0 md:h-screen md:w-60 md:border-r md:border-b-0">
-        <div className="flex items-center gap-2.5 px-5 py-6 text-base font-semibold tracking-tight"><Layers3 size={22} className="text-primary" />DevBoard<span className="ml-auto rounded border border-border px-1.5 py-0.5 text-[9px] font-normal tracking-wide text-muted-foreground">PERSONAL</span></div>
+      <aside className="flex shrink-0 flex-col border-b border-border bg-[#161b22] md:sticky md:top-0 md:h-screen md:w-60 md:border-r md:border-b-0">
+        <div className="flex items-center gap-2.5 px-5 py-6 text-base font-semibold tracking-tight"><Layers3 size={22} className="text-primary" />DevBoard</div>
         <div className="px-3 pb-4">
           <button onClick={() => void load()} className="flex w-full items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-foreground"><FolderKanban size={16} />Projects</button>
           <button
@@ -94,7 +94,15 @@ export function Workspace({ email }: { email: string }) {
             <Archive size={16} />Archived
             {archivedProjects.length > 0 && <ChevronDown size={15} className={`ml-auto transition-transform ${archivesOpen ? "rotate-180" : ""}`} />}
           </button>
-          {archivesOpen && (
+          <AnimatePresence initial={false}>
+            {archivesOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0, y: -6 }}
+              animate={{ height: "auto", opacity: 1, y: 0 }}
+              exit={{ height: 0, opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
             <div className="mt-1 space-y-1 border-l border-border pl-2">
               {archiveLoading ? <p className="px-2 py-2 text-xs text-muted-foreground">Loading…</p> : archivedProjects.length === 0 ? <p className="px-2 py-2 text-xs text-muted-foreground">No archived projects.</p> : archivedProjects.map((project) => (
                 <div key={project.id} className="flex items-center gap-1 rounded-md py-1 pl-2 pr-1 text-xs text-muted-foreground hover:bg-accent">
@@ -104,14 +112,16 @@ export function Workspace({ email }: { email: string }) {
                 </div>
               ))}
             </div>
-          )}
+            </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         <div className="flex items-center px-5 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"><ChevronDown size={12} className="mr-1" />Your projects<Tooltip label="Add"><Button variant="ghost" size="icon" className="ml-auto h-6 w-6" aria-label="Create project" onClick={() => setCreating(true)}><Plus size={14} /></Button></Tooltip></div>
         <nav aria-label="Projects" className="max-h-48 space-y-1 overflow-y-auto px-3 pb-4 md:max-h-none md:flex-1">
           {!loading && projects.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No projects yet.</p>}
-          {projects.map((project) => <button key={project.id} onClick={() => setActive(project.id)} aria-current={active === project.id ? "page" : undefined} className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[13px] ${active === project.id ? "bg-primary/12 text-[#c5bdff]" : "text-muted-foreground hover:bg-accent"}`}><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/15 text-[10px] font-semibold">{project.name.slice(0, 1).toUpperCase()}</span><span className="truncate">{project.name}</span></button>)}
+          {projects.map((project) => <button key={project.id} onClick={() => setActive(project.id)} aria-current={active === project.id ? "page" : undefined} className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[13px] ${active === project.id ? "bg-primary/15 text-[#58a6ff]" : "text-muted-foreground hover:bg-accent"}`}><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/15 text-[10px] font-semibold">{project.name.slice(0, 1).toUpperCase()}</span><span className="truncate">{project.name}</span></button>)}
         </nav>
-        <div className="flex items-center gap-2 border-t border-border p-4"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#31303e] text-xs">{email.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{email}</span><Tooltip label="Log out"><Button variant="ghost" size="icon" aria-label="Log out" onClick={async () => { try { const { error } = await getSupabase().auth.signOut(); if (error) throw error; } catch (error) { setError(error instanceof Error ? error.message : "Unable to log out."); } }}><LogOut size={15} /></Button></Tooltip></div>
+        <div className="flex items-center gap-2 border-t border-border p-4"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#30363d] text-xs">{email.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{email}</span><Tooltip label="Log out"><Button variant="ghost" size="icon" aria-label="Log out" onClick={async () => { try { const { error } = await getSupabase().auth.signOut(); if (error) throw error; } catch (error) { setError(error instanceof Error ? error.message : "Unable to log out."); } }}><LogOut size={15} /></Button></Tooltip></div>
       </aside>
       <main className="flex min-h-screen min-w-0 flex-1 flex-col">
         {error && <div role="alert" className="m-6 flex items-center gap-4 rounded-lg border border-rose-900 bg-rose-950/20 p-4 text-rose-200">{error}<Button variant="outline" onClick={() => void load()}>Retry</Button></div>}

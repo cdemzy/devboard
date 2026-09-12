@@ -1,14 +1,14 @@
 @import "tailwindcss";
 @theme inline {
-  --color-background: #141518;
-  --color-foreground: #ececef;
-  --color-primary: #8273ed;
+  --color-background: #0d1117;
+  --color-foreground: #f0f6fc;
+  --color-primary: #2f81f7;
   --color-primary-foreground: #ffffff;
-  --color-accent: #28292f;
-  --color-border: #2b2c33;
-  --color-muted-foreground: #999aa7;
-  --color-destructive: #c44d61;
-  --color-ring: #9d90ff;
+  --color-accent: #21262d;
+  --color-border: #30363d;
+  --color-muted-foreground: #8b949e;
+  --color-destructive: #f85149;
+  --color-ring: #58a6ff;
 }
 * {
   box-sizing: border-box;
@@ -32,7 +32,7 @@ select {
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: #1c1d22;
+  background: #0d1117;
   padding: 9px 11px;
   color: var(--color-foreground);
 }
@@ -55,5 +55,5 @@ select {
   color-scheme: dark;
 }
 ::selection {
-  background: #8273ed55;
+  background: #1f6feb66;
 }
