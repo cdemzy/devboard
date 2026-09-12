@@ -236,11 +236,7 @@ export function ProjectView({
             move={(...args) => void move(...args)}
           />
         )}
-        <p className="pb-6 text-[11px] text-muted-foreground">
-          {project.archived
-            ? "Restore this project to change its tasks."
-            : "Use the task handle to drag. With a keyboard, press Space, use arrow keys, then Space to drop."}
-        </p>
+        {project.archived && <p className="pb-6 text-[11px] text-muted-foreground">Restore this project to change its tasks.</p>}
       </div>
       {editProject && (
         <ProjectEditor

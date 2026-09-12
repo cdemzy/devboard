@@ -1,4 +1,6 @@
 "use client";
+import { useState } from "react";
+import { motion } from "motion/react";
 import {
   DndContext,
   PointerSensor,
@@ -6,7 +8,10 @@ import {
   useSensor,
   useSensors,
   useDroppable,
+  useDndContext,
+  DragOverlay,
   closestCorners,
+  pointerWithin,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -15,12 +20,10 @@ import {
   verticalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   Circle,
   CircleDashed,
   CircleCheck,
-  GripVertical,
   Plus,
   AlignLeft,
   SignalHigh,
@@ -37,6 +40,12 @@ const statusIcons = {
   in_progress: Circle,
   done: CircleCheck,
 };
+
+function collisionDetectionStrategy(...args: Parameters<typeof pointerWithin>) {
+  const pointerCollisions = pointerWithin(...args);
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCorners(...args);
+}
+
 function TaskCard({
   task,
   edit,
@@ -48,12 +57,11 @@ function TaskCard({
   remove: (task: Task) => void;
   disabled: boolean;
 }) {
+  const { active, over } = useDndContext();
   const {
     attributes,
     listeners,
     setNodeRef,
-    transform,
-    transition,
     isDragging,
   } = useSortable({ id: task.id, disabled });
   const PriorityIcon = {
@@ -61,12 +69,16 @@ function TaskCard({
     medium: SignalMedium,
     high: SignalHigh,
   }[task.priority];
+  const isDropTarget = active?.id !== task.id && over?.id === task.id;
   return (
-    <article
+    <motion.article
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      layout="position"
+      transition={{ layout: { duration: 0.22, ease: "easeOut" } }}
       onClick={() => edit(task)}
-      className={`group cursor-pointer rounded-lg border border-border bg-[#161b22] p-3 shadow-sm ${isDragging ? "z-20 opacity-50" : "hover:border-[#484f58]"}`}
+      {...attributes}
+      {...listeners}
+      className={`group relative touch-none rounded-lg border border-border bg-[#161b22] p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${disabled ? "cursor-default" : "cursor-grab active:scale-[0.98] active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? "after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full after:bg-primary after:shadow-[0_0_8px_rgb(47_129_247_/_0.9)]" : ""}`}
     >
       <div className="flex items-start gap-1">
         <button
@@ -99,18 +111,6 @@ function TaskCard({
             <Trash2 size={14} />
           </button>
         </Tooltip>
-        <Tooltip label="Drag">
-          <button
-            {...attributes}
-            {...listeners}
-            disabled={disabled}
-            onClick={(event) => event.stopPropagation()}
-            aria-label={`Move ${task.title}`}
-            className="touch-none cursor-grab rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:ring-2"
-          >
-            <GripVertical size={15} />
-          </button>
-        </Tooltip>
       </div>
       <div className="mt-4 flex items-center justify-between text-muted-foreground">
         <span
@@ -125,7 +125,25 @@ function TaskCard({
           </Tooltip>
         )}
       </div>
-    </article>
+    </motion.article>
+  );
+}
+
+function TaskDragPreview({ task }: { task: Task }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96, y: 4 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 520, damping: 30 }}
+      className="w-72 rotate-[1deg] rounded-lg border border-primary/60 bg-[#161b22] p-3 shadow-xl"
+    >
+      <span className="mb-1 block text-[10px] font-medium tracking-wide text-primary">
+        {task.ticket_id}
+      </span>
+      <span className="block wrap-break-word text-[13px] font-medium leading-5">
+        {task.title}
+      </span>
+    </motion.div>
   );
 }
 function Column({
@@ -144,12 +162,14 @@ function Column({
   disabled: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled });
+  const { over } = useDndContext();
   const Icon = statusIcons[status];
+  const containsOverTask = tasks.some((task) => task.id === over?.id);
   return (
     <section
       ref={setNodeRef}
       aria-label={statusLabels[status]}
-      className={`min-h-72 min-w-65 flex-1 rounded-lg p-2 ${isOver ? "bg-primary/8" : "bg-[#0d1117]"}`}
+      className={`group/column min-h-[calc(100dvh-15.75rem)] min-w-0 rounded-lg border border-border bg-[#0d1117] p-2 shadow-sm transition-all duration-150 ${isOver || containsOverTask ? "bg-primary/12 ring-1 ring-inset ring-primary/60 shadow-[0_0_24px_rgb(47_129_247_/_0.14)]" : "hover:border-[#484f58]"}`}
     >
       <header className="mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon
@@ -193,6 +213,7 @@ function Column({
           ))}
         </div>
       </SortableContext>
+      {isOver && tasks.length > 0 && <div aria-hidden="true" className="mx-2 mt-3 h-0.5 rounded-full bg-primary shadow-[0_0_8px_rgb(47_129_247_/_0.9)]" />}
       {tasks.length === 0 && (
         <p className="rounded-lg border border-dashed border-border px-4 py-9 text-center text-xs text-muted-foreground">
           No tasks yet
@@ -201,7 +222,7 @@ function Column({
       <Button
         variant="ghost"
         size="sm"
-        className="mt-2 w-full justify-start text-muted-foreground"
+        className="mt-2 w-full justify-center text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 focus-visible:opacity-100"
         disabled={disabled}
         onClick={() => create(status)}
       >
@@ -226,8 +247,9 @@ export function KanbanBoard({
   move: (id: string, status: Status, position: number) => void;
   disabled: boolean;
 }) {
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -244,17 +266,22 @@ export function KanbanBoard({
       String(active.id),
       status,
       targetTask
-        ? column.findIndex((task) => task.id === targetTask.id)
+        ? column.findIndex((task) => task.id === targetTask.id) + 1
         : column.filter((task) => task.id !== active.id).length,
     );
   }
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragEnd={onDragEnd}
+      collisionDetection={collisionDetectionStrategy}
+      onDragStart={({ active }) => setActiveTask(tasks.find((task) => task.id === active.id) ?? null)}
+      onDragCancel={() => setActiveTask(null)}
+      onDragEnd={(event) => {
+        onDragEnd(event);
+        setActiveTask(null);
+      }}
     >
-      <div className="flex items-start gap-4 overflow-x-auto pb-6">
+      <div className="grid grid-cols-1 gap-4 pb-6 md:grid-cols-3">
         <>
           {statuses.map((status) => (
             <Column
@@ -269,6 +296,9 @@ export function KanbanBoard({
           ))}
         </>
       </div>
+      <DragOverlay dropAnimation={null}>
+        {activeTask ? <TaskDragPreview task={activeTask} /> : null}
+      </DragOverlay>
     </DndContext>
   );
 }

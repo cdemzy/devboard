@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircle, Minimize2, Trash2, X } from "lucide-react";
+import { LayersPlus, LoaderCircle, Minimize2, Trash2, X } from "lucide-react";
 import type { Priority, Project, Status, Task, TaskInput } from "@/lib/types";
 import { statusLabels, statuses } from "@/lib/types";
 import { Button } from "./ui/button";
@@ -55,7 +55,7 @@ export function ProjectEditor({ project, close, save }: {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }}>
-      <DialogContent onPointerDownOutside={(event) => event.preventDefault()}>
+      <DialogContent className="max-w-xl p-7">
         <DialogTitle className="text-lg font-semibold">{project ? "Edit project" : "New project"}</DialogTitle>
         <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">Give your work a place to take shape.</DialogDescription>
         <form className="space-y-4" onSubmit={async (event) => {
@@ -84,8 +84,7 @@ export function ProjectEditor({ project, close, save }: {
           </div>
           {error && <p role="alert" className="text-rose-300">{error}</p>}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={busy}>Cancel</Button>
-            <Button disabled={busy}>{busy ? "Saving…" : project ? "Save changes" : "Create project"}</Button>
+            {project ? <Button disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button> : <Tooltip label="Create project"><Button size="icon" aria-label="Create project" disabled={busy}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <LayersPlus size={17} />}</Button></Tooltip>}
           </div>
         </form>
       </DialogContent>
