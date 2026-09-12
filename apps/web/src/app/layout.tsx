@@ -13,7 +13,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
-        <Toaster position="bottom-right" theme="dark" richColors />
+        <Toaster position="top-center" theme="dark" richColors />
         <Analytics />
       </body>
     </html>

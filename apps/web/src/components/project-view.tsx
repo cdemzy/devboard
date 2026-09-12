@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Pencil,
   Plus,
+  RefreshCw,
   RotateCcw,
   Trash2,
 } from "lucide-react";
@@ -20,6 +21,16 @@ import { Tooltip } from "./ui/tooltip";
 import { SectionLoader } from "./ui/section-loader";
 import { ProjectEditor, TaskEditor } from "./editors";
 import { KanbanBoard } from "./kanban-board";
+
+const boardErrorToastId = "board-error";
+
+function reportBoardError(error: unknown, fallback: string, retry?: () => void) {
+  toast.error(error instanceof Error ? error.message : fallback, {
+    id: boardErrorToastId,
+    duration: Infinity,
+    ...(retry ? { action: { label: "Reload board", onClick: retry } } : {}),
+  });
+}
 export function ProjectView({
   project,
   update,
@@ -35,9 +46,7 @@ export function ProjectView({
   const [archivedTasksLoading, setArchivedTasksLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [activity, setActivity] = useState("Saving...");
   const moving = useRef(false);
-  const [error, setError] = useState("");
   const [editProject, setEditProject] = useState(false);
   const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(
     null,
@@ -45,51 +54,48 @@ export function ProjectView({
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [confirmProjectDelete, setConfirmProjectDelete] = useState(false);
   const loadTasks = useCallback(async () => {
-    const result = await api<Task[]>(`/projects/${project.id}/tasks`);
-    setTasks(result);
+    try {
+      const result = await api<Task[]>(`/projects/${project.id}/tasks`);
+      setTasks(result);
+      toast.dismiss(boardErrorToastId);
+    } catch (error) {
+      reportBoardError(error, "Unable to load tasks.", () => void loadTasks());
+      throw error;
+    }
   }, [project.id]);
   const loadArchivedTasks = useCallback(async () => {
     setArchivedTasksLoading(true);
     try {
       setArchivedTasks(await api<Task[]>(`/projects/${project.id}/tasks?archived=true`));
+      toast.dismiss(boardErrorToastId);
+    } catch (error) {
+      reportBoardError(error, "Unable to load archived tasks.", () => void loadArchivedTasks());
+      throw error;
     } finally {
       setArchivedTasksLoading(false);
     }
   }, [project.id]);
   useEffect(() => {
     let alive = true;
-    api<Task[]>(`/projects/${project.id}/tasks`)
-      .then((result) => {
-        if (alive) setTasks(result);
-      })
-      .catch((error) => {
-        if (alive)
-          setError(
-            error instanceof Error ? error.message : "Unable to load tasks.",
-          );
-      })
+    loadTasks().catch(() => undefined)
       .finally(() => {
         if (alive) setLoading(false);
       });
     return () => {
       alive = false;
     };
-  }, [project.id]);
+  }, [loadTasks]);
   async function action(
     work: () => Promise<void>,
     label = "Saving...",
     successMessage?: string,
   ) {
     setBusy(true);
-    setActivity(label);
-    setError("");
     try {
       await work();
       if (successMessage) toast.success(successMessage);
     } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Something went wrong.",
-      );
+      reportBoardError(error, "Something went wrong.");
     } finally {
       setBusy(false);
     }
@@ -98,8 +104,6 @@ export function ProjectView({
     if (moving.current || busy) return;
     moving.current = true;
     setBusy(true);
-    setActivity("Moving...");
-    setError("");
     const previous = tasks;
     setTasks(moveTask(tasks, id, status, position));
     try {
@@ -109,11 +113,10 @@ export function ProjectView({
           json("POST", { status, position }),
         ),
       );
+      toast.dismiss(boardErrorToastId);
     } catch (error) {
       setTasks(previous);
-      setError(
-        `${error instanceof Error ? error.message : "Move failed."} The board has been restored; retry or reload to check saved state.`,
-      );
+      reportBoardError(error, "Move failed. The board has been restored; reload to check saved state.", () => void loadTasks());
     } finally {
       moving.current = false;
       setBusy(false);
@@ -220,33 +223,9 @@ export function ProjectView({
           </div>
         </header>
         <div className="mb-5 flex items-center justify-between border-b border-border pb-3">
-          <span className="flex items-center gap-2 text-xs font-medium">
-            <LayoutDashboard size={14} className="text-primary" />
-            Board
-          </span>
-          <Tooltip label="Archived tasks"><Button variant="ghost" size="sm" disabled={busy} onClick={() => { const nextOpen = !archivedTasksOpen; setArchivedTasksOpen(nextOpen); if (nextOpen) void loadArchivedTasks(); }}><Archive size={14} />Archived tasks</Button></Tooltip>
-          <span className="text-xs text-muted-foreground" aria-live="polite">
-            {busy
-              ? activity
-              : `${tasks.length} tasks · ${completed} completed`}
-          </span>
+          <div className="flex items-center gap-1"><span className="flex items-center gap-2 text-xs font-medium"><LayoutDashboard size={14} className="text-primary" />Board</span><Tooltip label="Reload board"><Button variant="ghost" size="icon" aria-label="Reload board" disabled={busy} onClick={() => void loadTasks()}><RefreshCw size={14} /></Button></Tooltip></div>
+          <div className="flex items-center gap-3"><Tooltip label="Archived tasks"><Button variant="ghost" size="sm" disabled={busy} onClick={() => { const nextOpen = !archivedTasksOpen; setArchivedTasksOpen(nextOpen); if (nextOpen) void loadArchivedTasks(); }}><Archive size={14} />Archived tasks</Button></Tooltip><span className="text-xs text-muted-foreground" aria-live="polite">{`${tasks.length} tasks · ${completed} completed`}</span></div>
         </div>
-        {error && (
-          <div
-            role="alert"
-            className="mb-5 flex flex-wrap items-center gap-3 rounded-md border border-rose-900 bg-rose-950/20 p-3 text-sm text-rose-200"
-          >
-            {error}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => void action(loadTasks)}
-            >
-              Reload board
-            </Button>
-          </div>
-        )}
         {archivedTasksOpen && <section className="mb-5 rounded-lg border border-border bg-[#161b22] p-3"><div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-semibold"><Archive size={15} className="text-muted-foreground" />Archived tasks</h2><Button variant="ghost" size="sm" onClick={() => setArchivedTasksOpen(false)}>Close</Button></div>{archivedTasksLoading ? <p className="text-sm text-muted-foreground">Loading archived tasks…</p> : archivedTasks.length === 0 ? <p className="text-sm text-muted-foreground">No archived tasks.</p> : <div className="space-y-2">{archivedTasks.map((task) => <div key={task.id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3"><div className="min-w-0 flex-1"><span className="text-xs font-medium text-primary">{task.ticket_id}</span><p className="truncate text-sm font-medium">{task.title}</p></div><Tooltip label="Restore"><Button variant="ghost" size="icon" aria-label={`Restore ${task.ticket_id}`} disabled={busy || project.archived} onClick={() => restoreTask(task)}><RotateCcw size={15} /></Button></Tooltip><Tooltip label="Delete permanently"><Button variant="ghost" size="icon" aria-label={`Delete ${task.ticket_id}`} disabled={busy} className="text-rose-300" onClick={() => setTaskToDelete(task)}><Trash2 size={15} /></Button></Tooltip></div>)}</div>}</section>}
         {loading ? (
           <SectionLoader
@@ -300,11 +279,7 @@ export function ProjectView({
                 : `/projects/${project.id}/tasks`,
               json(taskId ? "PATCH" : "POST", data),
             );
-            await loadTasks().catch(() =>
-              setError(
-                "Changes were saved, but the board could not reload. Use Reload board to see the saved state.",
-              ),
-            );
+            await loadTasks().catch(() => undefined);
             return saved;
           }}
         />
