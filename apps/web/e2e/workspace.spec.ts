@@ -171,7 +171,7 @@ test("account flow, project and task CRUD, drag persistence, rollback, and logou
     .toBe(true);
   await page.getByRole("button", { name: "New task", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await page.getByRole("button", { name: "Minimize task", exact: true }).click();
   await page.screenshot({
     path: testInfo.outputPath("board-mobile.png"),
     fullPage: true,

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Check, Minimize2, Trash2, X } from "lucide-react";
 import type { Project, Task, TaskInput, Status, Priority } from "@/lib/types";
 import { statusLabels, statuses } from "@/lib/types";
 import { Button } from "./ui/button";
@@ -138,10 +139,22 @@ export function TaskEditor({
         if (!open && !busy) close();
       }}
     >
-      <DialogContent>
+      <DialogContent hideClose className="h-[80vh] w-[80vw] max-w-none">
         <DialogTitle className="text-lg font-semibold">
           {task ? "Task details" : "New task"}
         </DialogTitle>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4"
+          onClick={close}
+          disabled={busy}
+          aria-label="Minimize task"
+          title="Minimize task"
+        >
+          <Minimize2 size={16} />
+        </Button>
         <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">
           {task
             ? "Update the details and keep work moving."
@@ -226,11 +239,14 @@ export function TaskEditor({
               <Button
                 type="button"
                 variant="ghost"
+                size="icon"
                 className="text-rose-300"
                 disabled={busy}
                 onClick={() => void remove()}
+                aria-label="Delete task"
+                title="Delete task"
               >
-                Delete task
+                <Trash2 size={15} />
               </Button>
             ) : (
               <span />
@@ -239,13 +255,21 @@ export function TaskEditor({
               <Button
                 type="button"
                 variant="ghost"
+                size="icon"
                 onClick={close}
                 disabled={busy}
+                aria-label="Cancel"
+                title="Cancel"
               >
-                Cancel
+                <X size={16} />
               </Button>
-              <Button disabled={busy}>
-                {busy ? "Saving…" : task ? "Save changes" : "Create task"}
+              <Button
+                size="icon"
+                disabled={busy}
+                aria-label={task ? "Save changes" : "Create task"}
+                title={task ? "Save changes" : "Create task"}
+              >
+                <Check size={16} />
               </Button>
             </div>
           </div>
