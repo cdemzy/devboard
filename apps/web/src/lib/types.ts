@@ -12,6 +12,7 @@ export type Project = {
   name: string;
   ticket_prefix: string;
   description: string;
+  tags: string[];
   archived: boolean;
   created_at: string;
   updated_at: string;
