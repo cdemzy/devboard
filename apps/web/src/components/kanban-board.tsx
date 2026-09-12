@@ -24,6 +24,7 @@ import {
   Circle,
   CircleDashed,
   CircleCheck,
+  GripVertical,
   Plus,
   AlignLeft,
   SignalHigh,
@@ -90,27 +91,15 @@ function TaskCard({
           aria-label={task.title}
           className="min-w-0 flex-1 text-left focus-visible:outline-primary"
         >
-          <span className="mb-1 block text-[10px] font-medium tracking-wide text-primary">
+          <span className="mb-1 flex items-center gap-1 text-[10px] font-medium tracking-wide text-primary">
             {task.ticket_id}
+            {task.description && <Tooltip label="Description"><AlignLeft size={12} aria-label="Has description" /></Tooltip>}
           </span>
           <span className="block wrap-break-word first-letter:uppercase text-[13px] leading-5 font-medium">
             {task.title}
           </span>
         </button>
-        <Tooltip label="Delete">
-          <button
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              remove(task);
-            }}
-            disabled={disabled}
-            aria-label={`Delete ${task.ticket_id}`}
-            className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-950/40 hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"
-          >
-            <Trash2 size={14} />
-          </button>
-        </Tooltip>
+        <Tooltip label="Drag to move"><span className="pointer-events-none rounded p-1 text-muted-foreground"><GripVertical size={15} /></span></Tooltip>
       </div>
       <div className="mt-4 flex items-center justify-between text-muted-foreground">
         <span
@@ -119,11 +108,7 @@ function TaskCard({
           <PriorityIcon size={13} />
           {task.priority}
         </span>
-        {task.description && (
-          <Tooltip label="Description">
-            <AlignLeft size={13} aria-label="Has description" />
-          </Tooltip>
-        )}
+        <Tooltip label="Delete"><button onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); remove(task); }} disabled={disabled} aria-label={`Delete ${task.ticket_id}`} className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-950/40 hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"><Trash2 size={14} /></button></Tooltip>
       </div>
     </motion.article>
   );
