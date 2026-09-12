@@ -28,6 +28,11 @@ def list_projects(db: DB, user: User, archived: bool = False):
     return boards.list_projects(db, user, archived)
 
 
+@router.get("/project-tags", response_model=list[str])
+def list_project_tags(db: DB, user: User):
+    return boards.list_project_tags(db, user)
+
+
 @router.post("/projects", response_model=ProjectOut, status_code=201)
 def create_project(data: ProjectCreate, db: DB, user: User):
     return boards.create_project(db, user, data)

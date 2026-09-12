@@ -108,3 +108,9 @@ def test_archive_restore_and_cascade_delete(client):
     assert client.patch(f"/projects/{pid}", json={"archived": False}).status_code == 200
     assert client.delete(f"/projects/{pid}").status_code == 204
     assert client.get(f"/tasks/{tid}").status_code == 404
+
+
+def test_project_tags_are_reusable_per_owner(client):
+    client.post("/projects", json={"name": "One", "tags": ["Frontend", "Urgent"]})
+    client.post("/projects", json={"name": "Two", "tags": ["urgent", "Backend"]})
+    assert client.get("/project-tags").json() == ["Backend", "Frontend", "Urgent"]

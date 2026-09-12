@@ -20,6 +20,15 @@ def list_projects(db: Session, user: UUID, archived: bool):
     )
 
 
+def list_project_tags(db: Session, user: UUID):
+    tags = db.scalars(select(Project.tags).where(Project.owner_id == user)).all()
+    unique: dict[str, str] = {}
+    for project_tags in tags:
+        for tag in project_tags:
+            unique.setdefault(tag.casefold(), tag)
+    return sorted(unique.values(), key=str.lower)
+
+
 def create_project(db: Session, user: UUID, data: ProjectCreate):
     project = Project(
         owner_id=user,
