@@ -6,7 +6,7 @@ import type { Priority, Project, Status, Task, TaskInput } from "@/lib/types";
 import { statusLabels, statuses } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { api } from "@/lib/api";
 
 function capitalizeFirst(value: string) {
@@ -57,7 +57,6 @@ export function ProjectEditor({ project, close, save }: {
     <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }}>
       <DialogContent className="h-[80vh] w-[80vw] max-w-none p-7">
         <DialogTitle className="text-lg font-semibold">{project ? "Edit project" : "New project"}</DialogTitle>
-        <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">Give your work a place to take shape.</DialogDescription>
         <form className="space-y-4" onSubmit={async (event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
@@ -167,7 +166,6 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
           {currentTask && remove && <Tooltip label="Delete"><Button type="button" variant="ghost" size="icon" className="text-rose-300" onClick={() => remove(currentTask)} disabled={busy} aria-label="Delete task"><Trash2 size={15} /></Button></Tooltip>}
           <Tooltip label="Minimize"><Button type="button" variant="ghost" size="icon" onClick={minimize} aria-label="Minimize task"><Minimize2 size={16} /></Button></Tooltip>
         </div>
-        <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">{currentTask ? "Update the details and keep work moving." : "Start with a clear next step."}</DialogDescription>
         <div className="space-y-4">
           <label>Title<input name="title" value={draft.title} onChange={(event) => updateDraft({ title: capitalizeFirst(event.target.value) })} required maxLength={240} autoComplete="off" autoCapitalize="sentences" autoFocus placeholder="What needs to happen?" /></label>
           <label>Description<textarea name="description" value={draft.description} onChange={(event) => updateDraft({ description: event.target.value })} maxLength={10000} placeholder="Details, context, or acceptance criteria…" /></label>
