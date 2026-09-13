@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Archive, CircleUserRound, FolderKanban, Layers3, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ArrowLeft, CircleUserRound, FolderKanban, Layers3, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, json } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
@@ -25,6 +25,7 @@ export function Workspace({ email }: { email: string }) {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<"board" | "projects" | "archived">("board");
+  const [viewHistory, setViewHistory] = useState<Array<"board" | "projects" | "archived">>([]);
   const [accountOpen, setAccountOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,6 +69,21 @@ export function Workspace({ email }: { email: string }) {
     return () => { cancelled = true; };
   }, [load, loadArchived]);
   const project = projects.find((project) => project.id === active);
+  function navigate(next: "board" | "projects" | "archived") {
+    if (next === workspaceView) return;
+    setViewHistory((history) => [...history, workspaceView].slice(-10));
+    setWorkspaceView(next);
+    if (next === "projects") void load();
+    if (next === "archived") void loadArchived();
+  }
+  function goBack() {
+    const previous = viewHistory.at(-1);
+    if (!previous) return;
+    setViewHistory((history) => history.slice(0, -1));
+    setWorkspaceView(previous);
+    if (previous === "projects") void load();
+    if (previous === "archived") void loadArchived();
+  }
 
   async function restore(project: Project) {
     await api(`/projects/${project.id}`, json("PATCH", { archived: false }));
@@ -85,7 +101,7 @@ export function Workspace({ email }: { email: string }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <main className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="flex min-h-16 items-center gap-4 border-b border-border bg-[#161b22] px-5"><div className="flex items-center gap-2.5 text-base font-semibold tracking-tight"><Layers3 size={22} className="text-primary" />DevBoard</div><nav className="flex items-center gap-1"><button onClick={() => { setWorkspaceView("projects"); void load(); }} className={`rounded-md px-3 py-2 text-sm font-medium ${workspaceView === "projects" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><FolderKanban size={16} className="mr-2 inline" />Projects</button><button onClick={() => { setWorkspaceView("archived"); void loadArchived(); }} className={`rounded-md px-3 py-2 text-sm font-medium ${workspaceView === "archived" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><Archive size={16} className="mr-2 inline" />Archive</button></nav><div className="relative ml-auto"><Tooltip label="Account"><Button variant="ghost" size="icon" aria-label="Account" onClick={() => setAccountOpen((open) => !open)}><CircleUserRound size={20} /></Button></Tooltip><AnimatePresence>{accountOpen && <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }} className="absolute right-0 top-11 z-30 w-56 rounded-lg border border-border bg-[#161b22] p-2 shadow-xl"><p className="truncate px-2 py-2 text-xs text-muted-foreground">{email}</p><Button variant="ghost" size="sm" className="w-full justify-start" onClick={async () => { try { const { error } = await getSupabase().auth.signOut(); if (error) throw error; } catch (error) { setError(error instanceof Error ? error.message : "Unable to log out."); } }}><LogOut size={15} />Log out</Button></motion.div>}</AnimatePresence></div></header>
+        <header className="flex min-h-16 items-center gap-4 border-b border-border bg-[#161b22] px-5"><div className="flex items-center gap-2.5 text-base font-semibold tracking-tight"><Layers3 size={22} className="text-primary" />DevBoard</div>{viewHistory.length > 0 && <Tooltip label="Back"><Button variant="ghost" size="icon" aria-label="Back" onClick={goBack}><ArrowLeft size={18} /></Button></Tooltip>}<nav className="flex items-center gap-1"><button onClick={() => navigate("projects")} className={`rounded-md px-3 py-2 text-sm font-medium ${workspaceView === "projects" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><FolderKanban size={16} className="mr-2 inline" />Projects</button><button onClick={() => navigate("archived")} className={`rounded-md px-3 py-2 text-sm font-medium ${workspaceView === "archived" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><Archive size={16} className="mr-2 inline" />Archive</button></nav><div className="relative ml-auto"><Tooltip label="Account"><Button variant="ghost" size="icon" aria-label="Account" onClick={() => setAccountOpen((open) => !open)}><CircleUserRound size={20} /></Button></Tooltip><AnimatePresence>{accountOpen && <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }} className="absolute right-0 top-11 z-30 w-56 rounded-lg border border-border bg-[#161b22] p-2 shadow-xl"><p className="truncate px-2 py-2 text-xs text-muted-foreground">{email}</p><Button variant="ghost" size="sm" className="w-full justify-start" onClick={async () => { try { const { error } = await getSupabase().auth.signOut(); if (error) throw error; } catch (error) { setError(error instanceof Error ? error.message : "Unable to log out."); } }}><LogOut size={15} />Log out</Button></motion.div>}</AnimatePresence></div></header>
         {error && <div role="alert" className="m-6 flex items-center gap-4 rounded-lg border border-rose-900 bg-rose-950/20 p-4 text-rose-200">{error}<Button variant="outline" onClick={() => void load()}>Retry</Button></div>}
         {loading ? <SectionLoader icon={FolderKanban} label="Loading projects..." className="min-h-0 flex-1" /> : workspaceView === "projects" ? <motion.div key="projects" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}><ProjectGallery projects={projects} open={(selected) => { setActive(selected.id); setWorkspaceView("board"); }} create={() => setCreating(true)} /></motion.div> : workspaceView === "archived" ? <motion.div key="archive" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="p-6 md:p-8"><h1 className="mb-7 text-2xl font-semibold tracking-tight">Archived projects</h1>{archiveLoading ? <SectionLoader icon={Archive} label="Loading archived projects..." className="min-h-[calc(100dvh-14rem)]" /> : archivedProjects.length === 0 ? <div className="flex min-h-[calc(100dvh-14rem)] items-center justify-center text-sm text-muted-foreground">No archived projects.</div> : <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{archivedProjects.map((item) => <div key={item.id} className="rounded-lg border border-border bg-[#161b22] p-5"><h2 className="text-base font-semibold">{item.name}</h2><div className="mt-5 flex justify-end gap-1"><Button variant="ghost" size="icon" aria-label={`Restore ${item.name}`} onClick={() => void restore(item)}><RotateCcw size={15} /></Button><Button variant="ghost" size="icon" className="text-rose-300" aria-label={`Delete ${item.name}`} onClick={() => setArchivedToDelete(item)}><Trash2 size={15} /></Button></div></div>)}</div>}</motion.div> : <motion.div key="board" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>{project ? <ProjectView key={project.id} project={project} update={(updated) => setProjects((previous) => previous.map((project) => project.id === updated.id ? updated : project))} refresh={async () => { await Promise.all([load(), loadArchived()]); }} /> : <div className="flex min-h-[65vh] flex-col items-center justify-center p-8 text-center"><FolderKanban size={32} className="mb-5 text-primary" /><h1 className="text-xl font-semibold">Make room for your next idea</h1><p className="mb-6 mt-2 max-w-sm text-sm text-muted-foreground">Create a project, add a few tasks, and take it one step at a time.</p><Button onClick={() => setCreating(true)}><Plus size={15} />Create your first project</Button></div>}</motion.div>}
       </main>
