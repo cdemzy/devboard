@@ -41,6 +41,29 @@ const statusIcons = {
   in_progress: Circle,
   done: CircleCheck,
 };
+const statusStyles: Record<Status, { accent: string; state: string; ticket: string; active: string; drop: string }> = {
+  todo: {
+    accent: "text-[#6C5082]",
+    state: "border-[#6C5082]/35 bg-[#221D25]",
+    ticket: "border-[#6C5082]/45 bg-[#36293F]",
+    active: "ring-1 ring-inset ring-[#6C5082]/70",
+    drop: "bg-[#6C5082]",
+  },
+  in_progress: {
+    accent: "text-[#886826]",
+    state: "border-[#886826]/35 bg-[#23221A]",
+    ticket: "border-[#886826]/45 bg-[#373325]",
+    active: "ring-1 ring-inset ring-[#886826]/70",
+    drop: "bg-[#886826]",
+  },
+  done: {
+    accent: "text-[#386C4E]",
+    state: "border-[#386C4E]/35 bg-[#1B211D]",
+    ticket: "border-[#386C4E]/45 bg-[#24342B]",
+    active: "ring-1 ring-inset ring-[#386C4E]/70",
+    drop: "bg-[#386C4E]",
+  },
+};
 
 function collisionDetectionStrategy(...args: Parameters<typeof pointerWithin>) {
   const pointerCollisions = pointerWithin(...args);
@@ -70,6 +93,7 @@ function TaskCard({
     medium: SignalMedium,
     high: SignalHigh,
   }[task.priority];
+  const statusStyle = statusStyles[task.status];
   const isDropTarget = active?.id !== task.id && over?.id === task.id;
   return (
     <motion.article
@@ -79,7 +103,7 @@ function TaskCard({
       onClick={() => edit(task)}
       {...attributes}
       {...listeners}
-      className={`group relative min-h-24 touch-none rounded-lg border border-border bg-[#161b22] p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${disabled ? "cursor-default" : "cursor-grab active:scale-[0.98] active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? "after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full after:bg-primary after:shadow-[0_0_8px_rgb(47_129_247_/_0.9)]" : ""}`}
+      className={`group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:scale-[0.98] active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? `after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full ${statusStyle.drop}` : ""}`}
     >
       <div className="flex items-start gap-1">
         <button
@@ -91,7 +115,7 @@ function TaskCard({
           aria-label={task.title}
           className="min-w-0 flex-1 text-left focus-visible:outline-primary"
         >
-          <span className="mb-1 flex items-center gap-1 text-[10px] font-medium tracking-wide text-primary">
+          <span className={`mb-1 flex items-center gap-1 text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
             {task.ticket_id}
             {task.description && <Tooltip label="Description"><AlignLeft size={12} aria-label="Has description" /></Tooltip>}
           </span>
@@ -115,14 +139,15 @@ function TaskCard({
 }
 
 function TaskDragPreview({ task }: { task: Task }) {
+  const statusStyle = statusStyles[task.status];
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96, y: 4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 520, damping: 30 }}
-      className="w-72 rotate-[1deg] rounded-lg border border-primary/60 bg-[#161b22] p-3 shadow-xl"
+      className={`w-72 rotate-[1deg] rounded-lg border p-3 shadow-xl ${statusStyle.ticket}`}
     >
-      <span className="mb-1 block text-[10px] font-medium tracking-wide text-primary">
+      <span className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
         {task.ticket_id}
       </span>
       <span className="block wrap-break-word text-[13px] font-medium leading-5">
@@ -149,23 +174,18 @@ function Column({
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled });
   const { over } = useDndContext();
   const Icon = statusIcons[status];
+  const statusStyle = statusStyles[status];
   const containsOverTask = tasks.some((task) => task.id === over?.id);
   return (
     <section
       ref={setNodeRef}
       aria-label={statusLabels[status]}
-      className={`group/column min-h-[calc(100dvh-20rem)] min-w-0 rounded-lg border border-border bg-[#0d1117] p-2 shadow-sm transition-all duration-150 ${isOver || containsOverTask ? "bg-primary/12 ring-1 ring-inset ring-primary/60 shadow-[0_0_24px_rgb(47_129_247_/_0.14)]" : "hover:border-[#484f58]"}`}
+      className={`group/column min-h-[calc(100dvh-20rem)] min-w-0 rounded-lg border p-2 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
     >
       <header className="mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon
           size={15}
-          className={
-            status === "done"
-              ? "text-[#3fb950]"
-              : status === "in_progress"
-                ? "text-[#a3713f]"
-                : "text-[#a371f7]"
-          }
+          className={statusStyle.accent}
         />
         <h2 className="text-xs font-semibold">{statusLabels[status]}</h2>
         <span className="text-xs text-muted-foreground">{tasks.length}</span>
@@ -198,7 +218,7 @@ function Column({
           ))}
         </div>
       </SortableContext>
-      {isOver && tasks.length > 0 && <div aria-hidden="true" className="mx-2 mt-3 h-0.5 rounded-full bg-primary shadow-[0_0_8px_rgb(47_129_247_/_0.9)]" />}
+      {isOver && tasks.length > 0 && <div aria-hidden="true" className={`mx-2 mt-3 h-0.5 rounded-full ${statusStyle.drop}`} />}
       {tasks.length === 0 && (
         <p className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
           No tasks yet

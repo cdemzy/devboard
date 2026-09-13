@@ -20,7 +20,7 @@ export type Project = {
 export type ProjectTag = {
   id: string;
   name: string;
-  color: "default" | "gray" | "brown" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink" | "red";
+  color: "green" | "yellow" | "purple" | "orange" | "blue" | "pink" | "red" | "brown";
 };
 export type Task = {
   id: string;
