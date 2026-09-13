@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { Archive, ChevronDown, FolderKanban, Layers3, LogOut, PanelLeftClose, PanelLeftOpen, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { motion } from "motion/react";
+import { Archive, FolderKanban, Layers3, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, json } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
@@ -24,10 +24,8 @@ export function Workspace({ email }: { email: string }) {
   const [active, setActive] = useState<string | null>(null);
   const [archivesOpen, setArchivesOpen] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
-  const [archivesLoaded, setArchivesLoaded] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [archivedToDelete, setArchivedToDelete] = useState<Project | null>(null);
@@ -52,9 +50,7 @@ export function Workspace({ email }: { email: string }) {
     setArchiveLoading(true);
     try {
       setArchivedProjects(await api<Project[]>("/projects?archived=true"));
-      setArchivesLoaded(true);
     } catch (error) {
-      setArchivesLoaded(false);
       setError(error instanceof Error ? error.message : "Unable to load archived projects.");
     } finally {
       setArchiveLoading(false);
@@ -88,55 +84,8 @@ export function Workspace({ email }: { email: string }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className={`flex shrink-0 flex-col border-b border-border bg-[#161b22] transition-[width] duration-200 md:sticky md:top-0 md:h-screen md:border-r md:border-b-0 ${sidebarOpen ? "md:w-60" : "md:w-16"}`}>
-        <div className={`flex py-5 text-base font-semibold tracking-tight ${sidebarOpen ? "items-center gap-2.5 px-5" : "flex-col items-center gap-2 px-2"}`}>
-          <Layers3 size={22} className="shrink-0 text-primary" />
-          {sidebarOpen && <span className="min-w-0 flex-1 truncate">DevBoard</span>}
-          <Tooltip label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
-            <Button variant="ghost" size="icon" className="shrink-0" aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} onClick={() => setSidebarOpen((open) => !open)}>
-              {sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
-            </Button>
-          </Tooltip>
-        </div>
-        <AnimatePresence initial={false}>
-          {sidebarOpen && <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.16, ease: "easeOut" }} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="px-3 pb-4">
-          <button onClick={() => { setShowGallery(true); void load(); }} className="flex w-full items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-foreground"><FolderKanban size={16} />Projects</button>
-          <button
-            onClick={() => { const nextOpen = !archivesOpen; setArchivesOpen(nextOpen); if (nextOpen && !archivesLoaded) void loadArchived(); }}
-            className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
-            aria-expanded={archivesOpen}
-          >
-            <Archive size={16} />Archived
-            {archivedProjects.length > 0 && <ChevronDown size={15} className={`ml-auto transition-transform ${archivesOpen ? "rotate-180" : ""}`} />}
-          </button>
-          <AnimatePresence initial={false}>
-            {archivesOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0, y: -6 }}
-              animate={{ height: "auto", opacity: 1, y: 0 }}
-              exit={{ height: 0, opacity: 0, y: -6 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-            <div className="mt-1 space-y-1 border-l border-border pl-2">
-              {archiveLoading ? <p className="px-2 py-2 text-xs text-muted-foreground">Loading…</p> : archivedProjects.length === 0 ? <p className="px-2 py-2 text-xs text-muted-foreground">No archived projects.</p> : archivedProjects.map((project) => (
-                <div key={project.id} className="flex items-center gap-1 rounded-md py-1 pl-2 pr-1 text-xs text-muted-foreground hover:bg-accent">
-                  <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                  <Tooltip label="Restore"><Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Restore ${project.name}`} onClick={() => void restore(project)}><RotateCcw size={13} /></Button></Tooltip>
-                  <Tooltip label="Delete"><Button variant="ghost" size="icon" className="h-6 w-6 text-rose-300" aria-label={`Delete ${project.name}`} onClick={() => setArchivedToDelete(project)}><Trash2 size={13} /></Button></Tooltip>
-                </div>
-              ))}
-            </div>
-            </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className="flex items-center gap-2 border-t border-border p-4"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#30363d] text-xs">{email.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{email}</span><Tooltip label="Log out"><Button variant="ghost" size="icon" aria-label="Log out" onClick={async () => { try { const { error } = await getSupabase().auth.signOut(); if (error) throw error; } catch (error) { setError(error instanceof Error ? error.message : "Unable to log out."); } }}><LogOut size={15} /></Button></Tooltip></div>
-          </motion.div>}
-        </AnimatePresence>
-      </aside>
       <main className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="relative flex min-h-16 items-center gap-4 border-b border-border bg-[#161b22] px-5"><div className="flex items-center gap-2.5 text-base font-semibold tracking-tight"><Layers3 size={22} className="text-primary" />DevBoard</div><nav className="flex items-center gap-1"><button onClick={() => { setShowGallery(true); void load(); }} className={`rounded-md px-3 py-2 text-sm font-medium ${showGallery ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><FolderKanban size={16} className="mr-2 inline" />Projects</button><button onClick={() => { const nextOpen = !archivesOpen; setArchivesOpen(nextOpen); if (nextOpen) void loadArchived(); }} className={`rounded-md px-3 py-2 text-sm font-medium ${archivesOpen ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><Archive size={16} className="mr-2 inline" />Archived</button></nav><div className="ml-auto flex items-center gap-2"><span className="hidden text-xs text-muted-foreground sm:inline">{email}</span><Tooltip label="Log out"><Button variant="ghost" size="icon" aria-label="Log out" onClick={async () => { try { const { error } = await getSupabase().auth.signOut(); if (error) throw error; } catch (error) { setError(error instanceof Error ? error.message : "Unable to log out."); } }}><LogOut size={15} /></Button></Tooltip></div>{archivesOpen && <div className="absolute left-36 top-14 z-30 w-80 rounded-lg border border-border bg-[#161b22] p-2 shadow-xl">{archiveLoading ? <p className="px-2 py-2 text-xs text-muted-foreground">Loading…</p> : archivedProjects.length === 0 ? <p className="px-2 py-2 text-xs text-muted-foreground">No archived projects.</p> : archivedProjects.map((project) => <div key={project.id} className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"><span className="min-w-0 flex-1 truncate">{project.name}</span><Tooltip label="Restore"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Restore ${project.name}`} onClick={() => void restore(project)}><RotateCcw size={14} /></Button></Tooltip><Tooltip label="Delete"><Button variant="ghost" size="icon" className="h-7 w-7 text-rose-300" aria-label={`Delete ${project.name}`} onClick={() => setArchivedToDelete(project)}><Trash2 size={14} /></Button></Tooltip></div>)}</div>}</header>
         {error && <div role="alert" className="m-6 flex items-center gap-4 rounded-lg border border-rose-900 bg-rose-950/20 p-4 text-rose-200">{error}<Button variant="outline" onClick={() => void load()}>Retry</Button></div>}
         {!loading && showGallery && <ProjectGallery projects={projects} open={(selected) => { setActive(selected.id); setShowGallery(false); }} create={() => setCreating(true)} />}
         {loading ? <SectionLoader icon={FolderKanban} label="Loading projects..." className="min-h-0 flex-1" /> : !showGallery && <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>{project ? <ProjectView key={project.id} project={project} update={(updated) => setProjects((previous) => previous.map((project) => project.id === updated.id ? updated : project))} refresh={async () => { await Promise.all([load(), loadArchived()]); }} /> : <div className="flex min-h-[65vh] flex-col items-center justify-center p-8 text-center"><FolderKanban size={32} className="mb-5 text-primary" /><h1 className="text-xl font-semibold">Make room for your next idea</h1><p className="mb-6 mt-2 max-w-sm text-sm text-muted-foreground">Create a project, add a few tasks, and take it one step at a time.</p><Button onClick={() => setCreating(true)}><Plus size={15} />Create your first project</Button></div>}</motion.div>}
