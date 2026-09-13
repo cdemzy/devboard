@@ -50,7 +50,7 @@ class ProjectTag(Base):
     owner_id: Mapped[UUID] = mapped_column(Uuid, index=True)
     name: Mapped[str] = mapped_column(String(40))
     normalized_name: Mapped[str] = mapped_column(String(40))
-    color: Mapped[str] = mapped_column(String(16), default="default")
+    color: Mapped[str] = mapped_column(String(16), default="purple")
 
 
 class Task(Base):

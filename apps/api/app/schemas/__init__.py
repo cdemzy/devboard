@@ -10,7 +10,7 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=240)]
 Description = Annotated[str, StringConstraints(max_length=10000)]
 Tag = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
-TagColor = Literal["default", "gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"]
+TagColor = Literal["green", "yellow", "purple", "orange", "blue", "pink", "red", "brown"]
 
 
 class Input(BaseModel):
