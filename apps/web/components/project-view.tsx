@@ -98,32 +98,28 @@ export function ProjectView({
         }
         const activeTag = tagSuggestions.find((tag) => tag.id === tagMenuId);
         if (activeTag) void persistTagColor(activeTag);
+        void saveProjectDraft();
         setTagsOpen(false);
         setTagMenuId(null);
       }
     }
     document.addEventListener("pointerdown", closeTags);
     return () => document.removeEventListener("pointerdown", closeTags);
-  }, [tagMenuId, tagNameDraft, tagSuggestions]);
-  useEffect(() => {
+  }, [tagMenuId, tagNameDraft, tagSuggestions, saveProjectDraft]);
+  async function saveProjectDraft() {
     const name = projectDraft.name.trim() || "New Project";
     const unchanged = name === project.name && projectDraft.description === project.description
       && projectDraft.tags.length === project.tags.length
       && projectDraft.tags.every((tag, index) => tag === project.tags[index]);
     if (unchanged) return;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          update(await api<Project>(`/projects/${project.id}`, json("PATCH", { ...projectDraft, name })));
-          void loadTagSuggestions().catch(() => undefined);
-          toast.dismiss(boardErrorToastId);
-        } catch (error) {
-          reportBoardError(error, "Unable to save project changes.");
-        }
-      })();
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [project.id, project.name, project.description, project.tags, projectDraft, update, loadTagSuggestions]);
+    try {
+      update(await api<Project>(`/projects/${project.id}`, json("PATCH", { ...projectDraft, name })));
+      void loadTagSuggestions().catch(() => undefined);
+      toast.dismiss(boardErrorToastId);
+    } catch (error) {
+      reportBoardError(error, "Unable to save project changes.");
+    }
+  }
   const loadTasks = useCallback(async () => {
     try {
       const result = await api<Task[]>(`/projects/${project.id}/tasks`);
@@ -225,10 +221,7 @@ export function ProjectView({
     setTagInput("");
   }
   function saveFallbackProjectName() {
-    if (projectDraft.name.trim() || project.name === "New Project") return;
-    void api<Project>(`/projects/${project.id}`, json("PATCH", { ...projectDraft, name: "New Project" }))
-      .then(update)
-      .catch((error) => reportBoardError(error, "Unable to save project changes."));
+    void saveProjectDraft();
   }
   function updateTagColor(tag: ProjectTag, color: ProjectTag["color"]) {
     const pending = pendingTagColorsRef.current[tag.id];
@@ -330,7 +323,7 @@ export function ProjectView({
         <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0 max-w-3xl flex-1">
             <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="h-auto w-full !border-0 !bg-transparent px-0 py-0 !text-3xl !font-bold !leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none" />
-            <input value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} aria-label="Project description" maxLength={90} placeholder="Description" className="mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
+            <input value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} onBlur={() => void saveProjectDraft()} aria-label="Project description" maxLength={90} placeholder="Description" className="mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
             <div className="mt-3 flex items-start gap-5">
               <div className="flex h-9 w-40 shrink-0 items-center gap-2 pl-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
               <div ref={tagMenuRef} className="relative min-w-0 flex-1">
