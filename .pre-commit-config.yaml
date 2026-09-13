@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: local
+    hooks:
+      - id: api-ruff
+        name: API Ruff
+        entry: uv run --project apps/api ruff check
+        language: system
+        files: ^apps/api/(app|tests)/.*\.py$
+      - id: api-ruff-format
+        name: API Ruff format
+        entry: uv run --project apps/api ruff format --check
+        language: system
+        files: ^apps/api/(app|tests)/.*\.py$
+      - id: api-mypy
+        name: API MyPy
+        entry: python scripts/run-api-mypy.py
+        language: system
+        pass_filenames: false
+        files: ^apps/api/(app|tests)/.*\.py$
+      - id: web-eslint
+        name: Web ESLint
+        entry: python scripts/run-web-eslint.py
+        language: system
+        files: ^apps/web/.*\.(js|jsx|ts|tsx)$
