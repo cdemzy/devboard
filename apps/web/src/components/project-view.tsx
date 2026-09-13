@@ -138,14 +138,6 @@ export function ProjectView({
   const completed = tasks.filter((task) => task.status === "done").length;
   return (
     <>
-      <div className="flex min-h-14 items-center gap-2 border-b border-border px-6 text-xs text-muted-foreground">
-        <span>Projects</span>
-        <span className="mx-1">/</span>
-        <span className="truncate text-foreground">{project.name}</span>
-        {project.archived && (
-          <span className="ml-2 rounded bg-accent px-2 py-1">Archived</span>
-        )}
-      </div>
       <div className="px-5 pt-8 md:px-8">
         <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0">
@@ -224,7 +216,7 @@ export function ProjectView({
         </header>
         <div className="mb-5 flex items-center border-b border-border pb-3"><div className="flex items-center gap-1"><button onClick={() => setView("board")} className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "board" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><LayoutDashboard size={14} className={view === "board" ? "text-primary" : ""} />Board</button><button onClick={() => { setView("archived"); void loadArchivedTasks(); }} className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "archived" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><Archive size={14} />Archived tasks</button></div>{view === "board" && <span className="ml-auto text-xs text-muted-foreground">{`${tasks.length} tasks · ${completed} completed`}</span>}</div>
         {view === "archived" && <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-lg border border-border bg-[#161b22] p-4">{archivedTasksLoading ? <p className="text-sm text-muted-foreground">Loading archived tasks…</p> : archivedTasks.length === 0 ? <p className="text-sm text-muted-foreground">No archived tasks.</p> : <div className="space-y-2">{archivedTasks.map((task) => <div key={task.id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3"><div className="min-w-0 flex-1"><span className="text-xs font-medium text-primary">{task.ticket_id}</span><p className="truncate text-sm font-medium">{task.title}</p></div><Tooltip label="Restore"><Button variant="ghost" size="icon" aria-label={`Restore ${task.ticket_id}`} disabled={busy || project.archived} onClick={() => restoreTask(task)}><RotateCcw size={15} /></Button></Tooltip><Tooltip label="Delete permanently"><Button variant="ghost" size="icon" aria-label={`Delete ${task.ticket_id}`} disabled={busy} className="text-rose-300" onClick={() => setTaskToDelete(task)}><Trash2 size={15} /></Button></Tooltip></div>)}</div>}</motion.section>}
-        {view === "board" && (loading ? (
+        {view === "board" && <motion.div key="board" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>{loading ? (
           <SectionLoader
             icon={project.archived ? Archive : FolderKanban}
             label="Loading board..."
@@ -238,7 +230,7 @@ export function ProjectView({
             create={(status) => setEditor({ status })}
             move={(...args) => void move(...args)}
           />
-        ))}
+        )}</motion.div>}
         {project.archived && <p className="pb-6 text-[11px] text-muted-foreground">Restore this project to change its tasks.</p>}
       </div>
       {editProject && (
