@@ -132,6 +132,10 @@
     @apply opacity-100;
   }
 
+  .ui-tooltip-right .ui-tooltip-content {
+    @apply left-full top-1/2 mt-0 translate-x-0 -translate-y-1/2;
+  }
+
   .ui-section-loader {
     @apply flex min-h-[65vh] flex-col items-center justify-center gap-4 text-muted-foreground;
   }
