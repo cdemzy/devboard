@@ -371,7 +371,7 @@ export function KanbanBoard({
         setActiveTask(null);
       }}
     >
-      <div className="kanban-board-grid grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="kanban-board-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
         <>
           {statuses.map((status) => (
             <Column
