@@ -1,5 +1,12 @@
 # DevBoard
 
+## Tech stack
+
+- **Web:** Next.js 16, React 19, TypeScript, Tailwind CSS 4, dnd-kit, Radix UI
+- **API:** Python 3.12+, FastAPI, SQLAlchemy, Pydantic
+- **Data and authentication:** Supabase PostgreSQL and Supabase Auth
+- **Testing:** Vitest, Playwright, and pytest
+
 ## Architecture
 
 ```text
@@ -58,12 +65,7 @@ From the repository root:
 
 ```powershell
 npm install
-Copy-Item apps/web/.env.example apps/web/.env.local
-Copy-Item apps/api/.env.example apps/api/.env
 ```
-
-Fill in both environment files. On Windows where PowerShell blocks npm.ps1, use
-`npm.cmd` instead of `npm`.
 
 Start the backend in one terminal:
 
