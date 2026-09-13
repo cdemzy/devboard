@@ -104,6 +104,21 @@ over HTTPS in production and restrict `CORS_ORIGINS` to the actual frontend orig
 Backend settings load relative to `apps/api`; run API commands from that directory.
 No Supabase secret/service-role key or JWT signing secret is needed.
 
+### Pre-commit hooks
+
+Install the API development tools, then enable the repository hooks once:
+
+```powershell
+cd apps/api
+uv sync
+uv run pre-commit install
+```
+
+Before each commit, the hooks run Ruff checks, formatting, and MyPy type checks for
+API Python changes, plus ESLint for staged web TypeScript and JavaScript files. Run
+every hook manually from the repository root with
+`uv run --project apps/api pre-commit run --all-files`.
+
 ## API
 
 All endpoints except health require `Authorization: Bearer <Supabase access token>`.
