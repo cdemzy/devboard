@@ -20,6 +20,13 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_new_project_names_increment_for_each_default_project(client):
+    names = [
+        client.post("/projects", json={"name": "New Project"}).json()["name"] for _ in range(3)
+    ]
+    assert names == ["New Project", "New Project (1)", "New Project (2)"]
+
+
 def test_cors_allows_tag_order_reordering(client):
     response = client.options(
         "/project-tags/order",

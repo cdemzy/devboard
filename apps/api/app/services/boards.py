@@ -16,6 +16,8 @@ from app.schemas import (
 )
 from app.services.tickets import project_ticket_prefix
 
+NEW_PROJECT_NAME = "New Project"
+
 
 def list_projects(db: Session, user: UUID, archived: bool):
     return list(
@@ -74,10 +76,18 @@ def reorder_project_tags(db: Session, user: UUID, data: ProjectTagOrder):
 
 
 def create_project(db: Session, user: UUID, data: ProjectCreate):
+    values = data.model_dump()
+    if values["name"] == NEW_PROJECT_NAME:
+        # O(n + k): scan existing names once, then find the first available suffix.
+        existing_names = set(db.scalars(select(Project.name).where(Project.owner_id == user)))
+        suffix = 0
+        while values["name"] in existing_names:
+            suffix += 1
+            values["name"] = f"{NEW_PROJECT_NAME} ({suffix})"
     project = Project(
         owner_id=user,
-        ticket_prefix=project_ticket_prefix(db, user, data.name),
-        **data.model_dump(),
+        ticket_prefix=project_ticket_prefix(db, user, values["name"]),
+        **values,
     )
     sync_project_tags(db, user, data.tags)
     db.add(project)
