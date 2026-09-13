@@ -56,6 +56,7 @@ class ProjectTagOut(BaseModel):
 
 
 class ProjectTagUpdate(Patch):
+    name: Tag | None = None
     color: TagColor | None = None
 
 

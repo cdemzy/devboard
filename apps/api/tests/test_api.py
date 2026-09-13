@@ -115,12 +115,14 @@ def test_project_tags_are_reusable_per_owner(client):
     client.post("/projects", json={"name": "Two", "tags": ["urgent", "Backend"]})
     tags = client.get("/project-tags").json()
     assert [(tag["name"], tag["color"]) for tag in tags] == [
-        ("Backend", "blue"),
-        ("Frontend", "blue"),
-        ("Urgent", "blue"),
+        ("Backend", "default"),
+        ("Frontend", "default"),
+        ("Urgent", "default"),
     ]
     urgent = next(tag for tag in tags if tag["name"] == "Urgent")
     assert client.patch(f"/project-tags/{urgent['id']}", json={"color": "red"}).json()["color"] == "red"
+    assert client.patch(f"/project-tags/{urgent['id']}", json={"name": "Priority"}).json()["name"] == "Priority"
+    assert all("Priority" in project["tags"] for project in client.get("/projects").json())
     assert client.delete(f"/project-tags/{urgent['id']}").status_code == 204
     assert all("Urgent" not in project["tags"] for project in client.get("/projects").json())
 

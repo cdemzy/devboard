@@ -61,6 +61,24 @@ def update_project_tag(db: Session, user: UUID, tag_id: UUID, data: ProjectTagUp
     tag = db.scalar(select(ProjectTag).where(ProjectTag.id == tag_id, ProjectTag.owner_id == user))
     if not tag:
         raise HTTPException(404, "Tag not found")
+    if data.name is not None:
+        normalized_name = data.name.casefold()
+        duplicate = db.scalar(
+            select(ProjectTag).where(
+                ProjectTag.owner_id == user,
+                ProjectTag.normalized_name == normalized_name,
+                ProjectTag.id != tag.id,
+            )
+        )
+        if duplicate:
+            raise HTTPException(409, "A platform with this name already exists")
+        for project in db.scalars(select(Project).where(Project.owner_id == user)):
+            renamed = [data.name if name.casefold() == tag.normalized_name else name for name in project.tags]
+            if renamed != project.tags:
+                project.tags = renamed
+                project.updated_at = utcnow()
+        tag.name = data.name
+        tag.normalized_name = normalized_name
     if data.color is not None:
         tag.color = data.color
     db.commit()

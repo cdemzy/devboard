@@ -25,6 +25,7 @@ import { TaskEditor } from "./editors";
 import { KanbanBoard } from "./kanban-board";
 
 const boardErrorToastId = "board-error";
+const platformNameToastId = "platform-name-error";
 const tagColorValues = { default: "#37352F", gray: "#9B9A97", brown: "#64473A", orange: "#D9730D", yellow: "#DFAB01", green: "#0F7B6C", blue: "#0B6E99", purple: "#6940A5", pink: "#AD1A72", red: "#E03E3E" } as const;
 
 function reportBoardError(error: unknown, fallback: string, retry?: () => void) {
@@ -54,8 +55,13 @@ export function ProjectView({
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<ProjectTag[]>([]);
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
+  const [tagNameDraft, setTagNameDraft] = useState("");
   const [tagsOpen, setTagsOpen] = useState(false);
   const tagMenuRef = useRef<HTMLDivElement>(null);
+  const tagNameInputRef = useRef<HTMLInputElement>(null);
+  const loadTagSuggestions = useCallback(async () => {
+    setTagSuggestions(await api<ProjectTag[]>("/project-tags"));
+  }, []);
   const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(
     null,
   );
@@ -66,16 +72,24 @@ export function ProjectView({
     setTagInput("");
   }, [project.id]);
   useEffect(() => {
-    void api<ProjectTag[]>("/project-tags").then(setTagSuggestions).catch(() => undefined);
-  }, []);
+    void loadTagSuggestions().catch(() => undefined);
+  }, [loadTagSuggestions]);
   useEffect(() => { setTagMenuId(null); }, [tagInput]);
   useEffect(() => {
     function closeTags(event: PointerEvent) {
-      if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) setTagsOpen(false);
+      if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
+        if (tagMenuId && !tagNameDraft.trim()) {
+          toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity });
+          window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
+          return;
+        }
+        setTagsOpen(false);
+        setTagMenuId(null);
+      }
     }
     document.addEventListener("pointerdown", closeTags);
     return () => document.removeEventListener("pointerdown", closeTags);
-  }, []);
+  }, [tagMenuId, tagNameDraft]);
   useEffect(() => {
     const name = projectDraft.name.trim() || "New Project";
     const unchanged = name === project.name && projectDraft.description === project.description
@@ -86,6 +100,7 @@ export function ProjectView({
       void (async () => {
         try {
           update(await api<Project>(`/projects/${project.id}`, json("PATCH", { ...projectDraft, name })));
+          void loadTagSuggestions().catch(() => undefined);
           toast.dismiss(boardErrorToastId);
         } catch (error) {
           reportBoardError(error, "Unable to save project changes.");
@@ -93,7 +108,7 @@ export function ProjectView({
       })();
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [project.id, project.name, project.description, project.tags, projectDraft, update]);
+  }, [project.id, project.name, project.description, project.tags, projectDraft, update, loadTagSuggestions]);
   const loadTasks = useCallback(async () => {
     try {
       const result = await api<Task[]>(`/projects/${project.id}/tasks`);
@@ -181,9 +196,9 @@ export function ProjectView({
   function addTag() {
     const tag = tagInput.trim();
     if (!tag || tag.length > 40 || projectDraft.tags.some((item) => item.toLowerCase() === tag.toLowerCase()) || projectDraft.tags.length >= 20) return;
+    setTagSuggestions((current) => current.some((item) => item.name.toLowerCase() === tag.toLowerCase()) ? current : [...current, { id: `pending-${tag.toLowerCase()}`, name: tag, color: "default" }]);
     setProjectDraft((current) => ({ ...current, tags: [...current.tags, tag] }));
     setTagInput("");
-    setTagsOpen(false);
   }
   function toggleTag(tag: string) {
     setProjectDraft((current) => ({
@@ -211,6 +226,54 @@ export function ProjectView({
       setTagSuggestions(previous);
       reportBoardError(error, "Unable to save tag color.");
     }
+  }
+  async function renameTag(tag: ProjectTag, value: string) {
+    const name = value.trim();
+    if (!name) {
+      setTagsOpen(true);
+      setTagMenuId(tag.id);
+      toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity });
+      window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
+      return;
+    }
+    if (name.length > 40 || name === tag.name) {
+      setTagNameDraft(tag.name);
+      return;
+    }
+    if (tagSuggestions.some((item) => item.id !== tag.id && item.name.toLowerCase() === name.toLowerCase())) {
+      setTagNameDraft(tag.name);
+      reportBoardError(new Error("A platform with this name already exists"), "Unable to rename platform.");
+      return;
+    }
+    const previousSuggestions = tagSuggestions;
+    const previousProjectTags = projectDraft.tags;
+    setTagSuggestions((tags) => tags.map((item) => item.id === tag.id ? { ...item, name } : item));
+    setProjectDraft((current) => ({ ...current, tags: current.tags.map((item) => item.toLowerCase() === tag.name.toLowerCase() ? name : item) }));
+    toast.dismiss(platformNameToastId);
+    if (tag.id.startsWith("pending-")) return;
+    try {
+      const updated = await api<ProjectTag>(`/project-tags/${tag.id}`, json("PATCH", { name }));
+      setTagSuggestions((tags) => tags.map((item) => item.id === updated.id ? updated : item));
+      await refresh();
+    } catch (error) {
+      setTagSuggestions(previousSuggestions);
+      setProjectDraft((current) => ({ ...current, tags: previousProjectTags }));
+      setTagNameDraft(tag.name);
+      reportBoardError(error, "Unable to rename platform.");
+    }
+  }
+  function toggleTagMenu(tag: ProjectTag) {
+    if (tagMenuId === tag.id) {
+      if (!tagNameDraft.trim()) {
+        toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity });
+        window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
+        return;
+      }
+      setTagMenuId(null);
+      return;
+    }
+    setTagNameDraft(tag.name);
+    setTagMenuId(tag.id);
   }
   async function deleteTag(tag: ProjectTag) {
     const previousSuggestions = tagSuggestions;
@@ -248,7 +311,7 @@ export function ProjectView({
               </div>
               {tagsOpen && <div role="dialog" aria-label="Project tag options" className="absolute inset-x-0 top-full z-20 rounded-b-md border border-t-0 border-border bg-[#161b22] p-2 shadow-xl">
                 <p className="mb-1.5 text-xs text-muted-foreground">Select a tag or create one</p>
-                {matchingTags.length > 0 && <div className="flex flex-wrap gap-1.5">{matchingTags.map((tag) => { return <div key={tag.id} style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="relative flex items-center rounded-sm text-white"><button type="button" onClick={() => { setTagMenuId(null); toggleTag(tag.name); }} style={{ fontSize: "12px", lineHeight: 1 }} className="px-1.5 py-0.5">{tag.name}</button><button type="button" onClick={(event) => { event.stopPropagation(); setTagMenuId(tagMenuId === tag.id ? null : tag.id); }} aria-label={`Tag options for ${tag.name}`} className="mr-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>{tagMenuId === tag.id && <div className="absolute left-0 top-full z-30 mt-1 w-36 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="mb-1.5 grid grid-cols-5 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => void updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="h-5 rounded-sm" />)}</div><button type="button" onClick={() => void deleteTag(tag)} className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[12px] leading-none text-rose-300 hover:bg-accent"><Trash2 size={13} />Delete?</button></div>}</div>; })}</div>}
+                {matchingTags.length > 0 && <div className="flex flex-wrap gap-1.5">{matchingTags.map((tag) => <div key={tag.id} style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="relative flex items-center rounded-sm text-white"><button type="button" onClick={() => { setTagMenuId(null); toggleTag(tag.name); }} style={{ fontSize: "12px", lineHeight: 1 }} className="px-1.5 py-0.5">{tag.name}</button><button type="button" onClick={(event) => { event.stopPropagation(); toggleTagMenu(tag); }} aria-label={`Platform options for ${tag.name}`} className="mr-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>{tagMenuId === tag.id && <div className="absolute left-0 top-full z-30 mt-1 w-52 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="flex gap-1.5"><input ref={tagNameInputRef} value={tagNameDraft} onChange={(event) => { setTagNameDraft(event.target.value); if (event.target.value.trim()) toast.dismiss(platformNameToastId); }} onBlur={(event) => void renameTag(tag, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { if (!tagNameDraft.trim()) { toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity }); return; } setTagNameDraft(tag.name); setTagMenuId(null); } }} aria-label={`Rename ${tag.name}`} maxLength={40} className="h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none" /><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void deleteTag(tag)} aria-label={`Delete ${tag.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"><Trash2 size={13} /></button></div><div className="my-2 border-t border-border" /><p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Colors</p><div className="grid grid-cols-5 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => void updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="h-5 rounded-sm" />)}</div></div>}</div>)}</div>}
                 {tagInput.trim() && !tagSuggestions.some((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()) && <button type="button" onClick={addTag} className="mt-2 flex w-full items-center gap-2 rounded bg-[#2d333b] px-2 py-1.5 text-left text-xs">Create <span className="rounded-sm bg-[#484f58] px-2 py-0.5 text-foreground">{tagInput.trim()}</span></button>}
               </div>}
               </div>
