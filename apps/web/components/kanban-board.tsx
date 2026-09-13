@@ -121,10 +121,8 @@ function TaskCard({
       transition={{ layout: { duration: 0.22, ease: "easeOut" } }}
       onClick={() => edit(task)}
       onMouseLeave={() => setActionsOpen(false)}
-      {...attributes}
-      {...listeners}
       data-task-id={task.id}
-      className={`task-card group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "opacity-30" : "hover:border-[#484f58]"}`}
+      className={`task-card group relative min-h-24 touch-auto rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-pointer"} ${isDragging ? "opacity-30" : "hover:border-[#484f58]"}`}
     >
       <div className="task-card-header flex items-start gap-1">
         <button
@@ -144,7 +142,7 @@ function TaskCard({
             {task.title}
           </span>
         </button>
-        <Tooltip label="Drag to move"><span className="task-card-drag-handle pointer-events-none rounded p-1 text-muted-foreground"><GripVertical size={15} /></span></Tooltip>
+        <Tooltip label="Drag to move"><button type="button" onClick={(event) => event.stopPropagation()} aria-label={`Drag ${task.ticket_id} to move`} disabled={disabled} className="task-card-drag-handle touch-none rounded p-1 text-muted-foreground cursor-grab active:cursor-grabbing disabled:cursor-default" {...attributes} {...listeners}><GripVertical size={15} /></button></Tooltip>
       </div>
       <div className="task-card-footer mt-4 flex items-center justify-between text-muted-foreground">
         <span

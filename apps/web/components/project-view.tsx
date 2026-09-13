@@ -404,7 +404,7 @@ export function ProjectView({
   }
   return (
     <>
-      <div className="project-view px-4 pt-5 sm:px-5 sm:pt-8 md:px-8">
+      <div className="project-view px-6 pt-5 sm:px-5 sm:pt-8 md:px-8">
         <header className="project-header mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
           <div className="min-w-0 w-full max-w-3xl flex-1">
             <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="project-title h-auto w-full !border-0 !bg-transparent px-0 py-0 !text-3xl !font-bold !leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none" />
