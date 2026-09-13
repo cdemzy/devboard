@@ -55,7 +55,7 @@ export function ProjectEditor({ project, close, save }: {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }}>
-      <DialogContent className="project-editor-dialog h-[80vh] w-[80vw] max-w-none p-10 md:p-14">
+      <DialogContent className="project-editor-dialog h-[80vh] w-[calc(100%-2rem)] max-w-none p-5 sm:w-[80vw] sm:p-10 md:p-14">
         <DialogTitle className="sr-only">{project ? "Edit project" : "New project"}</DialogTitle>
         <form className="project-editor-form mx-auto flex h-full max-w-3xl flex-col" onSubmit={async (event) => {
           event.preventDefault();
@@ -76,9 +76,9 @@ export function ProjectEditor({ project, close, save }: {
             <span className="text-sm font-medium text-muted-foreground">Platform</span>
             <div className="project-editor-platform-input relative flex min-h-10 flex-wrap items-center gap-1.5">
               {tags.map((tag) => <span key={tag} className="project-editor-tag flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-primary"><span>{tag}</span><button type="button" onClick={(event) => { event.stopPropagation(); setTags((current) => current.filter((item) => item !== tag)); }} className="project-editor-tag-remove rounded-full hover:text-foreground" aria-label={`Remove ${tag} tag`}><X size={12} /></button></span>)}
-            <input value={tagInput} onChange={(event) => { setTagInput(event.target.value); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} maxLength={40} placeholder="Add a platform" aria-label="Add project platform" aria-expanded={suggestionsOpen && matchingSuggestions.length > 0} aria-controls="project-tag-suggestions" className="project-editor-tag-input h-8 w-32 border-0 bg-transparent px-0 text-sm focus-visible:ring-0" />
+            <input role="combobox" value={tagInput} onChange={(event) => { setTagInput(event.target.value); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} maxLength={40} placeholder="Add a platform" aria-label="Add project platform" aria-autocomplete="list" aria-expanded={suggestionsOpen && matchingSuggestions.length > 0} aria-controls="project-tag-suggestions" className="project-editor-tag-input h-8 w-32 border-0 bg-transparent px-0 text-sm focus-visible:ring-0" />
               <Button type="button" variant="ghost" size="sm" onClick={() => addTag()} disabled={!tagInput.trim()}>Add</Button>
-              {suggestionsOpen && matchingSuggestions.length > 0 && <div id="project-tag-suggestions" role="listbox" className="project-editor-tag-suggestions absolute left-0 top-full z-10 mt-2 w-64 max-h-40 overflow-y-auto rounded-md border border-border bg-[#161b22] p-1 shadow-lg">{matchingSuggestions.map((tag) => <button key={tag.id} type="button" role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => addTag(tag.name)} className="project-editor-tag-suggestion flex w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"><span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{tag.name}</span></button>)}</div>}
+              {suggestionsOpen && matchingSuggestions.length > 0 && <div id="project-tag-suggestions" role="listbox" className="project-editor-tag-suggestions absolute left-0 top-full z-10 mt-2 w-64 max-h-40 overflow-y-auto rounded-md border border-border bg-[#161b22] p-1 shadow-lg">{matchingSuggestions.map((tag) => <button key={tag.id} type="button" role="option" aria-selected={false} onMouseDown={(event) => event.preventDefault()} onClick={() => addTag(tag.name)} className="project-editor-tag-suggestion flex w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"><span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{tag.name}</span></button>)}</div>}
             </div>
           </div>
           {error && <p role="alert" className="project-editor-error text-rose-300">{error}</p>}
@@ -156,7 +156,7 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) minimize(); }}>
-      <DialogContent hideClose className="task-editor-dialog h-[80vh] w-[80vw] max-w-none">
+      <DialogContent hideClose className="task-editor-dialog h-[80vh] w-[calc(100%-2rem)] max-w-none sm:w-[80vw]">
         <DialogTitle className="text-lg font-semibold">{currentTask ? "Task details" : "New task"}</DialogTitle>
         <div className="task-editor-toolbar absolute right-4 top-4 flex items-center gap-1">
           {currentTask && remove && <Tooltip label="Delete"><Button type="button" variant="ghost" size="icon" className="task-editor-delete text-rose-300" onClick={() => remove(currentTask)} disabled={busy} aria-label="Delete task"><Trash2 size={15} /></Button></Tooltip>}
@@ -165,7 +165,7 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
         <div className="task-editor-fields space-y-4">
           <label>Title<input name="title" value={draft.title} onChange={(event) => updateDraft({ title: capitalizeFirst(event.target.value) })} onBlur={() => { if (dirty) void saveLatest(); }} required maxLength={240} autoComplete="off" autoCapitalize="sentences" autoFocus placeholder="What needs to happen?" /></label>
           <label>Description<textarea name="description" value={draft.description} onChange={(event) => updateDraft({ description: event.target.value })} onBlur={() => { if (dirty) void saveLatest(); }} maxLength={10000} placeholder="Details, context, or acceptance criteria…" /></label>
-          <div className="task-editor-selects grid grid-cols-2 gap-4">
+          <div className="task-editor-selects grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label>Status<select name="status" value={draft.status} onChange={(event) => updateDraft({ status: event.target.value as Status })} onBlur={() => { if (dirty) void saveLatest(); }}>{statuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
             <label>Priority<select name="priority" value={draft.priority} onChange={(event) => updateDraft({ priority: event.target.value as Priority })} onBlur={() => { if (dirty) void saveLatest(); }}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
           </div>

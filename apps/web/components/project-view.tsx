@@ -97,7 +97,7 @@ export function ProjectView({
   const tagOrderQueue = useRef(Promise.resolve());
   const tagOrderRevision = useRef(0);
   const [projectDraft, setProjectDraft] = useState(() => ({ name: project.name === "New Project" ? "" : project.name, description: project.description, tags: project.tags }));
-  const [tagInput, setTagInput] = useState("");
+  const [tagInput, setTagInputState] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<ProjectTag[]>([]);
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
   const [tagNameDraft, setTagNameDraft] = useState("");
@@ -113,27 +113,28 @@ export function ProjectView({
     const tags = await api<ProjectTag[]>("/project-tags");
     setTagSuggestions(tags.map((tag) => pendingTagColorsRef.current[tag.id] ? { ...tag, color: pendingTagColorsRef.current[tag.id].color } : tag));
   }, []);
+  const saveProjectDraft = useCallback(async () => {
+    const name = projectDraft.name.trim() || "New Project";
+    const unchanged = name === project.name && projectDraft.description === project.description
+      && projectDraft.tags.length === project.tags.length
+      && projectDraft.tags.every((tag, index) => tag === project.tags[index]);
+    if (unchanged) return;
+    try {
+      update(await api<Project>(`/projects/${project.id}`, json("PATCH", { ...projectDraft, name })));
+      void loadTagSuggestions().catch(() => undefined);
+      toast.dismiss(boardErrorToastId);
+    } catch (error) {
+      reportBoardError(error, "Unable to save project changes.");
+    }
+  }, [loadTagSuggestions, project, projectDraft, update]);
   const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(
     null,
   );
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [confirmProjectDelete, setConfirmProjectDelete] = useState(false);
   useEffect(() => {
-    setProjectDraft({ name: project.name === "New Project" ? "" : project.name, description: project.description, tags: project.tags });
-    setTagInput("");
-  }, [project.id]);
-  useEffect(() => {
     void loadTagSuggestions().catch(() => undefined);
   }, [loadTagSuggestions]);
-  useEffect(() => {
-    if (tagMenuId) {
-      const activeTag = tagSuggestions.find((tag) => tag.id === tagMenuId);
-      if (activeTag) void persistTagColor(activeTag);
-    }
-    setTagMenuId(null);
-  // The menu should only close when the search input changes, not on color-state updates.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tagInput]);
   useEffect(() => {
     function closeTags(event: PointerEvent) {
       if (tagsOpen && tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
@@ -152,20 +153,6 @@ export function ProjectView({
     document.addEventListener("pointerdown", closeTags);
     return () => document.removeEventListener("pointerdown", closeTags);
   }, [tagsOpen, tagMenuId, tagNameDraft, tagSuggestions, saveProjectDraft]);
-  async function saveProjectDraft() {
-    const name = projectDraft.name.trim() || "New Project";
-    const unchanged = name === project.name && projectDraft.description === project.description
-      && projectDraft.tags.length === project.tags.length
-      && projectDraft.tags.every((tag, index) => tag === project.tags[index]);
-    if (unchanged) return;
-    try {
-      update(await api<Project>(`/projects/${project.id}`, json("PATCH", { ...projectDraft, name })));
-      void loadTagSuggestions().catch(() => undefined);
-      toast.dismiss(boardErrorToastId);
-    } catch (error) {
-      reportBoardError(error, "Unable to save project changes.");
-    }
-  }
   const loadTasks = useCallback(async () => {
     try {
       const result = await api<Task[]>(`/projects/${project.id}/tasks`);
@@ -204,7 +191,6 @@ export function ProjectView({
   }, []);
   async function action(
     work: () => Promise<void>,
-    label = "Saving...",
     successMessage?: string,
   ) {
     setBusy(true);
@@ -262,13 +248,13 @@ export function ProjectView({
       await api(`/tasks/${task.id}/archive`, json("POST"));
       await loadTasks();
       if (view === "archived") await loadArchivedTasks();
-    }, "Archiving...", "Task archived");
+    }, "Task archived");
   }
   function restoreTask(task: Task) {
     void action(async () => {
       await api(`/tasks/${task.id}/restore`, json("POST"));
       await Promise.all([loadTasks(), loadArchivedTasks()]);
-    }, "Restoring...", "Task restored");
+    }, "Task restored");
   }
   const completed = tasks.filter((task) => task.status === "done").length;
   const matchingTags = tagSuggestions.filter((tag) => tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()));
@@ -288,6 +274,14 @@ export function ProjectView({
         : [...current.tags, tag],
     }));
     setTagInput("");
+  }
+  function setTagInput(value: string) {
+    if (tagMenuId) {
+      const activeTag = tagSuggestions.find((tag) => tag.id === tagMenuId);
+      if (activeTag) void persistTagColor(activeTag);
+      setTagMenuId(null);
+    }
+    setTagInputState(value);
   }
   function handleTagOrderEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
@@ -410,13 +404,13 @@ export function ProjectView({
   }
   return (
     <>
-      <div className="project-view px-5 pt-8 md:px-8">
-        <header className="project-header mb-7 flex flex-wrap items-start justify-between gap-5">
-          <div className="min-w-0 max-w-3xl flex-1">
+      <div className="project-view px-4 pt-5 sm:px-5 sm:pt-8 md:px-8">
+        <header className="project-header mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
+          <div className="min-w-0 w-full max-w-3xl flex-1">
             <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="project-title h-auto w-full !border-0 !bg-transparent px-0 py-0 !text-3xl !font-bold !leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none" />
             <input value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} onBlur={() => void saveProjectDraft()} aria-label="Project description" maxLength={90} placeholder="Description" className="project-description mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
-            <div className="mt-3 flex items-start gap-5">
-              <div className="project-platform-label flex h-9 w-40 shrink-0 items-center gap-2 pl-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
+            <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-5">
+              <div className="project-platform-label flex h-auto w-auto shrink-0 items-center gap-2 pl-5 text-sm text-muted-foreground sm:h-9 sm:w-40"><Database size={15} />Platform</div>
               <div ref={tagMenuRef} className="project-platform-editor relative min-w-0 flex-1">
               <div role="button" tabIndex={0} onMouseDown={(event) => { if (event.target === event.currentTarget) event.preventDefault(); }} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setTagsOpen(true); } }} className={`project-tag-trigger flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? "rounded-t-md border border-border bg-accent px-3 py-3" : "rounded-md px-2 py-2"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
                 {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: tagColorValues[catalog?.color ?? "purple"], fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-1 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
@@ -438,7 +432,7 @@ export function ProjectView({
               </div>
             </div>
           </div>
-          <div className="project-actions flex flex-wrap items-center gap-1">
+          <div className="project-actions flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto">
             <Tooltip label={project.archived ? "Restore" : "Archive"}>
               <Button
                 variant="ghost"
@@ -456,7 +450,6 @@ export function ProjectView({
                       );
                       await refresh();
                     },
-                    project.archived ? "Restoring..." : "Archiving...",
                     project.archived ? "Project restored" : "Project archived",
                   )
                 }
@@ -481,7 +474,7 @@ export function ProjectView({
             </Tooltip>
             {!project.archived && (
               <Button
-                className="ml-3"
+                className="ml-auto sm:ml-3"
                 disabled={busy || loading}
                 onClick={() => setEditor({})}
               >
@@ -491,7 +484,7 @@ export function ProjectView({
             )}
           </div>
         </header>
-        <div className="project-view-tabs mb-5 flex items-center border-b border-border pb-3"><div className="project-view-tab-list flex items-center gap-1"><button onClick={() => setView("board")} className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "board" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><LayoutDashboard size={14} className={view === "board" ? "text-primary" : ""} />Board</button><button onClick={() => { setView("archived"); void loadArchivedTasks(); }} className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "archived" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><Archive size={14} />Archived tasks</button></div>{view === "board" && <span className="project-task-summary ml-auto text-xs text-muted-foreground">{`${tasks.length} tasks · ${completed} completed`}</span>}</div>
+        <div className="project-view-tabs mb-5 flex flex-wrap items-center border-b border-border pb-3"><div className="project-view-tab-list flex items-center gap-1"><button onClick={() => setView("board")} className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "board" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><LayoutDashboard size={14} className={view === "board" ? "text-primary" : ""} />Board</button><button onClick={() => { setView("archived"); void loadArchivedTasks(); }} className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "archived" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><Archive size={14} /><span className="sm:hidden">Archived</span><span className="hidden sm:inline">Archived tasks</span></button></div>{view === "board" && <span className="project-task-summary mt-2 w-full text-xs text-muted-foreground sm:ml-auto sm:mt-0 sm:w-auto">{`${tasks.length} tasks · ${completed} completed`}</span>}</div>
         {view === "archived" && <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="archived-tasks-panel rounded-lg border border-border bg-[#161b22] p-4">{archivedTasksLoading ? <p className="archived-tasks-loading text-sm text-muted-foreground">Loading archived tasks…</p> : archivedTasks.length === 0 ? <p className="archived-tasks-empty text-sm text-muted-foreground">No archived tasks.</p> : <div className="archived-task-list space-y-2">{archivedTasks.map((task) => <div key={task.id} className="archived-task flex items-center gap-3 rounded-md border border-border bg-background p-3"><div className="archived-task-content min-w-0 flex-1"><span className="archived-task-ticket text-xs font-medium text-primary">{task.ticket_id}</span><p className="archived-task-title truncate text-sm font-medium">{task.title}</p></div><Tooltip label="Restore"><Button variant="ghost" size="icon" aria-label={`Restore ${task.ticket_id}`} disabled={busy || project.archived} onClick={() => restoreTask(task)}><RotateCcw size={15} /></Button></Tooltip><Tooltip label="Delete permanently"><Button variant="ghost" size="icon" aria-label={`Delete ${task.ticket_id}`} disabled={busy} className="archived-task-delete text-rose-300" onClick={() => setTaskToDelete(task)}><Trash2 size={15} /></Button></Tooltip></div>)}</div>}</motion.section>}
         {view === "board" && <motion.div key="board" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>{loading ? (
           <SectionLoader
