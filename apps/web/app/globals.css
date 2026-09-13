@@ -147,6 +147,10 @@
   .ui-section-loader-label {
     @apply text-sm;
   }
+
+  .project-tag-trigger .project-tag-search {
+    @apply hidden;
+  }
 }
 
 /* Keep project tag labels slightly larger and consistent in both states. */
