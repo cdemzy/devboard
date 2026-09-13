@@ -119,12 +119,24 @@ def test_project_tags_are_reusable_per_owner(client):
         ("Urgent", "purple"),
         ("Backend", "purple"),
     ]
-    reordered = client.put("/project-tags/order", json={"tag_ids": [tag["id"] for tag in reversed(tags)]})
+    reordered = client.put(
+        "/project-tags/order", json={"tag_ids": [tag["id"] for tag in reversed(tags)]}
+    )
     assert reordered.status_code == 200
-    assert [tag["name"] for tag in client.get("/project-tags").json()] == ["Backend", "Urgent", "Frontend"]
+    assert [tag["name"] for tag in client.get("/project-tags").json()] == [
+        "Backend",
+        "Urgent",
+        "Frontend",
+    ]
     urgent = next(tag for tag in tags if tag["name"] == "Urgent")
-    assert client.patch(f"/project-tags/{urgent['id']}", json={"color": "green"}).json()["color"] == "green"
-    assert client.patch(f"/project-tags/{urgent['id']}", json={"name": "Priority"}).json()["name"] == "Priority"
+    assert (
+        client.patch(f"/project-tags/{urgent['id']}", json={"color": "green"}).json()["color"]
+        == "green"
+    )
+    assert (
+        client.patch(f"/project-tags/{urgent['id']}", json={"name": "Priority"}).json()["name"]
+        == "Priority"
+    )
     assert all("Priority" in project["tags"] for project in client.get("/projects").json())
     assert client.delete(f"/project-tags/{urgent['id']}").status_code == 204
     assert all("Urgent" not in project["tags"] for project in client.get("/projects").json())

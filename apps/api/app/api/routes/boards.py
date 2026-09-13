@@ -9,10 +9,10 @@ from app.core.database import get_db
 from app.repositories.projects import owned_project, owned_task, project_tasks
 from app.schemas import (
     ProjectCreate,
+    ProjectOut,
     ProjectTagOrder,
     ProjectTagOut,
     ProjectTagUpdate,
-    ProjectOut,
     ProjectUpdate,
     TaskCreate,
     TaskMove,

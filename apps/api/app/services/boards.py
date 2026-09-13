@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.models import Project, ProjectTag, Task, utcnow
 from app.repositories.projects import owned_project, owned_task, project_tasks
-from app.schemas import ProjectCreate, ProjectTagOrder, ProjectTagUpdate, ProjectUpdate, TaskCreate, TaskUpdate
+from app.schemas import (
+    ProjectCreate,
+    ProjectTagOrder,
+    ProjectTagUpdate,
+    ProjectUpdate,
+    TaskCreate,
+    TaskUpdate,
+)
 from app.services.tickets import project_ticket_prefix
 
 
@@ -37,7 +44,11 @@ def sync_project_tags(db: Session, user: UUID, tags: list[str]):
     for name in tags:
         normalized = name.casefold()
         if normalized not in existing:
-            db.add(ProjectTag(owner_id=user, name=name, normalized_name=normalized, position=next_position))
+            db.add(
+                ProjectTag(
+                    owner_id=user, name=name, normalized_name=normalized, position=next_position
+                )
+            )
             existing.add(normalized)
             next_position += 1
 
@@ -102,7 +113,10 @@ def update_project_tag(db: Session, user: UUID, tag_id: UUID, data: ProjectTagUp
         if duplicate:
             raise HTTPException(409, "A platform with this name already exists")
         for project in db.scalars(select(Project).where(Project.owner_id == user)):
-            renamed = [data.name if name.casefold() == tag.normalized_name else name for name in project.tags]
+            renamed = [
+                data.name if name.casefold() == tag.normalized_name else name
+                for name in project.tags
+            ]
             if renamed != project.tags:
                 project.tags = renamed
                 project.updated_at = utcnow()
