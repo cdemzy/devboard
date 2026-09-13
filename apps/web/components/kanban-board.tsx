@@ -156,7 +156,7 @@ function TaskDragPreview({ task }: { task: Task }) {
       initial={{ opacity: 0, scale: 0.96, y: 4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 520, damping: 30 }}
-      className={`w-72 rotate-[1deg] rounded-lg border p-3 shadow-xl ${statusStyle.ticket}`}
+      className={`w-72 rotate-1 rounded-lg border p-3 shadow-xl ${statusStyle.ticket}`}
     >
       <span className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
         {task.ticket_id}
