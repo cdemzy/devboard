@@ -6,10 +6,10 @@ import {
   ArrowLeft,
   FolderKanban,
   LayoutDashboard,
-  Pencil,
   Plus,
   RotateCcw,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, json } from "@/lib/api";
@@ -19,7 +19,7 @@ import { Button } from "./ui/button";
 import { ConfirmDialog } from "./ui/confirm-dialog";
 import { Tooltip } from "./ui/tooltip";
 import { SectionLoader } from "./ui/section-loader";
-import { ProjectEditor, TaskEditor } from "./editors";
+import { TaskEditor } from "./editors";
 import { KanbanBoard } from "./kanban-board";
 
 const boardErrorToastId = "board-error";
@@ -47,12 +47,48 @@ export function ProjectView({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const moving = useRef(false);
-  const [editProject, setEditProject] = useState(false);
+  const [projectDraft, setProjectDraft] = useState(() => ({ name: project.name, description: project.description, tags: project.tags }));
+  const [tagInput, setTagInput] = useState("");
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const tagMenuRef = useRef<HTMLDivElement>(null);
   const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(
     null,
   );
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [confirmProjectDelete, setConfirmProjectDelete] = useState(false);
+  useEffect(() => {
+    setProjectDraft({ name: project.name, description: project.description, tags: project.tags });
+    setTagInput("");
+  }, [project.id]);
+  useEffect(() => {
+    void api<string[]>("/project-tags").then(setTagSuggestions).catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    function closeTags(event: PointerEvent) {
+      if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) setTagsOpen(false);
+    }
+    document.addEventListener("pointerdown", closeTags);
+    return () => document.removeEventListener("pointerdown", closeTags);
+  }, []);
+  useEffect(() => {
+    const name = projectDraft.name.trim();
+    const unchanged = name === project.name && projectDraft.description === project.description
+      && projectDraft.tags.length === project.tags.length
+      && projectDraft.tags.every((tag, index) => tag === project.tags[index]);
+    if (unchanged || !name) return;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          update(await api<Project>(`/projects/${project.id}`, json("PATCH", { ...projectDraft, name })));
+          toast.dismiss(boardErrorToastId);
+        } catch (error) {
+          reportBoardError(error, "Unable to save project changes.");
+        }
+      })();
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [project.id, project.name, project.description, project.tags, projectDraft, update]);
   const loadTasks = useCallback(async () => {
     try {
       const result = await api<Task[]>(`/projects/${project.id}/tasks`);
@@ -136,32 +172,36 @@ export function ProjectView({
     }, "Restoring...", "Task restored");
   }
   const completed = tasks.filter((task) => task.status === "done").length;
+  const availableTags = tagSuggestions.filter((tag) =>
+    !projectDraft.tags.some((selected) => selected.toLowerCase() === tag.toLowerCase())
+    && tag.toLowerCase().includes(tagInput.trim().toLowerCase()),
+  );
+  function addTag() {
+    const tag = tagInput.trim();
+    if (!tag || tag.length > 40 || projectDraft.tags.some((item) => item.toLowerCase() === tag.toLowerCase()) || projectDraft.tags.length >= 20) return;
+    setProjectDraft((current) => ({ ...current, tags: [...current.tags, tag] }));
+    setTagInput("");
+    setTagsOpen(false);
+  }
   return (
     <>
       <div className="px-5 pt-8 md:px-8">
         <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
-          <div className="min-w-0">
-            <h1 className="break-words text-2xl font-semibold tracking-tight">
-              {project.name}
-            </h1>
-            {project.description && (
-              <p className="mt-2 max-w-2xl whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
-                {project.description}
-              </p>
-            )}
+          <div className="min-w-0 max-w-3xl flex-1">
+            <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} aria-label="Project name" autoComplete="off" maxLength={120} className="h-auto w-full !border-0 !bg-transparent px-0 py-0 text-3xl font-bold tracking-tight !outline-none focus:!outline-none md:text-4xl" />
+            <textarea value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} aria-label="Project description" maxLength={10000} placeholder="Add a description…" className="mt-2 min-h-7 w-full resize-y !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
+            <div ref={tagMenuRef} className="relative mt-3">
+              <div role="button" tabIndex={0} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setTagsOpen(true); } }} className={`flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 rounded-md px-1 py-1 transition-colors ${tagsOpen ? "outline outline-2 outline-ring outline-offset-1" : "hover:bg-accent/40"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
+                {projectDraft.tags.length === 0 ? <span className="px-1 text-xs text-muted-foreground">Add tags</span> : projectDraft.tags.map((tag) => <span key={tag} className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-1 text-xs text-primary">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-full hover:text-foreground"><X size={12} /></button></span>)}
+              </div>
+              {tagsOpen && <div role="dialog" aria-label="Project tag options" className="absolute left-0 top-full z-20 mt-2 w-[min(28rem,calc(100vw-3rem))] rounded-lg border border-border bg-[#161b22] p-3 shadow-xl">
+                <p className="mb-2 text-xs text-muted-foreground">Select a tag or create one</p>
+                {availableTags.length > 0 ? <div className="flex flex-wrap gap-1.5">{availableTags.map((tag) => <button key={tag} type="button" onClick={() => setProjectDraft((current) => ({ ...current, tags: [...current.tags, tag] }))} className="rounded-full bg-accent px-2.5 py-1 text-xs hover:bg-[#30363d]">{tag}</button>)}</div> : <p className="text-xs text-muted-foreground">No saved tags yet.</p>}
+                <div className="mt-3 flex items-center gap-2 border-t border-border pt-3"><input value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} aria-label="Create project tag" maxLength={40} placeholder="Create a tag" className="h-8 !border-0 !bg-transparent px-0 text-xs !outline-none focus:!outline-none" /><button type="button" onClick={addTag} disabled={!tagInput.trim()} className="text-xs text-primary disabled:opacity-50">Add</button></div>
+              </div>}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-1">
-            <Tooltip label="Edit">
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Edit project"
-                disabled={busy}
-                onClick={() => setEditProject(true)}
-              >
-                <Pencil size={15} />
-              </Button>
-            </Tooltip>
             <Tooltip label={project.archived ? "Restore" : "Archive"}>
               <Button
                 variant="ghost"
@@ -233,20 +273,6 @@ export function ProjectView({
         )}</motion.div>}
         {project.archived && <p className="pb-6 text-[11px] text-muted-foreground">Restore this project to change its tasks.</p>}
       </div>
-      {editProject && (
-        <ProjectEditor
-          project={project}
-          close={() => setEditProject(false)}
-          save={async (data) => {
-            update(
-              await api<Project>(
-                `/projects/${project.id}`,
-                json("PATCH", data),
-              ),
-            );
-          }}
-        />
-      )}
       {editor && (
         <TaskEditor
           task={editor.task}

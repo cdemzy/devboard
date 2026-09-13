@@ -55,9 +55,9 @@ export function ProjectEditor({ project, close, save }: {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }}>
-      <DialogContent className="h-[80vh] w-[80vw] max-w-none p-7">
-        <DialogTitle className="text-lg font-semibold">{project ? "Edit project" : "New project"}</DialogTitle>
-        <form className="space-y-4" onSubmit={async (event) => {
+      <DialogContent className="h-[80vh] w-[80vw] max-w-none p-10 md:p-14">
+        <DialogTitle className="sr-only">{project ? "Edit project" : "New project"}</DialogTitle>
+        <form className="mx-auto flex h-full max-w-3xl flex-col" onSubmit={async (event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
           const name = String(form.get("name")).trim();
@@ -67,22 +67,22 @@ export function ProjectEditor({ project, close, save }: {
           catch (error) { setError(error instanceof Error ? error.message : "Unable to save."); }
           finally { setBusy(false); }
         }}>
-          <label>Project name<input name="name" defaultValue={project?.name} required maxLength={120} autoComplete="off" placeholder="e.g. Developer portal" autoFocus /></label>
-          <label>Description<textarea name="description" defaultValue={project?.description} maxLength={10000} placeholder="What are you building? (optional)" /></label>
-          <div className="grid gap-2 text-[13px]">
-            <span>Project tags</span>
-            <span className="text-xs font-normal text-muted-foreground">Optional — add labels to organize this project.</span>
-            <div className="rounded-md border border-border bg-[#0d1117] p-2 focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-1">
-              {tags.length > 0 && <div className="mb-2 flex flex-wrap gap-1.5">{tags.map((tag) => <span key={tag} className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-1 text-xs text-primary"><span>{tag}</span><button type="button" onClick={(event) => { event.stopPropagation(); setTags((current) => current.filter((item) => item !== tag)); }} className="rounded-full hover:text-foreground" aria-label={`Remove ${tag} tag`}><X size={12} /></button></span>)}</div>}
-              <div className="relative flex gap-2">
-                <input value={tagInput} onChange={(event) => { setTagInput(event.target.value); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} maxLength={40} placeholder="Type a tag and press Enter" aria-label="Add project tag" aria-expanded={suggestionsOpen && matchingSuggestions.length > 0} aria-controls="project-tag-suggestions" />
-                <Button type="button" variant="outline" onClick={() => addTag()} disabled={!tagInput.trim()}>Add</Button>
-                {suggestionsOpen && matchingSuggestions.length > 0 && <div id="project-tag-suggestions" role="listbox" className="absolute left-0 right-12 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-md border border-border bg-[#161b22] p-1 shadow-lg">{matchingSuggestions.map((tag) => <button key={tag} type="button" role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => addTag(tag)} className="flex w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"><span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{tag}</span></button>)}</div>}
-              </div>
+          <input name="name" defaultValue={project?.name} required maxLength={120} autoComplete="off" placeholder="Untitled project" autoFocus className="h-auto border-0 bg-transparent px-0 py-2 text-3xl font-semibold tracking-tight placeholder:text-muted-foreground/55 focus-visible:ring-0 md:text-4xl" />
+          <div className="mt-8 grid gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Description</span>
+            <textarea name="description" defaultValue={project?.description} maxLength={10000} placeholder="Add a description…" className="min-h-28 resize-y border-0 bg-transparent px-0 text-base focus-visible:ring-0" />
+          </div>
+          <div className="mt-7 grid gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Tags</span>
+            <div className="relative flex min-h-10 flex-wrap items-center gap-1.5">
+              {tags.map((tag) => <span key={tag} className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-primary"><span>{tag}</span><button type="button" onClick={(event) => { event.stopPropagation(); setTags((current) => current.filter((item) => item !== tag)); }} className="rounded-full hover:text-foreground" aria-label={`Remove ${tag} tag`}><X size={12} /></button></span>)}
+              <input value={tagInput} onChange={(event) => { setTagInput(event.target.value); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} maxLength={40} placeholder="Add a tag" aria-label="Add project tag" aria-expanded={suggestionsOpen && matchingSuggestions.length > 0} aria-controls="project-tag-suggestions" className="h-8 w-32 border-0 bg-transparent px-0 text-sm focus-visible:ring-0" />
+              <Button type="button" variant="ghost" size="sm" onClick={() => addTag()} disabled={!tagInput.trim()}>Add</Button>
+              {suggestionsOpen && matchingSuggestions.length > 0 && <div id="project-tag-suggestions" role="listbox" className="absolute left-0 top-full z-10 mt-2 w-64 max-h-40 overflow-y-auto rounded-md border border-border bg-[#161b22] p-1 shadow-lg">{matchingSuggestions.map((tag) => <button key={tag} type="button" role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => addTag(tag)} className="flex w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"><span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{tag}</span></button>)}</div>}
             </div>
           </div>
           {error && <p role="alert" className="text-rose-300">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <div className="mt-auto flex justify-end border-t border-border pt-5">
             {project ? <Button disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button> : <Tooltip label="Create project"><Button size="icon" aria-label="Create project" disabled={busy}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <LayersPlus size={17} />}</Button></Tooltip>}
           </div>
         </form>
