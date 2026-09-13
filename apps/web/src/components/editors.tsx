@@ -55,7 +55,7 @@ export function ProjectEditor({ project, close, save }: {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) close(); }}>
-      <DialogContent className="max-w-xl p-7">
+      <DialogContent className="h-[80vh] w-[80vw] max-w-none p-7">
         <DialogTitle className="text-lg font-semibold">{project ? "Edit project" : "New project"}</DialogTitle>
         <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">Give your work a place to take shape.</DialogDescription>
         <form className="space-y-4" onSubmit={async (event) => {
