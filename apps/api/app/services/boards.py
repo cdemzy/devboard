@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Project, ProjectTag, Task, utcnow
 from app.repositories.projects import owned_project, owned_task, project_tasks
-from app.schemas import ProjectCreate, ProjectTagUpdate, ProjectUpdate, TaskCreate, TaskUpdate
+from app.schemas import ProjectCreate, ProjectTagOrder, ProjectTagUpdate, ProjectUpdate, TaskCreate, TaskUpdate
 from app.services.tickets import project_ticket_prefix
 
 
@@ -21,16 +21,45 @@ def list_projects(db: Session, user: UUID, archived: bool):
 
 
 def list_project_tags(db: Session, user: UUID):
-    return list(db.scalars(select(ProjectTag).where(ProjectTag.owner_id == user).order_by(ProjectTag.name)))
+    return list(
+        db.scalars(
+            select(ProjectTag)
+            .where(ProjectTag.owner_id == user)
+            .order_by(ProjectTag.position, ProjectTag.id)
+        )
+    )
 
 
 def sync_project_tags(db: Session, user: UUID, tags: list[str]):
-    existing = {tag.normalized_name for tag in db.scalars(select(ProjectTag).where(ProjectTag.owner_id == user))}
+    existing_tags = list(db.scalars(select(ProjectTag).where(ProjectTag.owner_id == user)))
+    existing = {tag.normalized_name for tag in existing_tags}
+    next_position = len(existing_tags)
     for name in tags:
         normalized = name.casefold()
         if normalized not in existing:
-            db.add(ProjectTag(owner_id=user, name=name, normalized_name=normalized))
+            db.add(ProjectTag(owner_id=user, name=name, normalized_name=normalized, position=next_position))
             existing.add(normalized)
+            next_position += 1
+
+
+def reorder_project_tags(db: Session, user: UUID, data: ProjectTagOrder):
+    tags = list(
+        db.scalars(
+            select(ProjectTag)
+            .where(ProjectTag.owner_id == user)
+            .order_by(ProjectTag.position, ProjectTag.id)
+            .with_for_update()
+        )
+    )
+    tag_ids = data.tag_ids
+    if len(tag_ids) != len(set(tag_ids)) or set(tag_ids) != {tag.id for tag in tags}:
+        raise HTTPException(422, "Tag order must include every platform exactly once")
+    tags_by_id = {tag.id: tag for tag in tags}
+    ordered_tags = [tags_by_id[tag_id] for tag_id in tag_ids]
+    for position, tag in enumerate(ordered_tags):
+        tag.position = position
+    db.commit()
+    return ordered_tags
 
 
 def create_project(db: Session, user: UUID, data: ProjectCreate):
@@ -96,6 +125,15 @@ def delete_project_tag(db: Session, user: UUID, tag_id: UUID):
             project.tags = filtered
             project.updated_at = utcnow()
     db.delete(tag)
+    remaining_tags = list(
+        db.scalars(
+            select(ProjectTag)
+            .where(ProjectTag.owner_id == user, ProjectTag.id != tag_id)
+            .order_by(ProjectTag.position, ProjectTag.id)
+        )
+    )
+    for position, remaining_tag in enumerate(remaining_tags):
+        remaining_tag.position = position
     db.commit()
 
 

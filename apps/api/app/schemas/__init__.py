@@ -54,11 +54,16 @@ class ProjectTagOut(BaseModel):
     id: UUID
     name: str
     color: TagColor
+    position: int
 
 
 class ProjectTagUpdate(Patch):
     name: Tag | None = None
     color: TagColor | None = None
+
+
+class ProjectTagOrder(Input):
+    tag_ids: list[UUID] = Field(max_length=20)
 
 
 class TaskCreate(Input):

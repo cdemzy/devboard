@@ -21,6 +21,7 @@ export type ProjectTag = {
   id: string;
   name: string;
   color: "green" | "yellow" | "purple" | "orange" | "blue" | "pink" | "red" | "brown";
+  position: number;
 };
 export type Task = {
   id: string;

@@ -51,6 +51,7 @@ class ProjectTag(Base):
     name: Mapped[str] = mapped_column(String(40))
     normalized_name: Mapped[str] = mapped_column(String(40))
     color: Mapped[str] = mapped_column(String(16), default="purple")
+    position: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Task(Base):
