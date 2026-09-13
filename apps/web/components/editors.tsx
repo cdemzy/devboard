@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LayersPlus, LoaderCircle, Minimize2, Trash2, X } from "lucide-react";
-import type { Priority, Project, Status, Task, TaskInput } from "@/lib/types";
+import type { Priority, Project, ProjectTag, Status, Task, TaskInput } from "@/lib/types";
 import { statusLabels, statuses } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
@@ -22,12 +22,12 @@ export function ProjectEditor({ project, close, save }: {
   const [error, setError] = useState("");
   const [tags, setTags] = useState<string[]>(project?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<ProjectTag[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
-    void api<string[]>("/project-tags").then((savedTags) => {
+    void api<ProjectTag[]>("/project-tags").then((savedTags) => {
       if (active) setSuggestions(savedTags);
     }).catch(() => undefined);
     return () => { active = false; };
@@ -49,8 +49,8 @@ export function ProjectEditor({ project, close, save }: {
   }
 
   const matchingSuggestions = suggestions.filter((tag) =>
-    !tags.some((selected) => selected.toLowerCase() === tag.toLowerCase())
-    && tag.toLowerCase().includes(tagInput.trim().toLowerCase()),
+    !tags.some((selected) => selected.toLowerCase() === tag.name.toLowerCase())
+    && tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()),
   );
 
   return (
@@ -78,7 +78,7 @@ export function ProjectEditor({ project, close, save }: {
               {tags.map((tag) => <span key={tag} className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-primary"><span>{tag}</span><button type="button" onClick={(event) => { event.stopPropagation(); setTags((current) => current.filter((item) => item !== tag)); }} className="rounded-full hover:text-foreground" aria-label={`Remove ${tag} tag`}><X size={12} /></button></span>)}
               <input value={tagInput} onChange={(event) => { setTagInput(event.target.value); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} maxLength={40} placeholder="Add a tag" aria-label="Add project tag" aria-expanded={suggestionsOpen && matchingSuggestions.length > 0} aria-controls="project-tag-suggestions" className="h-8 w-32 border-0 bg-transparent px-0 text-sm focus-visible:ring-0" />
               <Button type="button" variant="ghost" size="sm" onClick={() => addTag()} disabled={!tagInput.trim()}>Add</Button>
-              {suggestionsOpen && matchingSuggestions.length > 0 && <div id="project-tag-suggestions" role="listbox" className="absolute left-0 top-full z-10 mt-2 w-64 max-h-40 overflow-y-auto rounded-md border border-border bg-[#161b22] p-1 shadow-lg">{matchingSuggestions.map((tag) => <button key={tag} type="button" role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => addTag(tag)} className="flex w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"><span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{tag}</span></button>)}</div>}
+              {suggestionsOpen && matchingSuggestions.length > 0 && <div id="project-tag-suggestions" role="listbox" className="absolute left-0 top-full z-10 mt-2 w-64 max-h-40 overflow-y-auto rounded-md border border-border bg-[#161b22] p-1 shadow-lg">{matchingSuggestions.map((tag) => <button key={tag.id} type="button" role="option" onMouseDown={(event) => event.preventDefault()} onClick={() => addTag(tag.name)} className="flex w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"><span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{tag.name}</span></button>)}</div>}
             </div>
           </div>
           {error && <p role="alert" className="text-rose-300">{error}</p>}

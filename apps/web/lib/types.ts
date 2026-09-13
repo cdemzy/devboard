@@ -17,6 +17,11 @@ export type Project = {
   created_at: string;
   updated_at: string;
 };
+export type ProjectTag = {
+  id: string;
+  name: string;
+  color: "default" | "gray" | "brown" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink" | "red";
+};
 export type Task = {
   id: string;
   project_id: string;
