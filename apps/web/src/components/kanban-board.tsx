@@ -154,7 +154,7 @@ function Column({
     <section
       ref={setNodeRef}
       aria-label={statusLabels[status]}
-      className={`group/column min-h-[calc(100dvh-15.75rem)] min-w-0 rounded-lg border border-border bg-[#0d1117] p-2 shadow-sm transition-all duration-150 ${isOver || containsOverTask ? "bg-primary/12 ring-1 ring-inset ring-primary/60 shadow-[0_0_24px_rgb(47_129_247_/_0.14)]" : "hover:border-[#484f58]"}`}
+      className={`group/column min-h-[calc(100dvh-20rem)] min-w-0 rounded-lg border border-border bg-[#0d1117] p-2 shadow-sm transition-all duration-150 ${isOver || containsOverTask ? "bg-primary/12 ring-1 ring-inset ring-primary/60 shadow-[0_0_24px_rgb(47_129_247_/_0.14)]" : "hover:border-[#484f58]"}`}
     >
       <header className="mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon
