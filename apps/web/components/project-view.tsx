@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import {
   Archive,
   ArrowLeft,
+  Database,
   Ellipsis,
   FolderKanban,
   LayoutDashboard,
@@ -212,22 +213,37 @@ export function ProjectView({
     }
   }
   async function deleteTag(tag: ProjectTag) {
-    await api(`/project-tags/${tag.id}`, json("DELETE"));
+    const previousSuggestions = tagSuggestions;
+    const previousProjectTags = projectDraft.tags;
     setTagSuggestions((tags) => tags.filter((item) => item.id !== tag.id));
     setProjectDraft((current) => ({ ...current, tags: current.tags.filter((name) => name.toLowerCase() !== tag.name.toLowerCase()) }));
     setTagMenuId(null);
-    await refresh();
+    try {
+      await api(`/project-tags/${tag.id}`, json("DELETE"));
+    } catch (error) {
+      setTagSuggestions(previousSuggestions);
+      setProjectDraft((current) => ({ ...current, tags: previousProjectTags }));
+      reportBoardError(error, "Unable to delete tag.");
+      return;
+    }
+    try {
+      await refresh();
+    } catch (error) {
+      reportBoardError(error, "Unable to refresh project after deleting tag.");
+    }
   }
   return (
     <>
       <div className="px-5 pt-8 md:px-8">
         <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0 max-w-3xl flex-1">
-            <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="h-auto w-full !border-0 !bg-transparent px-0 py-0 text-3xl font-bold tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none md:text-4xl" />
+            <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="h-auto w-full !border-0 !bg-transparent px-0 py-0 text-4xl font-bold leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none md:text-5xl" />
             <input value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} aria-label="Project description" maxLength={10000} placeholder="Description" className="mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
-            <div ref={tagMenuRef} className="relative mt-3">
+            <div className="mt-3 flex items-start gap-5">
+              <div className="flex h-9 w-40 shrink-0 items-center gap-2 pl-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
+              <div ref={tagMenuRef} className="relative min-w-0 flex-1">
               <div role="button" tabIndex={0} onMouseDown={(event) => { if (event.target === event.currentTarget) event.preventDefault(); }} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setTagsOpen(true); } }} className={`flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? "rounded-t-md border border-border bg-accent px-3 py-3" : "rounded-md px-2 py-2"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
-                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add tags</span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: tagColorValues[catalog?.color ?? "default"], fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
+                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: tagColorValues[catalog?.color ?? "default"], fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
                 {tagsOpen && <input autoFocus value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const exactMatch = tagSuggestions.find((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()); if (exactMatch) toggleTag(exactMatch.name); else addTag(); } }} aria-label="Search or create a project tag" maxLength={40} placeholder="Search for an option…" className="-ml-1 h-7 min-w-36 flex-1 !border-0 !bg-transparent px-0 text-xs !outline-none focus:!outline-none" />}
               </div>
               {tagsOpen && <div role="dialog" aria-label="Project tag options" className="absolute inset-x-0 top-full z-20 rounded-b-md border border-t-0 border-border bg-[#161b22] p-2 shadow-xl">
@@ -235,6 +251,7 @@ export function ProjectView({
                 {matchingTags.length > 0 && <div className="flex flex-wrap gap-1.5">{matchingTags.map((tag) => { return <div key={tag.id} style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="relative flex items-center rounded-sm text-white"><button type="button" onClick={() => { setTagMenuId(null); toggleTag(tag.name); }} style={{ fontSize: "12px", lineHeight: 1 }} className="px-1.5 py-0.5">{tag.name}</button><button type="button" onClick={(event) => { event.stopPropagation(); setTagMenuId(tagMenuId === tag.id ? null : tag.id); }} aria-label={`Tag options for ${tag.name}`} className="mr-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>{tagMenuId === tag.id && <div className="absolute left-0 top-full z-30 mt-1 w-36 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="mb-1.5 grid grid-cols-5 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => void updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="h-5 rounded-sm" />)}</div><button type="button" onClick={() => void deleteTag(tag)} className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[12px] leading-none text-rose-300 hover:bg-accent"><Trash2 size={13} />Delete?</button></div>}</div>; })}</div>}
                 {tagInput.trim() && !tagSuggestions.some((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()) && <button type="button" onClick={addTag} className="mt-2 flex w-full items-center gap-2 rounded bg-[#2d333b] px-2 py-1.5 text-left text-xs">Create <span className="rounded-sm bg-[#484f58] px-2 py-0.5 text-foreground">{tagInput.trim()}</span></button>}
               </div>}
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1">
