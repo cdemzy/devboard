@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hasValidAccessToken } from "@/lib/access";
 
-const realm = "DevBoard";
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (process.env.DEVBOARD_BROWSER_TEST === "1") return NextResponse.next();
 
   const password = process.env.APP_ACCESS_PASSWORD;
@@ -12,17 +11,14 @@ export function proxy(request: NextRequest) {
     });
   }
 
-  const expected = `Basic ${btoa(`devboard:${password}`)}`;
-  if (request.headers.get("authorization") === expected) {
+  if (await hasValidAccessToken(request.cookies.get("devboard_access")?.value, password)) {
     return NextResponse.next();
   }
-
-  return new NextResponse("Password required.", {
-    status: 401,
-    headers: { "WWW-Authenticate": `Basic realm="${realm}"` },
-  });
+  const accessUrl = new URL("/access", request.url);
+  accessUrl.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  return NextResponse.redirect(accessUrl);
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!access|api/access|_next/static|_next/image|favicon.ico).*)"],
 };
