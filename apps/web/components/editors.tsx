@@ -68,7 +68,7 @@ export function ProjectEditor({ project, close, save }: {
           catch (error) { setError(error instanceof Error ? error.message : "Unable to save."); }
           finally { setBusy(false); }
         }}>
-          <label>Project name<input name="name" defaultValue={project?.name} required maxLength={120} placeholder="e.g. Developer portal" autoFocus /></label>
+          <label>Project name<input name="name" defaultValue={project?.name} required maxLength={120} autoComplete="off" placeholder="e.g. Developer portal" autoFocus /></label>
           <label>Description<textarea name="description" defaultValue={project?.description} maxLength={10000} placeholder="What are you building? (optional)" /></label>
           <div className="grid gap-2 text-[13px]">
             <span>Project tags</span>
@@ -169,7 +169,7 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
         </div>
         <DialogDescription className="mb-6 mt-1 text-sm text-muted-foreground">{currentTask ? "Update the details and keep work moving." : "Start with a clear next step."}</DialogDescription>
         <div className="space-y-4">
-          <label>Title<input name="title" value={draft.title} onChange={(event) => updateDraft({ title: capitalizeFirst(event.target.value) })} required maxLength={240} autoCapitalize="sentences" autoFocus placeholder="What needs to happen?" /></label>
+          <label>Title<input name="title" value={draft.title} onChange={(event) => updateDraft({ title: capitalizeFirst(event.target.value) })} required maxLength={240} autoComplete="off" autoCapitalize="sentences" autoFocus placeholder="What needs to happen?" /></label>
           <label>Description<textarea name="description" value={draft.description} onChange={(event) => updateDraft({ description: event.target.value })} maxLength={10000} placeholder="Details, context, or acceptance criteria…" /></label>
           <div className="grid grid-cols-2 gap-4">
             <label>Status<select name="status" value={draft.status} onChange={(event) => updateDraft({ status: event.target.value as Status })}>{statuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
