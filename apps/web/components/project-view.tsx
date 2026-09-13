@@ -90,7 +90,7 @@ export function ProjectView({
   }, [tagInput]);
   useEffect(() => {
     function closeTags(event: PointerEvent) {
-      if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
+      if (tagsOpen && tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
         if (tagMenuId && !tagNameDraft.trim()) {
           toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity });
           window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
@@ -105,7 +105,7 @@ export function ProjectView({
     }
     document.addEventListener("pointerdown", closeTags);
     return () => document.removeEventListener("pointerdown", closeTags);
-  }, [tagMenuId, tagNameDraft, tagSuggestions, saveProjectDraft]);
+  }, [tagsOpen, tagMenuId, tagNameDraft, tagSuggestions, saveProjectDraft]);
   async function saveProjectDraft() {
     const name = projectDraft.name.trim() || "New Project";
     const unchanged = name === project.name && projectDraft.description === project.description
