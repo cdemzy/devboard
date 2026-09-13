@@ -161,10 +161,10 @@ function Column({
           size={15}
           className={
             status === "done"
-              ? "text-emerald-400"
+              ? "text-[#3fb950]"
               : status === "in_progress"
-                ? "text-amber-300"
-                : "text-muted-foreground"
+                ? "text-[#a3713f]"
+                : "text-[#a371f7]"
           }
         />
         <h2 className="text-xs font-semibold">{statusLabels[status]}</h2>
