@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import {
   Archive,
   ArrowLeft,
@@ -41,7 +42,7 @@ export function ProjectView({
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
-  const [archivedTasksOpen, setArchivedTasksOpen] = useState(false);
+  const [view, setView] = useState<"board" | "archived">("board");
   const [archivedTasksLoading, setArchivedTasksLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -125,7 +126,7 @@ export function ProjectView({
     void action(async () => {
       await api(`/tasks/${task.id}/archive`, json("POST"));
       await loadTasks();
-      if (archivedTasksOpen) await loadArchivedTasks();
+      if (view === "archived") await loadArchivedTasks();
     }, "Archiving...", "Task archived");
   }
   function restoreTask(task: Task) {
@@ -138,7 +139,7 @@ export function ProjectView({
   return (
     <>
       <div className="flex min-h-14 items-center gap-2 border-b border-border px-6 text-xs text-muted-foreground">
-        <span>Workspace</span>
+        <span>Projects</span>
         <span className="mx-1">/</span>
         <span className="truncate text-foreground">{project.name}</span>
         {project.archived && (
@@ -221,12 +222,9 @@ export function ProjectView({
             )}
           </div>
         </header>
-        <div className="mb-5 flex items-center justify-between border-b border-border pb-3">
-          <span className="flex items-center gap-2 text-xs font-medium"><LayoutDashboard size={14} className="text-primary" />Board</span>
-          <div className="flex items-center gap-3"><Tooltip label="Archived tasks"><Button variant="ghost" size="sm" disabled={busy} onClick={() => { const nextOpen = !archivedTasksOpen; setArchivedTasksOpen(nextOpen); if (nextOpen) void loadArchivedTasks(); }}><Archive size={14} />Archived tasks</Button></Tooltip><span className="text-xs text-muted-foreground" aria-live="polite">{`${tasks.length} tasks · ${completed} completed`}</span></div>
-        </div>
-        {archivedTasksOpen && <section className="mb-5 rounded-lg border border-border bg-[#161b22] p-3"><div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-semibold"><Archive size={15} className="text-muted-foreground" />Archived tasks</h2><Button variant="ghost" size="sm" onClick={() => setArchivedTasksOpen(false)}>Close</Button></div>{archivedTasksLoading ? <p className="text-sm text-muted-foreground">Loading archived tasks…</p> : archivedTasks.length === 0 ? <p className="text-sm text-muted-foreground">No archived tasks.</p> : <div className="space-y-2">{archivedTasks.map((task) => <div key={task.id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3"><div className="min-w-0 flex-1"><span className="text-xs font-medium text-primary">{task.ticket_id}</span><p className="truncate text-sm font-medium">{task.title}</p></div><Tooltip label="Restore"><Button variant="ghost" size="icon" aria-label={`Restore ${task.ticket_id}`} disabled={busy || project.archived} onClick={() => restoreTask(task)}><RotateCcw size={15} /></Button></Tooltip><Tooltip label="Delete permanently"><Button variant="ghost" size="icon" aria-label={`Delete ${task.ticket_id}`} disabled={busy} className="text-rose-300" onClick={() => setTaskToDelete(task)}><Trash2 size={15} /></Button></Tooltip></div>)}</div>}</section>}
-        {loading ? (
+        <div className="mb-5 flex items-center border-b border-border pb-3"><div className="flex items-center gap-1 rounded-full bg-accent p-1"><button onClick={() => setView("board")} className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "board" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><LayoutDashboard size={14} className={view === "board" ? "text-primary" : ""} />Board</button><button onClick={() => { setView("archived"); void loadArchivedTasks(); }} className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "archived" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><Archive size={14} />Archived tasks</button></div>{view === "board" && <span className="ml-auto text-xs text-muted-foreground">{`${tasks.length} tasks · ${completed} completed`}</span>}</div>
+        {view === "archived" && <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-lg border border-border bg-[#161b22] p-4">{archivedTasksLoading ? <p className="text-sm text-muted-foreground">Loading archived tasks…</p> : archivedTasks.length === 0 ? <p className="text-sm text-muted-foreground">No archived tasks.</p> : <div className="space-y-2">{archivedTasks.map((task) => <div key={task.id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3"><div className="min-w-0 flex-1"><span className="text-xs font-medium text-primary">{task.ticket_id}</span><p className="truncate text-sm font-medium">{task.title}</p></div><Tooltip label="Restore"><Button variant="ghost" size="icon" aria-label={`Restore ${task.ticket_id}`} disabled={busy || project.archived} onClick={() => restoreTask(task)}><RotateCcw size={15} /></Button></Tooltip><Tooltip label="Delete permanently"><Button variant="ghost" size="icon" aria-label={`Delete ${task.ticket_id}`} disabled={busy} className="text-rose-300" onClick={() => setTaskToDelete(task)}><Trash2 size={15} /></Button></Tooltip></div>)}</div>}</motion.section>}
+        {view === "board" && (loading ? (
           <SectionLoader
             icon={project.archived ? Archive : FolderKanban}
             label="Loading board..."
@@ -240,7 +238,7 @@ export function ProjectView({
             create={(status) => setEditor({ status })}
             move={(...args) => void move(...args)}
           />
-        )}
+        ))}
         {project.archived && <p className="pb-6 text-[11px] text-muted-foreground">Restore this project to change its tasks.</p>}
       </div>
       {editProject && (
