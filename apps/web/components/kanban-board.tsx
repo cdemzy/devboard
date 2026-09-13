@@ -180,7 +180,7 @@ function Column({
     <section
       ref={setNodeRef}
       aria-label={statusLabels[status]}
-      className={`group/column min-h-[calc(100dvh-20rem)] min-w-0 rounded-lg border p-2 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
+      className={`group/column min-h-[max(22rem,calc(100dvh-23rem))] min-w-0 rounded-lg border p-2 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
     >
       <header className="mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon
@@ -220,7 +220,7 @@ function Column({
       </SortableContext>
       {isOver && tasks.length > 0 && <div aria-hidden="true" className={`mx-2 mt-3 h-0.5 rounded-full ${statusStyle.drop}`} />}
       {tasks.length === 0 && (
-        <p className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
+        <p className="flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed border-[#484f58] px-3 py-3 text-center text-xs text-muted-foreground">
           No tasks yet
         </p>
       )}
@@ -286,7 +286,7 @@ export function KanbanBoard({
         setActiveTask(null);
       }}
     >
-      <div className="grid grid-cols-1 gap-4 pb-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <>
           {statuses.map((status) => (
             <Column

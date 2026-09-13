@@ -9,6 +9,7 @@ Priority = Literal["low", "medium", "high"]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=240)]
 Description = Annotated[str, StringConstraints(max_length=10000)]
+ProjectDescription = Annotated[str, StringConstraints(max_length=90)]
 Tag = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 TagColor = Literal["green", "yellow", "purple", "orange", "blue", "pink", "red", "brown"]
 
@@ -27,13 +28,13 @@ class Patch(Input):
 
 class ProjectCreate(Input):
     name: Name
-    description: Description = ""
+    description: ProjectDescription = ""
     tags: list[Tag] = Field(default_factory=list, max_length=20)
 
 
 class ProjectUpdate(Patch):
     name: Name | None = None
-    description: Description | None = None
+    description: ProjectDescription | None = None
     archived: bool | None = None
     tags: list[Tag] | None = Field(default=None, max_length=20)
 

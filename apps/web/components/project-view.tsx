@@ -35,6 +35,9 @@ function reportBoardError(error: unknown, fallback: string, retry?: () => void) 
     ...(retry ? { action: { label: "Reload board", onClick: retry } } : {}),
   });
 }
+function capitalizePlatform(value: string) {
+  return value.replace(/(^|[\s-])\p{L}/gu, (character) => character.toUpperCase());
+}
 export function ProjectView({
   project,
   update,
@@ -206,7 +209,7 @@ export function ProjectView({
   const completed = tasks.filter((task) => task.status === "done").length;
   const matchingTags = tagSuggestions.filter((tag) => tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()));
   function addTag() {
-    const tag = tagInput.trim();
+    const tag = capitalizePlatform(tagInput.trim());
     if (!tag || tag.length > 40 || projectDraft.tags.some((item) => item.toLowerCase() === tag.toLowerCase()) || projectDraft.tags.length >= 20) return;
     setTagSuggestions((current) => current.some((item) => item.name.toLowerCase() === tag.toLowerCase()) ? current : [...current, { id: `pending-${tag.toLowerCase()}`, name: tag, color: "purple" }]);
     setProjectDraft((current) => ({ ...current, tags: [...current.tags, tag] }));
@@ -250,7 +253,7 @@ export function ProjectView({
     }
   }
   async function renameTag(tag: ProjectTag, value: string) {
-    const name = value.trim();
+    const name = capitalizePlatform(value.trim());
     if (!name) {
       setTagsOpen(true);
       setTagMenuId(tag.id);
@@ -327,11 +330,11 @@ export function ProjectView({
         <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0 max-w-3xl flex-1">
             <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="h-auto w-full !border-0 !bg-transparent px-0 py-0 !text-3xl !font-bold !leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none" />
-            <input value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} aria-label="Project description" maxLength={10000} placeholder="Description" className="mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
+            <input value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} aria-label="Project description" maxLength={90} placeholder="Description" className="mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
             <div className="mt-3 flex items-start gap-5">
               <div className="flex h-9 w-40 shrink-0 items-center gap-2 pl-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
               <div ref={tagMenuRef} className="relative min-w-0 flex-1">
-              <div role="button" tabIndex={0} onMouseDown={(event) => { if (event.target === event.currentTarget) event.preventDefault(); }} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setTagsOpen(true); } }} className={`flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? "rounded-t-md border border-border bg-accent px-3 py-3" : "rounded-md px-2 py-2"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
+              <div role="button" tabIndex={0} onMouseDown={(event) => { if (event.target === event.currentTarget) event.preventDefault(); }} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setTagsOpen(true); } }} className={`flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? "rounded-t-md border border-border bg-accent px-3 py-3" : "rounded-md px-2 py-2"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
                 {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: tagColorValues[catalog?.color ?? "purple"], fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
                 {tagsOpen && <input autoFocus value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const exactMatch = tagSuggestions.find((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()); if (exactMatch) toggleTag(exactMatch.name); else addTag(); } }} aria-label="Search or create a project tag" maxLength={40} placeholder="Search for an option…" className="-ml-1 h-7 min-w-36 flex-1 !border-0 !bg-transparent px-0 text-xs !outline-none focus:!outline-none" />}
               </div>

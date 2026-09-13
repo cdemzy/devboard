@@ -70,7 +70,7 @@ export function ProjectEditor({ project, close, save }: {
           <input name="name" defaultValue={project?.name} required maxLength={120} autoComplete="off" placeholder="Untitled project" autoFocus className="h-auto border-0 bg-transparent px-0 py-2 text-3xl font-semibold tracking-tight placeholder:text-muted-foreground/55 focus-visible:ring-0 md:text-4xl" />
           <div className="mt-8 grid gap-2">
             <span className="text-sm font-medium text-muted-foreground">Description</span>
-            <textarea name="description" defaultValue={project?.description} maxLength={10000} placeholder="Add a description…" className="min-h-28 resize-y border-0 bg-transparent px-0 text-base focus-visible:ring-0" />
+            <textarea name="description" defaultValue={project?.description} maxLength={90} placeholder="Add a description…" className="min-h-28 resize-y border-0 bg-transparent px-0 text-base focus-visible:ring-0" />
           </div>
           <div className="mt-7 grid gap-2">
             <span className="text-sm font-medium text-muted-foreground">Platform</span>
