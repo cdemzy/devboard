@@ -1,5 +1,8 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { motion } from "motion/react";
 import {
   Archive,
@@ -7,6 +10,7 @@ import {
   Database,
   Ellipsis,
   FolderKanban,
+  GripVertical,
   LayoutDashboard,
   Plus,
   RotateCcw,
@@ -38,6 +42,38 @@ function reportBoardError(error: unknown, fallback: string, retry?: () => void) 
 function capitalizePlatform(value: string) {
   return value.replace(/(^|[\s-])\p{L}/gu, (character) => character.toUpperCase());
 }
+
+function SortableProjectTag({
+  tag,
+  onSelect,
+  onOptions,
+  sortable,
+  children,
+}: {
+  tag: ProjectTag;
+  onSelect: () => void;
+  onOptions: () => void;
+  sortable: boolean;
+  children?: ReactNode;
+}) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({ id: tag.id, disabled: !sortable });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 40 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className={`project-tag-option rounded-md p-0.5 transition-colors hover:bg-accent focus-within:bg-accent ${isDragging ? "opacity-60" : ""}`}>
+      <div style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="project-tag-chip relative flex items-center rounded-sm text-white">
+        <button type="button" onClick={onSelect} className="project-tag-select px-1.5 py-1">{tag.name}</button>
+        <button type="button" onClick={(event) => { event.stopPropagation(); onOptions(); }} aria-label={`Platform options for ${tag.name}`} className="project-tag-options-trigger rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>
+        {sortable && <button type="button" aria-label={`Reorder ${tag.name}`} className="project-tag-drag-handle mr-0.5 touch-none rounded-sm p-0.5 text-white/70 hover:text-white cursor-grab active:cursor-grabbing" {...attributes} {...listeners}><GripVertical size={13} /></button>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function ProjectView({
   project,
   update,
@@ -58,12 +94,18 @@ export function ProjectView({
   const moveRevisions = useRef(new Map<string, number>());
   const moveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const queuedMoveIds = useRef(new Set<string>());
+  const tagOrderQueue = useRef(Promise.resolve());
+  const tagOrderRevision = useRef(0);
   const [projectDraft, setProjectDraft] = useState(() => ({ name: project.name === "New Project" ? "" : project.name, description: project.description, tags: project.tags }));
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<ProjectTag[]>([]);
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
   const [tagNameDraft, setTagNameDraft] = useState("");
   const [tagsOpen, setTagsOpen] = useState(false);
+  const tagSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   const tagMenuRef = useRef<HTMLDivElement>(null);
   const tagNameInputRef = useRef<HTMLInputElement>(null);
   const pendingTagColorsRef = useRef<Record<string, { color: ProjectTag["color"]; previous: ProjectTag["color"] }>>({});
@@ -230,10 +272,11 @@ export function ProjectView({
   }
   const completed = tasks.filter((task) => task.status === "done").length;
   const matchingTags = tagSuggestions.filter((tag) => tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()));
+  const canReorderTags = !tagInput.trim() && tagSuggestions.every((tag) => !tag.id.startsWith("pending-"));
   function addTag() {
     const tag = capitalizePlatform(tagInput.trim());
     if (!tag || tag.length > 40 || projectDraft.tags.some((item) => item.toLowerCase() === tag.toLowerCase()) || projectDraft.tags.length >= 20) return;
-    setTagSuggestions((current) => current.some((item) => item.name.toLowerCase() === tag.toLowerCase()) ? current : [...current, { id: `pending-${tag.toLowerCase()}`, name: tag, color: "purple" }]);
+    setTagSuggestions((current) => current.some((item) => item.name.toLowerCase() === tag.toLowerCase()) ? current : [...current, { id: `pending-${tag.toLowerCase()}`, name: tag, color: "purple", position: current.length }]);
     setProjectDraft((current) => ({ ...current, tags: [...current.tags, tag] }));
     setTagInput("");
   }
@@ -245,6 +288,28 @@ export function ProjectView({
         : [...current.tags, tag],
     }));
     setTagInput("");
+  }
+  function handleTagOrderEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const previousTags = tagSuggestions;
+    const oldIndex = previousTags.findIndex((tag) => tag.id === active.id);
+    const newIndex = previousTags.findIndex((tag) => tag.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const orderedTags = arrayMove(previousTags, oldIndex, newIndex);
+    const revision = tagOrderRevision.current + 1;
+    tagOrderRevision.current = revision;
+    setTagSuggestions(orderedTags);
+    tagOrderQueue.current = tagOrderQueue.current.catch(() => undefined).then(async () => {
+      try {
+        const savedTags = await api<ProjectTag[]>("/project-tags/order", json("PUT", { tag_ids: orderedTags.map((tag) => tag.id) }));
+        if (tagOrderRevision.current === revision) setTagSuggestions(savedTags);
+      } catch (error) {
+        if (tagOrderRevision.current === revision) {
+          setTagSuggestions(previousTags);
+          reportBoardError(error, "Unable to save platform order.");
+        }
+      }
+    });
   }
   function saveFallbackProjectName() {
     void saveProjectDraft();
@@ -354,12 +419,20 @@ export function ProjectView({
               <div className="project-platform-label flex h-9 w-40 shrink-0 items-center gap-2 pl-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
               <div ref={tagMenuRef} className="project-platform-editor relative min-w-0 flex-1">
               <div role="button" tabIndex={0} onMouseDown={(event) => { if (event.target === event.currentTarget) event.preventDefault(); }} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setTagsOpen(true); } }} className={`project-tag-trigger flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? "rounded-t-md border border-border bg-accent px-3 py-3" : "rounded-md px-2 py-2"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
-                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: tagColorValues[catalog?.color ?? "purple"], fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
+                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: tagColorValues[catalog?.color ?? "purple"], fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-1 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
                 {tagsOpen && <input autoFocus value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const exactMatch = tagSuggestions.find((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()); if (exactMatch) toggleTag(exactMatch.name); else addTag(); } }} aria-label="Search or create a project tag" maxLength={40} placeholder="Search for an option…" className="project-tag-search -ml-1 h-7 min-w-36 flex-1 !border-0 !bg-transparent px-0 text-xs !outline-none focus:!outline-none" />}
               </div>
               {tagsOpen && <div role="dialog" aria-label="Project tag options" className="project-tag-options absolute inset-x-0 top-full z-20 rounded-b-md border border-t-0 border-border bg-[#161b22] p-2 shadow-xl">
                 <p className="mb-1.5 text-xs text-muted-foreground">Select a tag or create one</p>
-                {matchingTags.length > 0 && <div className="project-tag-list flex flex-wrap gap-1.5">{matchingTags.map((tag) => <div key={tag.id} style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="project-tag-chip relative flex items-center rounded-sm text-white"><button type="button" onClick={() => { setTagMenuId(null); toggleTag(tag.name); }} style={{ fontSize: "12px", lineHeight: 1 }} className="project-tag-select px-1.5 py-0.5">{tag.name}</button><button type="button" onClick={(event) => { event.stopPropagation(); toggleTagMenu(tag); }} aria-label={`Platform options for ${tag.name}`} className="project-tag-options-trigger mr-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>{tagMenuId === tag.id && <div className="project-tag-menu absolute left-0 top-full z-30 mt-1 w-52 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="project-tag-menu-edit flex gap-1.5"><input ref={tagNameInputRef} value={tagNameDraft} onChange={(event) => { setTagNameDraft(event.target.value); if (event.target.value.trim()) toast.dismiss(platformNameToastId); }} onBlur={(event) => void renameTag(tag, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { if (!tagNameDraft.trim()) { toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity }); return; } void persistTagColor(tag); setTagNameDraft(tag.name); setTagMenuId(null); } }} aria-label={`Rename ${tag.name}`} maxLength={40} className="project-tag-name-input h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none" /><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void deleteTag(tag)} aria-label={`Delete ${tag.name}`} className="project-tag-delete flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"><Trash2 size={13} /></button></div><div className="my-2 border-t border-border" /><p className="project-tag-colors-label mb-1.5 text-[11px] font-medium text-muted-foreground">Colors</p><div className="project-tag-colors grid grid-cols-4 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="project-tag-color h-5 rounded-sm" />)}</div></div>}</div>)}</div>}
+                {matchingTags.length > 0 && <DndContext sensors={tagSensors} collisionDetection={closestCenter} onDragStart={() => setTagMenuId(null)} onDragEnd={handleTagOrderEnd}>
+                  <SortableContext items={matchingTags.map((tag) => tag.id)} strategy={rectSortingStrategy}>
+                    <div className="project-tag-list flex flex-wrap gap-1.5">
+                      {matchingTags.map((tag) => <SortableProjectTag key={tag.id} tag={tag} sortable={canReorderTags} onSelect={() => { setTagMenuId(null); toggleTag(tag.name); }} onOptions={() => toggleTagMenu(tag)}>
+                        {tagMenuId === tag.id && <div className="project-tag-menu absolute left-0 top-full z-30 mt-1 w-52 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="project-tag-menu-edit flex gap-1.5"><input ref={tagNameInputRef} value={tagNameDraft} onChange={(event) => { setTagNameDraft(event.target.value); if (event.target.value.trim()) toast.dismiss(platformNameToastId); }} onBlur={(event) => void renameTag(tag, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { if (!tagNameDraft.trim()) { toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity }); return; } void persistTagColor(tag); setTagNameDraft(tag.name); setTagMenuId(null); } }} aria-label={`Rename ${tag.name}`} maxLength={40} className="project-tag-name-input h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none" /><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void deleteTag(tag)} aria-label={`Delete ${tag.name}`} className="project-tag-delete flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"><Trash2 size={13} /></button></div><div className="my-2 border-t border-border" /><p className="project-tag-colors-label mb-1.5 text-[11px] font-medium text-muted-foreground">Colors</p><div className="project-tag-colors grid grid-cols-4 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="project-tag-color h-5 rounded-sm" />)}</div></div>}
+                      </SortableProjectTag>)}
+                    </div>
+                  </SortableContext>
+                </DndContext>}
                 {tagInput.trim() && !tagSuggestions.some((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()) && <button type="button" onClick={addTag} className="project-tag-create mt-2 flex w-full items-center gap-2 rounded bg-[#2d333b] px-2 py-1.5 text-left text-xs">Create <span className="project-tag-create-name rounded-sm bg-[#484f58] px-2 py-0.5 text-foreground">{tagInput.trim()}</span></button>}
               </div>}
               </div>
