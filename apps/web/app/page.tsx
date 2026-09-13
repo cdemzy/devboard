@@ -40,7 +40,7 @@ export default function Page() {
   if (loading)
     return (
       <main
-        className="grid min-h-screen place-items-center text-muted-foreground"
+        className="app-loading grid min-h-screen place-items-center text-muted-foreground"
         role="status"
       >
         Opening your workspace…
@@ -48,10 +48,10 @@ export default function Page() {
     );
   if (error)
     return (
-      <main className="grid min-h-screen place-items-center p-8">
-        <div className="max-w-md">
+      <main className="app-error-screen grid min-h-screen place-items-center p-8">
+        <div className="app-error-content max-w-md">
           <h1 className="mb-3 text-xl font-semibold">DevBoard setup</h1>
-          <p role="alert" className="text-muted-foreground">
+          <p role="alert" className="app-error-message text-muted-foreground">
             {error}
           </p>
         </div>

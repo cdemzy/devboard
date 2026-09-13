@@ -12,13 +12,13 @@ export function SectionLoader({
   return (
     <div
       role="status"
-      className={`flex min-h-[65vh] flex-col items-center justify-center gap-4 text-muted-foreground ${className}`}
+      className={`ui-section-loader ${className}`}
     >
-      <div className="relative grid h-20 w-20 place-items-center">
-        <span className="absolute inset-0 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+      <div className="ui-section-loader-icon">
+        <span className="ui-section-loader-spinner" />
         <Icon size={29} className="text-primary" aria-hidden="true" />
       </div>
-      <span className="text-sm">{label}</span>
+      <span className="ui-section-loader-label">{label}</span>
     </div>
   );
 }

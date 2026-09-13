@@ -34,9 +34,9 @@ export function AuthScreen() {
     }
   }
   return (
-    <main className="flex min-h-screen items-center justify-center px-5">
-      <div className="w-full max-w-sm">
-        <div className="mb-12 flex items-center gap-2.5 font-semibold tracking-tight">
+    <main className="auth-screen flex min-h-screen items-center justify-center px-5">
+      <div className="auth-content w-full max-w-sm">
+        <div className="auth-brand mb-12 flex items-center gap-2.5 font-semibold tracking-tight">
           <Layers3 className="text-primary" size={24} /> DevBoard
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -47,7 +47,7 @@ export function AuthScreen() {
             ? "A little structure for your next big idea."
             : "Your projects, right where you left them."}
         </p>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="auth-form space-y-4">
           <label>
             Email
             <input
@@ -57,6 +57,7 @@ export function AuthScreen() {
               required
               maxLength={254}
               placeholder="you@example.com"
+              className="auth-input"
             />
           </label>
           <label>
@@ -68,22 +69,23 @@ export function AuthScreen() {
               minLength={8}
               required
               placeholder="At least 8 characters"
+              className="auth-input"
             />
           </label>
           {message && (
-            <p role="status" className="text-sm text-amber-200">
+            <p role="status" className="auth-message text-sm text-amber-200">
               {message}
             </p>
           )}
-          <Button className="w-full" disabled={busy}>
+          <Button className="auth-submit w-full" disabled={busy}>
             {busy ? "Please wait…" : signup ? "Create account" : "Sign in"}
             <ArrowRight size={15} />
           </Button>
         </form>
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="auth-mode-prompt mt-6 text-center text-sm text-muted-foreground">
           {signup ? "Already have an account?" : "New to DevBoard?"}{" "}
           <button
-            className="text-foreground underline underline-offset-4"
+            className="auth-mode-toggle text-foreground underline underline-offset-4"
             onClick={() => {
               setSignup(!signup);
               setMessage("");

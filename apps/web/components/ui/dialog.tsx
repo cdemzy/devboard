@@ -13,10 +13,10 @@ export function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { hideClose?: boolean }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/65" />
+      <DialogPrimitive.Overlay className="ui-dialog-overlay" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto",
+          "ui-dialog-content",
           className,
         )}
         {...props}
@@ -25,7 +25,7 @@ export function DialogContent({
         {!hideClose && (
           <DialogPrimitive.Close
             aria-label="Close dialog"
-            className="absolute right-4 top-4 rounded p-1 text-muted-foreground hover:text-foreground focus-visible:ring-2"
+            className="ui-dialog-close"
           >
             <X size={16} />
           </DialogPrimitive.Close>

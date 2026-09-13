@@ -58,6 +58,87 @@ select {
   background: #1f6feb66;
 }
 
+@layer components {
+  .task-actions-trigger {
+    @apply rounded p-1 text-muted-foreground opacity-0 transition-opacity;
+  }
+
+  .task-card:hover .task-actions-trigger,
+  .task-actions-trigger:focus-visible {
+    @apply opacity-100;
+  }
+
+  .task-actions-trigger:hover {
+    @apply bg-accent text-foreground;
+  }
+
+  .task-actions-trigger:disabled {
+    @apply opacity-0;
+  }
+
+  .task-actions-menu {
+    @apply absolute -bottom-0.5 right-full z-20 mr-1 flex items-center gap-0.5 rounded-lg border border-border bg-[#161b22] p-0.5 shadow-xl;
+  }
+
+  .task-actions-menu-button {
+    @apply flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground;
+  }
+
+  .task-actions-menu-button:hover {
+    @apply bg-accent text-foreground;
+  }
+
+  .task-actions-menu-button-danger {
+    @apply text-rose-300;
+  }
+
+  .task-actions-menu-button-danger:hover {
+    @apply bg-rose-500/15 text-rose-200;
+  }
+
+  .ui-dialog-overlay {
+    @apply fixed inset-0 z-40 bg-black/65;
+  }
+
+  .ui-dialog-content {
+    @apply fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background p-6 shadow-2xl;
+  }
+
+  .ui-dialog-close {
+    @apply absolute right-4 top-4 rounded p-1 text-muted-foreground hover:text-foreground focus-visible:ring-2;
+  }
+
+  .ui-tooltip {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .ui-tooltip-content {
+    @apply pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-2 py-1 text-[11px] font-medium text-background opacity-0 shadow transition-opacity;
+  }
+
+  .ui-tooltip:hover .ui-tooltip-content,
+  .ui-tooltip:focus-within .ui-tooltip-content {
+    @apply opacity-100;
+  }
+
+  .ui-section-loader {
+    @apply flex min-h-[65vh] flex-col items-center justify-center gap-4 text-muted-foreground;
+  }
+
+  .ui-section-loader-icon {
+    @apply relative grid h-20 w-20 place-items-center;
+  }
+
+  .ui-section-loader-spinner {
+    @apply absolute inset-0 animate-spin rounded-full border-2 border-primary/20 border-t-primary;
+  }
+
+  .ui-section-loader-label {
+    @apply text-sm;
+  }
+}
+
 /* Keep project tag labels slightly larger and consistent in both states. */
 [aria-label="Edit project tags"] > span[style*="font-size"] {
   font-size: 13px !important;

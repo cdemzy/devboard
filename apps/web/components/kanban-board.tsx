@@ -68,8 +68,16 @@ const statusStyles: Record<Status, { accent: string; state: string; ticket: stri
 };
 
 function collisionDetectionStrategy(...args: Parameters<typeof pointerWithin>) {
-  const pointerCollisions = pointerWithin(...args);
-  return pointerCollisions.length > 0 ? pointerCollisions : closestCorners(...args);
+  const activeId = args[0].active.id;
+  const isTaskCollision = ({ id }: { id: string | number }) =>
+    id !== activeId && !statuses.includes(id as Status);
+  const pointerTaskCollisions = pointerWithin(...args).filter(isTaskCollision);
+  if (pointerTaskCollisions.length > 0) return pointerTaskCollisions;
+
+  const nearestTaskCollisions = closestCorners(...args).filter(isTaskCollision);
+  if (nearestTaskCollisions.length > 0) return nearestTaskCollisions;
+
+  return pointerWithin(...args);
 }
 
 function TaskCard({
@@ -100,6 +108,10 @@ function TaskCard({
   }[task.priority];
   const statusStyle = statusStyles[task.status];
   const isDropTarget = active?.id !== task.id && over?.id === task.id;
+  const activeRect = active?.rect.current.translated ?? active?.rect.current.initial;
+  const insertBefore = isDropTarget && activeRect
+    ? activeRect.top + activeRect.height / 2 < over.rect.top + over.rect.height / 2
+    : false;
   return (
     <motion.article
       ref={setNodeRef}
@@ -109,9 +121,9 @@ function TaskCard({
       onMouseLeave={() => setActionsOpen(false)}
       {...attributes}
       {...listeners}
-      className={`group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? `after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full ${statusStyle.drop}` : ""}`}
+      className={`task-card group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? `${insertBefore ? "before:absolute before:-top-1.5 before:left-2 before:right-2 before:h-0.5 before:rounded-full" : "after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full"} ${statusStyle.drop}` : ""}`}
     >
-      <div className="flex items-start gap-1">
+      <div className="task-card-header flex items-start gap-1">
         <button
           disabled={disabled}
           onClick={(event) => {
@@ -119,29 +131,29 @@ function TaskCard({
             edit(task);
           }}
           aria-label={task.title}
-          className="min-w-0 flex-1 text-left focus-visible:outline-primary"
+          className="task-card-title-link min-w-0 flex-1 text-left focus-visible:outline-primary"
         >
-          <span className={`mb-1 flex items-center gap-1 text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
+          <span className={`task-card-ticket mb-1 flex items-center gap-1 text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
             {task.ticket_id}
             {task.description && <Tooltip label="Description"><AlignLeft size={12} aria-label="Has description" /></Tooltip>}
           </span>
-          <span className="block wrap-break-word first-letter:uppercase text-[13px] leading-5 font-medium">
+          <span className="task-card-title block wrap-break-word first-letter:uppercase text-[13px] leading-5 font-medium">
             {task.title}
           </span>
         </button>
-        <Tooltip label="Drag to move"><span className="pointer-events-none rounded p-1 text-muted-foreground"><GripVertical size={15} /></span></Tooltip>
+        <Tooltip label="Drag to move"><span className="task-card-drag-handle pointer-events-none rounded p-1 text-muted-foreground"><GripVertical size={15} /></span></Tooltip>
       </div>
-      <div className="mt-4 flex items-center justify-between text-muted-foreground">
+      <div className="task-card-footer mt-4 flex items-center justify-between text-muted-foreground">
         <span
-          className={`flex items-center gap-1.5 text-[11px] capitalize ${task.priority === "high" ? "text-orange-300" : ""}`}
+          className={`task-card-priority flex items-center gap-1.5 text-[11px] capitalize ${task.priority === "high" ? "text-orange-300" : ""}`}
         >
           <PriorityIcon size={13} />
           {task.priority}
         </span>
-        <div className="relative">
-          <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setActionsOpen((open) => !open); }} disabled={disabled} aria-label={`Actions for ${task.ticket_id}`} className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"><MoreVertical size={14} /></button>
+        <div className="task-card-actions relative">
+          <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setActionsOpen((open) => !open); }} disabled={disabled} aria-label={`Actions for ${task.ticket_id}`} className="task-actions-trigger focus-visible:outline-primary"><MoreVertical size={14} /></button>
           <AnimatePresence>
-            {actionsOpen && <motion.div initial={{ opacity: 0, x: 6, scale: 0.92 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 6, scale: 0.92 }} transition={{ duration: 0.14 }} onPointerDown={(event) => event.stopPropagation()} className="absolute -bottom-0.5 right-full z-20 mr-1 flex items-center gap-0.5 rounded-lg border border-border bg-[#161b22] p-0.5 shadow-xl"><Tooltip label="Archive"><button type="button" onClick={(event) => { event.stopPropagation(); setActionsOpen(false); archive(task); }} disabled={disabled} aria-label={`Archive ${task.ticket_id}`} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><Archive size={12} /></button></Tooltip><Tooltip label="Delete"><button type="button" onClick={(event) => { event.stopPropagation(); setActionsOpen(false); remove(task); }} disabled={disabled} aria-label={`Delete ${task.ticket_id}`} className="flex h-6 w-6 items-center justify-center rounded-md text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"><Trash2 size={12} /></button></Tooltip></motion.div>}
+            {actionsOpen && <motion.div initial={{ opacity: 0, x: 6, scale: 0.92 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 6, scale: 0.92 }} transition={{ duration: 0.14 }} onPointerDown={(event) => event.stopPropagation()} className="task-actions-menu"><Tooltip label="Archive"><button type="button" onClick={(event) => { event.stopPropagation(); setActionsOpen(false); archive(task); }} disabled={disabled} aria-label={`Archive ${task.ticket_id}`} className="task-actions-menu-button"><Archive size={12} /></button></Tooltip><Tooltip label="Delete"><button type="button" onClick={(event) => { event.stopPropagation(); setActionsOpen(false); remove(task); }} disabled={disabled} aria-label={`Delete ${task.ticket_id}`} className="task-actions-menu-button task-actions-menu-button-danger"><Trash2 size={12} /></button></Tooltip></motion.div>}
           </AnimatePresence>
         </div>
       </div>
@@ -156,7 +168,7 @@ function TaskDragPreview({ task }: { task: Task }) {
       initial={{ opacity: 0, scale: 0.96, y: 4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 520, damping: 30 }}
-      className={`w-72 rotate-1 rounded-lg border p-3 shadow-xl ${statusStyle.ticket}`}
+      className={`task-drag-preview w-72 rotate-1 rounded-lg border p-3 shadow-xl ${statusStyle.ticket}`}
     >
       <span className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
         {task.ticket_id}
@@ -193,9 +205,9 @@ function Column({
     <section
       ref={setNodeRef}
       aria-label={statusLabels[status]}
-      className={`group/column min-h-[max(22rem,calc(100dvh-23rem))] min-w-0 rounded-lg border p-2 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
+      className={`kanban-column group/column min-h-[max(22rem,calc(100dvh-23rem))] min-w-0 rounded-lg border p-2 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
     >
-      <header className="mb-4 flex items-center gap-2 px-1 pt-1">
+      <header className="kanban-column-header mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon
           size={15}
           className={statusStyle.accent}
@@ -219,7 +231,7 @@ function Column({
         items={tasks.map((task) => task.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="space-y-2">
+        <div className="kanban-task-list space-y-2">
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
@@ -232,16 +244,15 @@ function Column({
           ))}
         </div>
       </SortableContext>
-      {isOver && tasks.length > 0 && <div aria-hidden="true" className={`mx-2 mt-3 h-0.5 rounded-full ${statusStyle.drop}`} />}
       {tasks.length === 0 && (
-        <p className="flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed border-[#484f58] px-3 py-3 text-center text-xs text-muted-foreground">
+        <p className="kanban-empty-state flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed border-[#484f58] px-3 py-3 text-center text-xs text-muted-foreground">
           No tasks yet
         </p>
       )}
       <Button
         variant="ghost"
         size="sm"
-        className="mt-2 w-full justify-center text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 focus-visible:opacity-100"
+        className="kanban-add-task mt-2 w-full justify-center text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 focus-visible:opacity-100"
         disabled={disabled}
         onClick={() => create(status)}
       >
@@ -282,13 +293,17 @@ export function KanbanBoard({
       targetTask?.status ??
       (statuses.includes(over.id as Status) ? (over.id as Status) : undefined);
     if (!status) return;
-    const column = columnTasks(tasks, status);
+    const column = columnTasks(tasks.filter((task) => task.id !== active.id), status);
+    const activeRect = active.rect.current.translated ?? active.rect.current.initial;
+    const insertAfterTarget = targetTask && activeRect
+      ? activeRect.top + activeRect.height / 2 >= over.rect.top + over.rect.height / 2
+      : true;
     move(
       String(active.id),
       status,
       targetTask
-        ? column.findIndex((task) => task.id === targetTask.id) + 1
-        : column.filter((task) => task.id !== active.id).length,
+        ? column.findIndex((task) => task.id === targetTask.id) + (insertAfterTarget ? 1 : 0)
+        : column.length,
     );
   }
   return (
@@ -302,7 +317,7 @@ export function KanbanBoard({
         setActiveTask(null);
       }}
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="kanban-board-grid grid grid-cols-1 gap-4 md:grid-cols-3">
         <>
           {statuses.map((status) => (
             <Column
