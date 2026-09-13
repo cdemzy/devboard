@@ -10,6 +10,7 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=240)]
 Description = Annotated[str, StringConstraints(max_length=10000)]
 Tag = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+TagColor = Literal["default", "gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"]
 
 
 class Input(BaseModel):
@@ -45,6 +46,17 @@ class ProjectOut(ProjectCreate):
     archived: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ProjectTagOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    name: str
+    color: TagColor
+
+
+class ProjectTagUpdate(Patch):
+    color: TagColor | None = None
 
 
 class TaskCreate(Input):

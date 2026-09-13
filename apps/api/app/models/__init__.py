@@ -43,6 +43,16 @@ class Project(Base):
     # The migration adds the owner FK to Supabase-managed auth.users.
 
 
+class ProjectTag(Base):
+    __tablename__ = "project_tags"
+    __table_args__ = (UniqueConstraint("owner_id", "normalized_name"),)
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(Uuid, index=True)
+    name: Mapped[str] = mapped_column(String(40))
+    normalized_name: Mapped[str] = mapped_column(String(40))
+    color: Mapped[str] = mapped_column(String(16), default="default")
+
+
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (

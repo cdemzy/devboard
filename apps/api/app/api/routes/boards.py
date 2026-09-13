@@ -9,6 +9,8 @@ from app.core.database import get_db
 from app.repositories.projects import owned_project, owned_task, project_tasks
 from app.schemas import (
     ProjectCreate,
+    ProjectTagOut,
+    ProjectTagUpdate,
     ProjectOut,
     ProjectUpdate,
     TaskCreate,
@@ -28,9 +30,20 @@ def list_projects(db: DB, user: User, archived: bool = False):
     return boards.list_projects(db, user, archived)
 
 
-@router.get("/project-tags", response_model=list[str])
+@router.get("/project-tags", response_model=list[ProjectTagOut])
 def list_project_tags(db: DB, user: User):
     return boards.list_project_tags(db, user)
+
+
+@router.patch("/project-tags/{tag_id}", response_model=ProjectTagOut)
+def update_project_tag(tag_id: UUID, data: ProjectTagUpdate, db: DB, user: User):
+    return boards.update_project_tag(db, user, tag_id, data)
+
+
+@router.delete("/project-tags/{tag_id}", status_code=204)
+def delete_project_tag(tag_id: UUID, db: DB, user: User):
+    boards.delete_project_tag(db, user, tag_id)
+    return Response(status_code=204)
 
 
 @router.post("/projects", response_model=ProjectOut, status_code=201)

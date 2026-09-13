@@ -113,7 +113,16 @@ def test_archive_restore_and_cascade_delete(client):
 def test_project_tags_are_reusable_per_owner(client):
     client.post("/projects", json={"name": "One", "tags": ["Frontend", "Urgent"]})
     client.post("/projects", json={"name": "Two", "tags": ["urgent", "Backend"]})
-    assert client.get("/project-tags").json() == ["Backend", "Frontend", "Urgent"]
+    tags = client.get("/project-tags").json()
+    assert [(tag["name"], tag["color"]) for tag in tags] == [
+        ("Backend", "blue"),
+        ("Frontend", "blue"),
+        ("Urgent", "blue"),
+    ]
+    urgent = next(tag for tag in tags if tag["name"] == "Urgent")
+    assert client.patch(f"/project-tags/{urgent['id']}", json={"color": "red"}).json()["color"] == "red"
+    assert client.delete(f"/project-tags/{urgent['id']}").status_code == 204
+    assert all("Urgent" not in project["tags"] for project in client.get("/projects").json())
 
 
 def test_task_archive_restore_and_permanent_delete(client):

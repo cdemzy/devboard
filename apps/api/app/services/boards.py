@@ -4,9 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Project, Task, utcnow
+from app.models import Project, ProjectTag, Task, utcnow
 from app.repositories.projects import owned_project, owned_task, project_tasks
-from app.schemas import ProjectCreate, ProjectUpdate, TaskCreate, TaskUpdate
+from app.schemas import ProjectCreate, ProjectTagUpdate, ProjectUpdate, TaskCreate, TaskUpdate
 from app.services.tickets import project_ticket_prefix
 
 
@@ -21,12 +21,16 @@ def list_projects(db: Session, user: UUID, archived: bool):
 
 
 def list_project_tags(db: Session, user: UUID):
-    tags = db.scalars(select(Project.tags).where(Project.owner_id == user)).all()
-    unique: dict[str, str] = {}
-    for project_tags in tags:
-        for tag in project_tags:
-            unique.setdefault(tag.casefold(), tag)
-    return sorted(unique.values(), key=str.lower)
+    return list(db.scalars(select(ProjectTag).where(ProjectTag.owner_id == user).order_by(ProjectTag.name)))
+
+
+def sync_project_tags(db: Session, user: UUID, tags: list[str]):
+    existing = {tag.normalized_name for tag in db.scalars(select(ProjectTag).where(ProjectTag.owner_id == user))}
+    for name in tags:
+        normalized = name.casefold()
+        if normalized not in existing:
+            db.add(ProjectTag(owner_id=user, name=name, normalized_name=normalized))
+            existing.add(normalized)
 
 
 def create_project(db: Session, user: UUID, data: ProjectCreate):
@@ -35,6 +39,7 @@ def create_project(db: Session, user: UUID, data: ProjectCreate):
         ticket_prefix=project_ticket_prefix(db, user, data.name),
         **data.model_dump(),
     )
+    sync_project_tags(db, user, data.tags)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -45,9 +50,35 @@ def update_project(db: Session, user: UUID, project_id: UUID, data: ProjectUpdat
     project = owned_project(db, project_id, user, lock=True)
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(project, key, value)
+    if data.tags is not None:
+        sync_project_tags(db, user, data.tags)
     db.commit()
     db.refresh(project)
     return project
+
+
+def update_project_tag(db: Session, user: UUID, tag_id: UUID, data: ProjectTagUpdate):
+    tag = db.scalar(select(ProjectTag).where(ProjectTag.id == tag_id, ProjectTag.owner_id == user))
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    if data.color is not None:
+        tag.color = data.color
+    db.commit()
+    db.refresh(tag)
+    return tag
+
+
+def delete_project_tag(db: Session, user: UUID, tag_id: UUID):
+    tag = db.scalar(select(ProjectTag).where(ProjectTag.id == tag_id, ProjectTag.owner_id == user))
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    for project in db.scalars(select(Project).where(Project.owner_id == user)):
+        filtered = [name for name in project.tags if name.casefold() != tag.normalized_name]
+        if len(filtered) != len(project.tags):
+            project.tags = filtered
+            project.updated_at = utcnow()
+    db.delete(tag)
+    db.commit()
 
 
 def delete_project(db: Session, user: UUID, project_id: UUID):
