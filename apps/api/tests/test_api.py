@@ -51,8 +51,8 @@ def test_task_create_update_move_and_persistence(client):
     assert [a["position"], b["position"], c["position"]] == [0, 1, 2]
     assert [a["ticket_id"], b["ticket_id"], c["ticket_id"]] == ["DE-1", "DE-2", "DE-3"]
     moved = client.post(f"/tasks/{a['id']}/move", json={"status": "todo", "position": 2})
-    assert moved.status_code == 200
-    assert [t["title"] for t in moved.json()] == ["b", "c", "a"]
+    assert moved.status_code == 204
+    assert [t["title"] for t in client.get(f"/projects/{pid}/tasks").json()] == ["b", "c", "a"]
     updated = client.patch(
         f"/tasks/{b['id']}",
         json={

@@ -98,10 +98,10 @@ def restore_task(task_id: UUID, db: DB, user: User):
     return boards.restore_task(db, user, task_id)
 
 
-@router.post("/tasks/{task_id}/move", response_model=list[TaskOut])
+@router.post("/tasks/{task_id}/move", status_code=204)
 def move_task(task_id: UUID, data: TaskMove, db: DB, user: User):
-    task = boards.update_task(db, user, task_id, TaskUpdate(**data.model_dump()))
-    return project_tasks(db, task.project_id)
+    boards.update_task(db, user, task_id, TaskUpdate(**data.model_dump()))
+    return Response(status_code=204)
 
 
 @router.delete("/tasks/{task_id}", status_code=204)

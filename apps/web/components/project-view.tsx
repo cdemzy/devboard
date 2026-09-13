@@ -54,7 +54,10 @@ export function ProjectView({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const moveQueue = useRef(Promise.resolve());
-  const moveRevision = useRef(0);
+  const pendingMoves = useRef(new Map<string, { status: Status; position: number; revision: number }>());
+  const moveRevisions = useRef(new Map<string, number>());
+  const moveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const queuedMoveIds = useRef(new Set<string>());
   const [projectDraft, setProjectDraft] = useState(() => ({ name: project.name === "New Project" ? "" : project.name, description: project.description, tags: project.tags }));
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<ProjectTag[]>([]);
@@ -153,6 +156,10 @@ export function ProjectView({
       alive = false;
     };
   }, [loadTasks]);
+  useEffect(() => () => {
+    moveTimers.current.forEach((timer) => clearTimeout(timer));
+    moveTimers.current.clear();
+  }, []);
   async function action(
     work: () => Promise<void>,
     label = "Saving...",
@@ -170,19 +177,41 @@ export function ProjectView({
   }
   function move(id: string, status: Status, position: number) {
     if (project.archived) return;
-    const revision = ++moveRevision.current;
+    const revision = (moveRevisions.current.get(id) ?? 0) + 1;
+    moveRevisions.current.set(id, revision);
+    pendingMoves.current.set(id, { status, position, revision });
     setTasks((current) => moveTask(current, id, status, position));
-    moveQueue.current = moveQueue.current.then(async () => {
+    scheduleMoveSave(id);
+  }
+  function scheduleMoveSave(id: string) {
+    const existingTimer = moveTimers.current.get(id);
+    if (existingTimer) clearTimeout(existingTimer);
+    moveTimers.current.set(id, setTimeout(() => {
+      moveTimers.current.delete(id);
+      queueLatestMove(id);
+    }, 180));
+  }
+  function queueLatestMove(id: string) {
+    if (queuedMoveIds.current.has(id)) return;
+    queuedMoveIds.current.add(id);
+    moveQueue.current = moveQueue.current.catch(() => undefined).then(async () => {
+      const command = pendingMoves.current.get(id);
+      pendingMoves.current.delete(id);
+      if (!command) {
+        queuedMoveIds.current.delete(id);
+        return;
+      }
       try {
-        const saved = await api<Task[]>(
-          `/tasks/${id}/move`,
-          json("POST", { status, position }),
-        );
-        if (revision === moveRevision.current) setTasks(saved);
+        await api<void>(`/tasks/${id}/move`, json("POST", { status: command.status, position: command.position }));
         toast.dismiss(boardErrorToastId);
       } catch (error) {
-        reportBoardError(error, "Move failed. Reload the board to check the saved state.", () => void loadTasks());
-        if (revision === moveRevision.current) void loadTasks().catch(() => undefined);
+        if (moveRevisions.current.get(id) === command.revision) {
+          reportBoardError(error, "Move failed. Reload the board to check the saved state.", () => void loadTasks());
+          void loadTasks().catch(() => undefined);
+        }
+      } finally {
+        queuedMoveIds.current.delete(id);
+        if (pendingMoves.current.has(id)) scheduleMoveSave(id);
       }
     });
   }
