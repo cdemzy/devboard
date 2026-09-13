@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   DndContext,
   PointerSensor,
@@ -26,11 +26,13 @@ import {
   CircleCheck,
   Archive,
   GripVertical,
+  MoreVertical,
   Plus,
   AlignLeft,
   SignalHigh,
   SignalMedium,
   SignalLow,
+  Trash2,
 } from "lucide-react";
 import { columnTasks } from "@/lib/board";
 import { statuses, statusLabels, type Status, type Task } from "@/lib/types";
@@ -74,13 +76,16 @@ function TaskCard({
   task,
   edit,
   archive,
+  remove,
   disabled,
 }: {
   task: Task;
   edit: (task: Task) => void;
   archive: (task: Task) => void;
+  remove: (task: Task) => void;
   disabled: boolean;
 }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const { active, over } = useDndContext();
   const {
     attributes,
@@ -101,9 +106,10 @@ function TaskCard({
       layout="position"
       transition={{ layout: { duration: 0.22, ease: "easeOut" } }}
       onClick={() => edit(task)}
+      onMouseLeave={() => setActionsOpen(false)}
       {...attributes}
       {...listeners}
-      className={`group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:scale-[0.98] active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? `after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full ${statusStyle.drop}` : ""}`}
+      className={`group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? `after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full ${statusStyle.drop}` : ""}`}
     >
       <div className="flex items-start gap-1">
         <button
@@ -132,7 +138,12 @@ function TaskCard({
           <PriorityIcon size={13} />
           {task.priority}
         </span>
-        <Tooltip label="Archive"><button onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); archive(task); }} disabled={disabled} aria-label={`Archive ${task.ticket_id}`} className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"><Archive size={14} /></button></Tooltip>
+        <div className="relative">
+          <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setActionsOpen((open) => !open); }} disabled={disabled} aria-label={`Actions for ${task.ticket_id}`} className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-primary group-hover:opacity-100 disabled:opacity-0"><MoreVertical size={14} /></button>
+          <AnimatePresence>
+            {actionsOpen && <motion.div initial={{ opacity: 0, x: 6, scale: 0.92 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 6, scale: 0.92 }} transition={{ duration: 0.14 }} onPointerDown={(event) => event.stopPropagation()} className="absolute -bottom-1 right-full z-20 mr-1 flex items-center gap-1 rounded-full border border-border bg-[#161b22] p-1 shadow-xl"><Tooltip label="Archive"><button type="button" onClick={(event) => { event.stopPropagation(); setActionsOpen(false); archive(task); }} disabled={disabled} aria-label={`Archive ${task.ticket_id}`} className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"><Archive size={14} /></button></Tooltip><Tooltip label="Delete"><button type="button" onClick={(event) => { event.stopPropagation(); setActionsOpen(false); remove(task); }} disabled={disabled} aria-label={`Delete ${task.ticket_id}`} className="flex h-7 w-7 items-center justify-center rounded-full text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"><Trash2 size={14} /></button></Tooltip></motion.div>}
+          </AnimatePresence>
+        </div>
       </div>
     </motion.article>
   );
@@ -161,6 +172,7 @@ function Column({
   tasks,
   edit,
   archive,
+  remove,
   create,
   disabled,
 }: {
@@ -168,6 +180,7 @@ function Column({
   tasks: Task[];
   edit: (task: Task) => void;
   archive: (task: Task) => void;
+  remove: (task: Task) => void;
   create: (status: Status) => void;
   disabled: boolean;
 }) {
@@ -213,6 +226,7 @@ function Column({
               task={task}
               edit={edit}
               archive={archive}
+              remove={remove}
               disabled={disabled}
             />
           ))}
@@ -241,6 +255,7 @@ export function KanbanBoard({
   tasks,
   edit,
   archive,
+  remove,
   create,
   move,
   disabled,
@@ -248,6 +263,7 @@ export function KanbanBoard({
   tasks: Task[];
   edit: (task: Task) => void;
   archive: (task: Task) => void;
+  remove: (task: Task) => void;
   create: (status: Status) => void;
   move: (id: string, status: Status, position: number) => void;
   disabled: boolean;
@@ -295,6 +311,7 @@ export function KanbanBoard({
               tasks={columnTasks(tasks, status)}
               edit={edit}
               archive={archive}
+              remove={remove}
               create={create}
               disabled={disabled}
             />

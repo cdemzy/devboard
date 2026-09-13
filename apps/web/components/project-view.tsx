@@ -412,6 +412,7 @@ export function ProjectView({
             disabled={project.archived}
             edit={(task) => setEditor({ task })}
             archive={archiveTask}
+            remove={(task) => setTaskToDelete(task)}
             create={(status) => setEditor({ status })}
             move={(...args) => void move(...args)}
           />

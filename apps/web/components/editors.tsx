@@ -149,17 +149,13 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
     }
   }, [save]);
 
-  useEffect(() => {
-    if (dirty) void saveLatest();
-  }, [dirty, draft, saveLatest]);
-
   function minimize() {
     if (dirty) void saveLatest();
     close();
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) close(); }}>
+    <Dialog open onOpenChange={(open) => { if (!open) minimize(); }}>
       <DialogContent hideClose className="h-[80vh] w-[80vw] max-w-none">
         <DialogTitle className="text-lg font-semibold">{currentTask ? "Task details" : "New task"}</DialogTitle>
         <div className="absolute right-4 top-4 flex items-center gap-1">
@@ -167,11 +163,11 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
           <Tooltip label="Minimize"><Button type="button" variant="ghost" size="icon" onClick={minimize} aria-label="Minimize task"><Minimize2 size={16} /></Button></Tooltip>
         </div>
         <div className="space-y-4">
-          <label>Title<input name="title" value={draft.title} onChange={(event) => updateDraft({ title: capitalizeFirst(event.target.value) })} required maxLength={240} autoComplete="off" autoCapitalize="sentences" autoFocus placeholder="What needs to happen?" /></label>
-          <label>Description<textarea name="description" value={draft.description} onChange={(event) => updateDraft({ description: event.target.value })} maxLength={10000} placeholder="Details, context, or acceptance criteria…" /></label>
+          <label>Title<input name="title" value={draft.title} onChange={(event) => updateDraft({ title: capitalizeFirst(event.target.value) })} onBlur={() => { if (dirty) void saveLatest(); }} required maxLength={240} autoComplete="off" autoCapitalize="sentences" autoFocus placeholder="What needs to happen?" /></label>
+          <label>Description<textarea name="description" value={draft.description} onChange={(event) => updateDraft({ description: event.target.value })} onBlur={() => { if (dirty) void saveLatest(); }} maxLength={10000} placeholder="Details, context, or acceptance criteria…" /></label>
           <div className="grid grid-cols-2 gap-4">
-            <label>Status<select name="status" value={draft.status} onChange={(event) => updateDraft({ status: event.target.value as Status })}>{statuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
-            <label>Priority<select name="priority" value={draft.priority} onChange={(event) => updateDraft({ priority: event.target.value as Priority })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+            <label>Status<select name="status" value={draft.status} onChange={(event) => updateDraft({ status: event.target.value as Status })} onBlur={() => { if (dirty) void saveLatest(); }}>{statuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
+            <label>Priority<select name="priority" value={draft.priority} onChange={(event) => updateDraft({ priority: event.target.value as Priority })} onBlur={() => { if (dirty) void saveLatest(); }}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
           </div>
           {currentTask && <p className="text-xs text-muted-foreground">Created {new Date(currentTask.created_at).toLocaleDateString()} · Updated {new Date(currentTask.updated_at).toLocaleDateString()}</p>}
           {error && <p role="alert" className="text-rose-300">{error}</p>}
