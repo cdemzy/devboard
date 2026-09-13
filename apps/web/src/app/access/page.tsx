@@ -1,9 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Layers3, LockKeyhole } from "lucide-react";
 
-export default function AccessPage() {
+function AccessForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/";
   return (
@@ -20,4 +21,8 @@ export default function AccessPage() {
       </section>
     </main>
   );
+}
+
+export default function AccessPage() {
+  return <Suspense fallback={<main className="min-h-screen bg-background" />}><AccessForm /></Suspense>;
 }
