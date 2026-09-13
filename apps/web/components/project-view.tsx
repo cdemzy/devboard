@@ -12,6 +12,7 @@ import {
   GripVertical,
   Info,
   LayoutDashboard,
+  LoaderCircle,
   Plus,
   RotateCcw,
   Trash2,
@@ -99,6 +100,7 @@ export function ProjectView({
   const [projectDraft, setProjectDraft] = useState(() => ({ name: project.name === "New Project" ? "" : project.name, description: project.description, tags: project.tags }));
   const [tagInput, setTagInputState] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<ProjectTag[]>([]);
+  const [tagCatalogLoaded, setTagCatalogLoaded] = useState(false);
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
   const [tagNameDraft, setTagNameDraft] = useState("");
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -112,6 +114,7 @@ export function ProjectView({
   const loadTagSuggestions = useCallback(async () => {
     const tags = await api<ProjectTag[]>("/project-tags");
     setTagSuggestions(tags.map((tag) => pendingTagColorsRef.current[tag.id] ? { ...tag, color: pendingTagColorsRef.current[tag.id].color } : tag));
+    setTagCatalogLoaded(true);
   }, []);
   const saveProjectDraft = useCallback(async () => {
     const name = projectDraft.name.trim() || "New Project";
@@ -131,7 +134,6 @@ export function ProjectView({
     null,
   );
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-  const [confirmProjectDelete, setConfirmProjectDelete] = useState(false);
   useEffect(() => {
     void loadTagSuggestions().catch(() => undefined);
   }, [loadTagSuggestions]);
@@ -404,7 +406,7 @@ export function ProjectView({
   }
   return (
     <>
-      <div className="project-view px-6 pt-5 sm:px-5 sm:pt-8 md:px-8">
+      <div className="project-view mx-auto w-4/5 px-0 pt-5 sm:w-full sm:px-5 sm:pt-8 md:px-8">
         <header className="project-header mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
           <div className="min-w-0 w-full max-w-3xl flex-1">
             <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="project-title h-auto w-full !border-0 !bg-transparent px-0 py-0 !text-3xl !font-bold !leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none" />
@@ -413,7 +415,7 @@ export function ProjectView({
               <div className="project-platform-label flex shrink-0 items-center gap-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
               <div ref={tagMenuRef} className="project-platform-editor relative min-w-0 flex-1">
               <div role="button" tabIndex={0} onMouseDown={(event) => { if (event.target === event.currentTarget) event.preventDefault(); }} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setTagsOpen(true); } }} className={`project-tag-trigger flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 border !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? "rounded-t-md border-border bg-accent px-2 py-3" : "rounded-md border-transparent px-2 py-3"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
-                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: tagColorValues[catalog?.color ?? "purple"], fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-1 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
+                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : !tagCatalogLoaded ? <span role="status" aria-label="Loading platform tags" className="project-tag-catalog-loader flex h-7 w-7 items-center justify-center text-muted-foreground"><LoaderCircle size={15} className="animate-spin" /></span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: catalog ? tagColorValues[catalog.color] : "#30363d", fontSize: "12px", lineHeight: 1 }} className="flex items-center gap-1 rounded-sm px-1.5 py-1 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
                 {tagsOpen && <input autoFocus value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const exactMatch = tagSuggestions.find((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()); if (exactMatch) toggleTag(exactMatch.name); else addTag(); } }} aria-label="Search or create a project tag" maxLength={40} placeholder="Search for an option…" className="project-tag-search -ml-1 h-7 min-w-36 flex-1 !border-0 !bg-transparent px-0 text-xs !outline-none focus:!outline-none" />}
               </div>
               {tagsOpen && <div role="dialog" aria-label="Project tag options" className="project-tag-options absolute inset-x-0 top-full z-20 rounded-b-md border border-t-0 border-border bg-[#161b22] p-2 shadow-xl">
@@ -460,17 +462,6 @@ export function ProjectView({
                 ) : (
                   <Archive size={15} />
                 )}
-              </Button>
-            </Tooltip>
-            <Tooltip label="Delete">
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Delete project"
-                disabled={busy}
-                onClick={() => setConfirmProjectDelete(true)}
-              >
-                <Trash2 size={15} />
               </Button>
             </Tooltip>
             {!project.archived && (
@@ -541,17 +532,6 @@ export function ProjectView({
           if (!taskToDelete) return;
           await api(`/tasks/${taskToDelete.id}`, json("DELETE"));
           await Promise.all([loadTasks(), loadArchivedTasks()]);
-        }}
-      />
-      <ConfirmDialog
-        open={confirmProjectDelete}
-        onOpenChange={setConfirmProjectDelete}
-        title="Delete project?"
-        description={`This will permanently delete "${project.name}" and all of its tasks.`}
-        confirmLabel="Delete project"
-        onConfirm={async () => {
-          await api(`/projects/${project.id}`, json("DELETE"));
-          await refresh();
         }}
       />
     </>
