@@ -57,3 +57,11 @@ select {
 ::selection {
   background: #1f6feb66;
 }
+
+/* Keep project tag labels slightly larger and consistent in both states. */
+[aria-label="Edit project tags"] > span[style*="font-size"] {
+  font-size: 13px !important;
+}
+[aria-label="Project tag options"] button[style*="font-size"] {
+  font-size: 13px !important;
+}
