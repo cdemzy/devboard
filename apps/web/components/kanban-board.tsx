@@ -43,13 +43,14 @@ const statusIcons = {
   in_progress: Circle,
   done: CircleCheck,
 };
-const statusStyles: Record<Status, { accent: string; state: string; ticket: string; active: string; drop: string }> = {
+const statusStyles: Record<Status, { accent: string; state: string; ticket: string; active: string; drop: string; emptyDrop: string }> = {
   todo: {
     accent: "text-[#6C5082]",
     state: "border-[#6C5082]/35 bg-[#221D25]",
     ticket: "border-[#6C5082]/45 bg-[#36293F]",
     active: "ring-1 ring-inset ring-[#6C5082]/70",
     drop: "bg-[#6C5082]",
+    emptyDrop: "border-[#6C5082] text-[#a371c8]",
   },
   in_progress: {
     accent: "text-[#886826]",
@@ -57,6 +58,7 @@ const statusStyles: Record<Status, { accent: string; state: string; ticket: stri
     ticket: "border-[#886826]/45 bg-[#373325]",
     active: "ring-1 ring-inset ring-[#886826]/70",
     drop: "bg-[#886826]",
+    emptyDrop: "border-[#886826] text-[#d29922]",
   },
   done: {
     accent: "text-[#386C4E]",
@@ -64,6 +66,7 @@ const statusStyles: Record<Status, { accent: string; state: string; ticket: stri
     ticket: "border-[#386C4E]/45 bg-[#24342B]",
     active: "ring-1 ring-inset ring-[#386C4E]/70",
     drop: "bg-[#386C4E]",
+    emptyDrop: "border-[#386C4E] text-[#56a874]",
   },
 };
 
@@ -206,6 +209,7 @@ function Column({
   const statusStyle = statusStyles[status];
   const containsOverTask = tasks.some((task) => task.id === over?.id);
   const isDropColumn = over?.id === status || containsOverTask;
+  const isEmptyColumnDropTarget = tasks.length === 0 && over?.id === status;
   useLayoutEffect(() => {
     if (!isDropColumn || pointerY === null || tasks.length === 0 || !taskListRef.current) {
       setDropIndicatorTop(null);
@@ -271,9 +275,9 @@ function Column({
         </div>
       </SortableContext>
       {tasks.length === 0 && (
-        <p className="kanban-empty-state relative flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed border-[#484f58] px-3 py-3 text-center text-xs text-muted-foreground">
-          {isDropColumn && pointerY !== null && <span aria-hidden="true" className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 top-1/2 h-0.5 rounded-full ${statusStyle.drop}`} />}
-          No tasks yet
+        <p className={`kanban-empty-state relative flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyColumnDropTarget ? statusStyle.emptyDrop : "border-[#484f58] text-muted-foreground"}`}>
+          {isEmptyColumnDropTarget && <span aria-hidden="true" className={`kanban-empty-drop-indicator pointer-events-none absolute -top-2 left-2 right-2 h-0.5 rounded-full ${statusStyle.drop}`} />}
+          {isEmptyColumnDropTarget ? "Move here" : "No tasks yet"}
         </p>
       )}
       <Button
