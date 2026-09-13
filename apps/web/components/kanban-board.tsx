@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   DndContext,
@@ -68,16 +68,21 @@ const statusStyles: Record<Status, { accent: string; state: string; ticket: stri
 };
 
 function collisionDetectionStrategy(...args: Parameters<typeof pointerWithin>) {
-  const activeId = args[0].active.id;
-  const isTaskCollision = ({ id }: { id: string | number }) =>
-    id !== activeId && !statuses.includes(id as Status);
-  const pointerTaskCollisions = pointerWithin(...args).filter(isTaskCollision);
-  if (pointerTaskCollisions.length > 0) return pointerTaskCollisions;
+  const pointerCollisions = pointerWithin(...args);
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCorners(...args);
+}
 
-  const nearestTaskCollisions = closestCorners(...args).filter(isTaskCollision);
-  if (nearestTaskCollisions.length > 0) return nearestTaskCollisions;
-
-  return pointerWithin(...args);
+function getColumnDropPosition(status: Status, activeId: string, pointerY: number | null, fallback: number) {
+  if (pointerY === null || typeof document === "undefined") return fallback;
+  const column = document.querySelector<HTMLElement>(`[data-kanban-column="${status}"]`);
+  if (!column) return fallback;
+  const cards = Array.from(column.querySelectorAll<HTMLElement>("[data-task-id]"))
+    .filter((card) => card.dataset.taskId !== activeId);
+  const nextCardIndex = cards.findIndex((card) => {
+    const rect = card.getBoundingClientRect();
+    return pointerY < rect.top + rect.height / 2;
+  });
+  return nextCardIndex === -1 ? cards.length : nextCardIndex;
 }
 
 function TaskCard({
@@ -94,7 +99,6 @@ function TaskCard({
   disabled: boolean;
 }) {
   const [actionsOpen, setActionsOpen] = useState(false);
-  const { active, over } = useDndContext();
   const {
     attributes,
     listeners,
@@ -107,11 +111,6 @@ function TaskCard({
     high: SignalHigh,
   }[task.priority];
   const statusStyle = statusStyles[task.status];
-  const isDropTarget = active?.id !== task.id && over?.id === task.id;
-  const activeRect = active?.rect.current.translated ?? active?.rect.current.initial;
-  const insertBefore = isDropTarget && activeRect
-    ? activeRect.top + activeRect.height / 2 < over.rect.top + over.rect.height / 2
-    : false;
   return (
     <motion.article
       ref={setNodeRef}
@@ -121,7 +120,8 @@ function TaskCard({
       onMouseLeave={() => setActionsOpen(false)}
       {...attributes}
       {...listeners}
-      className={`task-card group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "scale-[0.98] opacity-30" : "hover:border-[#484f58]"} ${isDropTarget ? `${insertBefore ? "before:absolute before:-top-1.5 before:left-2 before:right-2 before:h-0.5 before:rounded-full" : "after:absolute after:-bottom-1.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full"} ${statusStyle.drop}` : ""}`}
+      data-task-id={task.id}
+      className={`task-card group relative min-h-24 touch-none rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "opacity-30" : "hover:border-[#484f58]"}`}
     >
       <div className="task-card-header flex items-start gap-1">
         <button
@@ -187,6 +187,7 @@ function Column({
   remove,
   create,
   disabled,
+  pointerY,
 }: {
   status: Status;
   tasks: Task[];
@@ -195,15 +196,39 @@ function Column({
   remove: (task: Task) => void;
   create: (status: Status) => void;
   disabled: boolean;
+  pointerY: number | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled });
-  const { over } = useDndContext();
+  const { active, over } = useDndContext();
+  const taskListRef = useRef<HTMLDivElement>(null);
+  const [dropIndicatorTop, setDropIndicatorTop] = useState<number | null>(null);
   const Icon = statusIcons[status];
   const statusStyle = statusStyles[status];
   const containsOverTask = tasks.some((task) => task.id === over?.id);
+  const isDropColumn = over?.id === status || containsOverTask;
+  useLayoutEffect(() => {
+    if (!isDropColumn || pointerY === null || tasks.length === 0 || !taskListRef.current) {
+      setDropIndicatorTop(null);
+      return;
+    }
+    const activeId = String(active?.id ?? "");
+    const cards = Array.from(taskListRef.current.querySelectorAll<HTMLElement>("[data-task-id]"))
+      .filter((card) => card.dataset.taskId !== activeId);
+    const nextCard = cards.find((card) => {
+      const rect = card.getBoundingClientRect();
+      return pointerY < rect.top + rect.height / 2;
+    });
+    if (nextCard) {
+      setDropIndicatorTop(nextCard.offsetTop - 5);
+      return;
+    }
+    const lastCard = cards.at(-1);
+    setDropIndicatorTop(lastCard ? lastCard.offsetTop + lastCard.offsetHeight + 4 : 4);
+  }, [active?.id, isDropColumn, pointerY, tasks.length]);
   return (
     <section
       ref={setNodeRef}
+      data-kanban-column={status}
       aria-label={statusLabels[status]}
       className={`kanban-column group/column min-h-[max(22rem,calc(100dvh-23rem))] min-w-0 rounded-lg border p-2 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
     >
@@ -231,7 +256,8 @@ function Column({
         items={tasks.map((task) => task.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="kanban-task-list space-y-2">
+        <div ref={taskListRef} className="kanban-task-list relative space-y-2">
+          {dropIndicatorTop !== null && <div aria-hidden="true" style={{ top: dropIndicatorTop }} className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full ${statusStyle.drop}`} />}
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
@@ -245,7 +271,8 @@ function Column({
         </div>
       </SortableContext>
       {tasks.length === 0 && (
-        <p className="kanban-empty-state flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed border-[#484f58] px-3 py-3 text-center text-xs text-muted-foreground">
+        <p className="kanban-empty-state relative flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed border-[#484f58] px-3 py-3 text-center text-xs text-muted-foreground">
+          {isDropColumn && pointerY !== null && <span aria-hidden="true" className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 top-1/2 h-0.5 rounded-full ${statusStyle.drop}`} />}
           No tasks yet
         </p>
       )}
@@ -280,6 +307,9 @@ export function KanbanBoard({
   disabled: boolean;
 }) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [pointerY, setPointerY] = useState<number | null>(null);
+  const dragStartPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, {
@@ -294,26 +324,46 @@ export function KanbanBoard({
       (statuses.includes(over.id as Status) ? (over.id as Status) : undefined);
     if (!status) return;
     const column = columnTasks(tasks.filter((task) => task.id !== active.id), status);
-    const activeRect = active.rect.current.translated ?? active.rect.current.initial;
-    const insertAfterTarget = targetTask && activeRect
-      ? activeRect.top + activeRect.height / 2 >= over.rect.top + over.rect.height / 2
-      : true;
+    const fallbackPosition = targetTask
+      ? column.findIndex((task) => task.id === targetTask.id) + 1
+      : column.length;
     move(
       String(active.id),
       status,
-      targetTask
-        ? column.findIndex((task) => task.id === targetTask.id) + (insertAfterTarget ? 1 : 0)
-        : column.length,
+      getColumnDropPosition(status, String(active.id), dragPointerRef.current?.y ?? null, fallbackPosition),
     );
   }
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetectionStrategy}
-      onDragStart={({ active }) => setActiveTask(tasks.find((task) => task.id === active.id) ?? null)}
-      onDragCancel={() => setActiveTask(null)}
+      onDragStart={({ active, activatorEvent }) => {
+        const pointerEvent = activatorEvent as PointerEvent;
+        const pointer = Number.isFinite(pointerEvent.clientX) && Number.isFinite(pointerEvent.clientY)
+          ? { x: pointerEvent.clientX, y: pointerEvent.clientY }
+          : null;
+        dragStartPointerRef.current = pointer;
+        dragPointerRef.current = pointer;
+        setPointerY(pointer?.y ?? null);
+        setActiveTask(tasks.find((task) => task.id === active.id) ?? null);
+      }}
+      onDragMove={({ delta }) => {
+        if (!dragStartPointerRef.current) return;
+        const pointer = { x: dragStartPointerRef.current.x + delta.x, y: dragStartPointerRef.current.y + delta.y };
+        dragPointerRef.current = pointer;
+        setPointerY(pointer.y);
+      }}
+      onDragCancel={() => {
+        dragStartPointerRef.current = null;
+        dragPointerRef.current = null;
+        setPointerY(null);
+        setActiveTask(null);
+      }}
       onDragEnd={(event) => {
         onDragEnd(event);
+        dragStartPointerRef.current = null;
+        dragPointerRef.current = null;
+        setPointerY(null);
         setActiveTask(null);
       }}
     >
@@ -329,6 +379,7 @@ export function KanbanBoard({
               remove={remove}
               create={create}
               disabled={disabled}
+              pointerY={pointerY}
             />
           ))}
         </>
