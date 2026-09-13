@@ -53,7 +53,8 @@ export function ProjectView({
   const [archivedTasksLoading, setArchivedTasksLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const moving = useRef(false);
+  const moveQueue = useRef(Promise.resolve());
+  const moveRevision = useRef(0);
   const [projectDraft, setProjectDraft] = useState(() => ({ name: project.name === "New Project" ? "" : project.name, description: project.description, tags: project.tags }));
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<ProjectTag[]>([]);
@@ -167,27 +168,23 @@ export function ProjectView({
       setBusy(false);
     }
   }
-  async function move(id: string, status: Status, position: number) {
-    if (moving.current || busy) return;
-    moving.current = true;
-    setBusy(true);
-    const previous = tasks;
-    setTasks(moveTask(tasks, id, status, position));
-    try {
-      setTasks(
-        await api<Task[]>(
+  function move(id: string, status: Status, position: number) {
+    if (project.archived) return;
+    const revision = ++moveRevision.current;
+    setTasks((current) => moveTask(current, id, status, position));
+    moveQueue.current = moveQueue.current.then(async () => {
+      try {
+        const saved = await api<Task[]>(
           `/tasks/${id}/move`,
           json("POST", { status, position }),
-        ),
-      );
-      toast.dismiss(boardErrorToastId);
-    } catch (error) {
-      setTasks(previous);
-      reportBoardError(error, "Move failed. The board has been restored; reload to check saved state.", () => void loadTasks());
-    } finally {
-      moving.current = false;
-      setBusy(false);
-    }
+        );
+        if (revision === moveRevision.current) setTasks(saved);
+        toast.dismiss(boardErrorToastId);
+      } catch (error) {
+        reportBoardError(error, "Move failed. Reload the board to check the saved state.", () => void loadTasks());
+        if (revision === moveRevision.current) void loadTasks().catch(() => undefined);
+      }
+    });
   }
   function archiveTask(task: Task) {
     void action(async () => {
