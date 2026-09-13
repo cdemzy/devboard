@@ -20,6 +20,18 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_cors_allows_tag_order_reordering(client):
+    response = client.options(
+        "/project-tags/order",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "PUT",
+        },
+    )
+    assert response.status_code == 200
+    assert "PUT" in response.headers["access-control-allow-methods"]
+
+
 def test_requires_authentication(client):
     app.dependency_overrides.pop(get_user_id)
     assert client.get("/projects").status_code == 401
