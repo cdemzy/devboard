@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
-import type { Project, Task } from "../src/lib/types";
-import { moveTask } from "../src/lib/board";
+import type { Project, Task } from "../lib/types";
+import { moveTask } from "../lib/board";
 
 // Browser integration with simulated service responses; live Supabase remains a separate check.
 test("account flow, project and task CRUD, drag persistence, rollback, and logout", async ({
