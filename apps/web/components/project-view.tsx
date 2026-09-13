@@ -59,8 +59,10 @@ export function ProjectView({
   const [tagsOpen, setTagsOpen] = useState(false);
   const tagMenuRef = useRef<HTMLDivElement>(null);
   const tagNameInputRef = useRef<HTMLInputElement>(null);
+  const pendingTagColorsRef = useRef<Record<string, { color: ProjectTag["color"]; previous: ProjectTag["color"] }>>({});
   const loadTagSuggestions = useCallback(async () => {
-    setTagSuggestions(await api<ProjectTag[]>("/project-tags"));
+    const tags = await api<ProjectTag[]>("/project-tags");
+    setTagSuggestions(tags.map((tag) => pendingTagColorsRef.current[tag.id] ? { ...tag, color: pendingTagColorsRef.current[tag.id].color } : tag));
   }, []);
   const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(
     null,
@@ -74,7 +76,15 @@ export function ProjectView({
   useEffect(() => {
     void loadTagSuggestions().catch(() => undefined);
   }, [loadTagSuggestions]);
-  useEffect(() => { setTagMenuId(null); }, [tagInput]);
+  useEffect(() => {
+    if (tagMenuId) {
+      const activeTag = tagSuggestions.find((tag) => tag.id === tagMenuId);
+      if (activeTag) void persistTagColor(activeTag);
+    }
+    setTagMenuId(null);
+  // The menu should only close when the search input changes, not on color-state updates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagInput]);
   useEffect(() => {
     function closeTags(event: PointerEvent) {
       if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
@@ -83,13 +93,15 @@ export function ProjectView({
           window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
           return;
         }
+        const activeTag = tagSuggestions.find((tag) => tag.id === tagMenuId);
+        if (activeTag) void persistTagColor(activeTag);
         setTagsOpen(false);
         setTagMenuId(null);
       }
     }
     document.addEventListener("pointerdown", closeTags);
     return () => document.removeEventListener("pointerdown", closeTags);
-  }, [tagMenuId, tagNameDraft]);
+  }, [tagMenuId, tagNameDraft, tagSuggestions]);
   useEffect(() => {
     const name = projectDraft.name.trim() || "New Project";
     const unchanged = name === project.name && projectDraft.description === project.description
@@ -215,16 +227,26 @@ export function ProjectView({
       .then(update)
       .catch((error) => reportBoardError(error, "Unable to save project changes."));
   }
-  async function updateTagColor(tag: ProjectTag, color: ProjectTag["color"]) {
-    const previous = tagSuggestions;
-    const optimistic = tagSuggestions.map((item) => item.id === tag.id ? { ...item, color } : item);
-    setTagSuggestions(optimistic);
+  function updateTagColor(tag: ProjectTag, color: ProjectTag["color"]) {
+    const pending = pendingTagColorsRef.current[tag.id];
+    pendingTagColorsRef.current[tag.id] = { color, previous: pending?.previous ?? tag.color };
+    setTagSuggestions((tags) => tags.map((item) => item.id === tag.id ? { ...item, color } : item));
+  }
+  async function persistTagColor(tag: ProjectTag) {
+    const pending = pendingTagColorsRef.current[tag.id];
+    if (!pending) return;
+    delete pendingTagColorsRef.current[tag.id];
+    if (pending.color === pending.previous || tag.id.startsWith("pending-")) return;
     try {
-      const updated = await api<ProjectTag>(`/project-tags/${tag.id}`, json("PATCH", { color }));
-      setTagSuggestions((tags) => tags.map((item) => item.id === updated.id ? updated : item));
+      const updated = await api<ProjectTag>(`/project-tags/${tag.id}`, json("PATCH", { color: pending.color }));
+      if (!pendingTagColorsRef.current[tag.id]) {
+        setTagSuggestions((tags) => tags.map((item) => item.id === updated.id ? updated : item));
+      }
     } catch (error) {
-      setTagSuggestions(previous);
-      reportBoardError(error, "Unable to save tag color.");
+      if (!pendingTagColorsRef.current[tag.id]) {
+        setTagSuggestions((tags) => tags.map((item) => item.id === tag.id ? { ...item, color: pending.previous } : item));
+      }
+      reportBoardError(error, "Unable to save platform color.");
     }
   }
   async function renameTag(tag: ProjectTag, value: string) {
@@ -269,15 +291,19 @@ export function ProjectView({
         window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
         return;
       }
+      void persistTagColor(tag);
       setTagMenuId(null);
       return;
     }
+    const activeTag = tagSuggestions.find((item) => item.id === tagMenuId);
+    if (activeTag) void persistTagColor(activeTag);
     setTagNameDraft(tag.name);
     setTagMenuId(tag.id);
   }
   async function deleteTag(tag: ProjectTag) {
     const previousSuggestions = tagSuggestions;
     const previousProjectTags = projectDraft.tags;
+    delete pendingTagColorsRef.current[tag.id];
     setTagSuggestions((tags) => tags.filter((item) => item.id !== tag.id));
     setProjectDraft((current) => ({ ...current, tags: current.tags.filter((name) => name.toLowerCase() !== tag.name.toLowerCase()) }));
     setTagMenuId(null);
@@ -300,7 +326,7 @@ export function ProjectView({
       <div className="px-5 pt-8 md:px-8">
         <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0 max-w-3xl flex-1">
-            <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="h-auto w-full !border-0 !bg-transparent px-0 py-0 text-4xl font-bold leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none md:text-5xl" />
+            <input value={projectDraft.name} onChange={(event) => setProjectDraft((current) => ({ ...current, name: event.target.value }))} onBlur={saveFallbackProjectName} aria-label="Project name" autoComplete="off" maxLength={120} placeholder="New Project" className="h-auto w-full !border-0 !bg-transparent px-0 py-0 !text-3xl !font-bold !leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none" />
             <input value={projectDraft.description} onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))} aria-label="Project description" maxLength={10000} placeholder="Description" className="mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none" />
             <div className="mt-3 flex items-start gap-5">
               <div className="flex h-9 w-40 shrink-0 items-center gap-2 pl-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
@@ -311,7 +337,7 @@ export function ProjectView({
               </div>
               {tagsOpen && <div role="dialog" aria-label="Project tag options" className="absolute inset-x-0 top-full z-20 rounded-b-md border border-t-0 border-border bg-[#161b22] p-2 shadow-xl">
                 <p className="mb-1.5 text-xs text-muted-foreground">Select a tag or create one</p>
-                {matchingTags.length > 0 && <div className="flex flex-wrap gap-1.5">{matchingTags.map((tag) => <div key={tag.id} style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="relative flex items-center rounded-sm text-white"><button type="button" onClick={() => { setTagMenuId(null); toggleTag(tag.name); }} style={{ fontSize: "12px", lineHeight: 1 }} className="px-1.5 py-0.5">{tag.name}</button><button type="button" onClick={(event) => { event.stopPropagation(); toggleTagMenu(tag); }} aria-label={`Platform options for ${tag.name}`} className="mr-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>{tagMenuId === tag.id && <div className="absolute left-0 top-full z-30 mt-1 w-52 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="flex gap-1.5"><input ref={tagNameInputRef} value={tagNameDraft} onChange={(event) => { setTagNameDraft(event.target.value); if (event.target.value.trim()) toast.dismiss(platformNameToastId); }} onBlur={(event) => void renameTag(tag, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { if (!tagNameDraft.trim()) { toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity }); return; } setTagNameDraft(tag.name); setTagMenuId(null); } }} aria-label={`Rename ${tag.name}`} maxLength={40} className="h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none" /><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void deleteTag(tag)} aria-label={`Delete ${tag.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"><Trash2 size={13} /></button></div><div className="my-2 border-t border-border" /><p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Colors</p><div className="grid grid-cols-4 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => void updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="h-5 rounded-sm" />)}</div></div>}</div>)}</div>}
+                {matchingTags.length > 0 && <div className="flex flex-wrap gap-1.5">{matchingTags.map((tag) => <div key={tag.id} style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="relative flex items-center rounded-sm text-white"><button type="button" onClick={() => { setTagMenuId(null); toggleTag(tag.name); }} style={{ fontSize: "12px", lineHeight: 1 }} className="px-1.5 py-0.5">{tag.name}</button><button type="button" onClick={(event) => { event.stopPropagation(); toggleTagMenu(tag); }} aria-label={`Platform options for ${tag.name}`} className="mr-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>{tagMenuId === tag.id && <div className="absolute left-0 top-full z-30 mt-1 w-52 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="flex gap-1.5"><input ref={tagNameInputRef} value={tagNameDraft} onChange={(event) => { setTagNameDraft(event.target.value); if (event.target.value.trim()) toast.dismiss(platformNameToastId); }} onBlur={(event) => void renameTag(tag, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { if (!tagNameDraft.trim()) { toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity }); return; } void persistTagColor(tag); setTagNameDraft(tag.name); setTagMenuId(null); } }} aria-label={`Rename ${tag.name}`} maxLength={40} className="h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none" /><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void deleteTag(tag)} aria-label={`Delete ${tag.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"><Trash2 size={13} /></button></div><div className="my-2 border-t border-border" /><p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Colors</p><div className="grid grid-cols-4 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="h-5 rounded-sm" />)}</div></div>}</div>)}</div>}
                 {tagInput.trim() && !tagSuggestions.some((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()) && <button type="button" onClick={addTag} className="mt-2 flex w-full items-center gap-2 rounded bg-[#2d333b] px-2 py-1.5 text-left text-xs">Create <span className="rounded-sm bg-[#484f58] px-2 py-0.5 text-foreground">{tagInput.trim()}</span></button>}
               </div>}
               </div>
