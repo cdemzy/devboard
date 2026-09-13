@@ -8,9 +8,9 @@ import {
   Archive,
   ArrowLeft,
   Database,
-  Ellipsis,
   FolderKanban,
   GripVertical,
+  Info,
   LayoutDashboard,
   Plus,
   RotateCcw,
@@ -65,8 +65,8 @@ function SortableProjectTag({
   return (
     <div ref={setNodeRef} style={style} className={`project-tag-option rounded-md p-0.5 transition-colors hover:bg-accent focus-within:bg-accent ${isDragging ? "opacity-60" : ""}`}>
       <div style={{ backgroundColor: tagColorValues[tag.color], fontSize: "12px", lineHeight: 1 }} className="project-tag-chip relative flex items-center rounded-sm text-white">
+        <button type="button" onClick={(event) => { event.stopPropagation(); onOptions(); }} aria-label={`Platform options for ${tag.name}`} className="project-tag-options-trigger ml-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"><Info size={13} /></button>
         <button type="button" onClick={onSelect} className="project-tag-select px-1.5 py-1">{tag.name}</button>
-        <button type="button" onClick={(event) => { event.stopPropagation(); onOptions(); }} aria-label={`Platform options for ${tag.name}`} className="project-tag-options-trigger rounded-sm p-0.5 text-white/70 hover:text-white"><Ellipsis size={14} /></button>
         {sortable && <button type="button" aria-label={`Reorder ${tag.name}`} className="project-tag-drag-handle mr-0.5 touch-none rounded-sm p-0.5 text-white/70 hover:text-white cursor-grab active:cursor-grabbing" {...attributes} {...listeners}><GripVertical size={13} /></button>}
         {children}
       </div>
