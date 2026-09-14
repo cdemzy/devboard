@@ -272,6 +272,7 @@ export function Workspace({ email }: { email: string }) {
 	const [isMobileProjectsOpen, setIsMobileProjectsOpen] = useState(false)
 	const [isMobileDrawerRevealed, setIsMobileDrawerRevealed] = useState(false)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
+	const [isWideDesktop, setIsWideDesktop] = useState(false)
 	const mobilePanelX = useMotionValue(0)
 	const [workspaceView, setWorkspaceView] = useState<'board' | 'projects' | 'archived'>(
 		'board',
@@ -283,7 +284,7 @@ export function Workspace({ email }: { email: string }) {
 	const request = useRef(0)
 	const mobileDrawerDrag = useRef<MobileDrawerDragState | null>(null)
 	const sidebarAccountRef = useRef<HTMLDivElement>(null)
-	const sidebarCollapsed = isSidebarCollapsed && !isSidebarHoverExpanded
+	const sidebarCollapsed = !isWideDesktop && isSidebarCollapsed && !isSidebarHoverExpanded
 	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
 	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
 	const sidebarItemGapClass = sidebarCollapsed ? 'gap-0' : 'gap-1.5'
@@ -341,6 +342,16 @@ export function Workspace({ email }: { email: string }) {
 			setIsMobileViewport(mediaQuery.matches)
 			if (!mediaQuery.matches) setIsMobileDrawerRevealed(false)
 		}
+
+		handleViewportChange()
+		mediaQuery.addEventListener('change', handleViewportChange)
+
+		return () => mediaQuery.removeEventListener('change', handleViewportChange)
+	}, [])
+
+	useEffect(() => {
+		const mediaQuery = window.matchMedia('(min-width: 1280px)')
+		const handleViewportChange = () => setIsWideDesktop(mediaQuery.matches)
 
 		handleViewportChange()
 		mediaQuery.addEventListener('change', handleViewportChange)
@@ -531,9 +542,10 @@ export function Workspace({ email }: { email: string }) {
 		<div className="workspace-shell min-h-screen max-md:overflow-x-clip">
 			<aside
 				onMouseEnter={() => {
-					if (isSidebarCollapsed) setIsSidebarHoverExpanded(true)
+					if (!isWideDesktop && isSidebarCollapsed) setIsSidebarHoverExpanded(true)
 				}}
 				onMouseLeave={() => {
+					if (isWideDesktop) return
 					setIsSidebarHoverExpanded(false)
 					setIsSidebarCollapsed(true)
 					setAccountOpen(false)
@@ -607,10 +619,7 @@ export function Workspace({ email }: { email: string }) {
 								type="button"
 								className={`workspace-account-trigger flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md py-2 px-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground`}
 								aria-label="Account"
-								onClick={() => {
-									if (sidebarCollapsed) setIsSidebarCollapsed(false)
-									setAccountOpen((open) => !open)
-								}}
+								onClick={() => setAccountOpen((open) => !open)}
 							>
 								<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
 									<CircleUserRound size={17} />
@@ -648,7 +657,7 @@ export function Workspace({ email }: { email: string }) {
 				onPointerMove={handleMobilePanelPointerMove}
 				onPointerUp={handleMobilePanelPointerEnd}
 				onPointerCancel={handleMobilePanelPointerEnd}
-				className={`workspace-main flex min-h-screen min-w-0 flex-1 flex-col max-md:touch-pan-y max-md:relative max-md:z-30 max-md:bg-background md:ml-16 md:h-dvh md:min-h-0 md:w-[calc(100%-4rem)] md:overflow-x-hidden md:overflow-y-auto ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
+				className={`workspace-main flex min-h-screen min-w-0 flex-1 flex-col max-md:touch-pan-y max-md:relative max-md:z-30 max-md:bg-background md:h-dvh md:min-h-0 md:overflow-x-hidden md:overflow-y-auto ${sidebarCollapsed ? 'md:ml-16 md:w-[calc(100%-4rem)]' : 'md:ml-64 md:w-[calc(100%-16rem)]'} ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
 			>
 				<header className="workspace-mobile-header relative z-20 md:hidden">
 					<div className="workspace-mobile-bar relative flex min-h-16 items-center justify-center px-4">
