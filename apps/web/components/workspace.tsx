@@ -53,7 +53,7 @@ function AccountMenu({
 					<Button
 						variant="ghost"
 						size="sm"
-						className="workspace-logout w-full justify-start"
+						className="workspace-logout w-full justify-start transition-transform active:scale-95"
 						onClick={async () => {
 							try {
 								const { error } = await getSupabase().auth.signOut()
