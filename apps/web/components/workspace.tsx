@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
 	Archive,
+	ChevronLeft,
 	CircleUserRound,
 	FolderKanban,
 	Layers3,
 	LogOut,
+	Menu,
 	Plus,
 	RotateCcw,
 	Trash2,
@@ -91,6 +93,132 @@ function SidebarProjectSkeletons({ collapsed }: { collapsed: boolean }) {
 	)
 }
 
+interface MobileProjectDrawerProps {
+	email: string
+	projects: Project[]
+	activeProjectId: string | null
+	isLoading: boolean
+	isCreatingProject: boolean
+	isAccountOpen: boolean
+	onClose: () => void
+	onCreateProject: () => void
+	onSelectProject: (projectId: string) => void
+	onOpenArchive: () => void
+	onToggleAccount: () => void
+	onCloseAccount: () => void
+	onReportError: (message: string) => void
+}
+
+function MobileProjectDrawer({
+	email,
+	projects,
+	activeProjectId,
+	isLoading,
+	isCreatingProject,
+	isAccountOpen,
+	onClose,
+	onCreateProject,
+	onSelectProject,
+	onOpenArchive,
+	onToggleAccount,
+	onCloseAccount,
+	onReportError,
+}: MobileProjectDrawerProps) {
+	return (
+		<motion.aside
+			id="mobile-project-drawer"
+			initial={{ x: '-100%' }}
+			animate={{ x: 0 }}
+			exit={{ x: '-100%' }}
+			transition={{ duration: 0.22, ease: 'easeOut' }}
+			className="workspace-mobile-drawer fixed inset-y-0 left-0 z-50 flex w-[calc(100%-3rem)] max-w-sm flex-col border-r border-border bg-[#161b22] shadow-2xl md:hidden"
+		>
+			<header className="workspace-mobile-drawer-header relative flex h-16 shrink-0 items-center justify-center border-b border-border px-4">
+				<Button
+					className="workspace-mobile-drawer-close absolute left-4 rounded-full"
+					variant="ghost"
+					size="icon"
+					aria-label="Close projects"
+					onClick={onClose}
+				>
+					<Menu size={19} />
+				</Button>
+				<div className="workspace-mobile-drawer-brand flex items-center gap-2.5 text-base font-semibold tracking-tight">
+					<Layers3 size={21} className="text-primary" />
+					DevBoard
+				</div>
+			</header>
+			<div className="workspace-mobile-drawer-content flex min-h-0 flex-1 flex-col p-3">
+				<Button
+					className="workspace-mobile-drawer-create w-full justify-start"
+					disabled={isCreatingProject}
+					onClick={onCreateProject}
+				>
+					<Plus size={17} />
+					New Project
+				</Button>
+				<nav
+					aria-label="Projects"
+					className="workspace-mobile-drawer-project-list -mr-3 mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto pr-3"
+				>
+					{isLoading ? (
+						<SidebarProjectSkeletons collapsed={false} />
+					) : (
+						projects.map((project) => (
+							<button
+								key={project.id}
+								type="button"
+								onClick={() => onSelectProject(project.id)}
+								aria-current={activeProjectId === project.id ? 'page' : undefined}
+								className={`workspace-mobile-drawer-project-link flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${activeProjectId === project.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+							>
+								<FolderKanban size={16} className="shrink-0" />
+								<span className="truncate">{project.name}</span>
+							</button>
+						))
+					)}
+				</nav>
+				<footer className="workspace-mobile-drawer-footer mt-auto border-t border-border pt-3">
+					<Button
+						className="workspace-mobile-drawer-archive w-full justify-start"
+						variant="ghost"
+						onClick={onOpenArchive}
+					>
+						<Archive size={16} />
+						Archived projects
+					</Button>
+					<div className="workspace-mobile-drawer-account mt-2">
+						<AccountMenu
+							email={email}
+							open={isAccountOpen}
+							close={onCloseAccount}
+							reportError={onReportError}
+							variant="sidebar"
+						/>
+						<Button
+							className="workspace-mobile-drawer-account-trigger w-full justify-start"
+							variant="ghost"
+							onClick={onToggleAccount}
+						>
+							<CircleUserRound size={17} />
+							Account
+						</Button>
+					</div>
+				</footer>
+			</div>
+			<Button
+				className="workspace-mobile-drawer-handle absolute left-full top-1/2 h-20 w-8 -translate-y-1/2 rounded-l-none rounded-r-full border border-l-0 border-border bg-[#21262d] text-muted-foreground shadow-lg"
+				variant="ghost"
+				size="icon"
+				aria-label="Close projects"
+				onClick={onClose}
+			>
+				<ChevronLeft size={18} />
+			</Button>
+		</motion.aside>
+	)
+}
+
 export function Workspace({ email }: { email: string }) {
 	const [projects, setProjects] = useState<Project[]>([])
 	const [archivedProjects, setArchivedProjects] = useState<Project[]>([])
@@ -99,6 +227,7 @@ export function Workspace({ email }: { email: string }) {
 	const [isCreatingProject, setIsCreatingProject] = useState(false)
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
 	const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false)
+	const [isMobileProjectsOpen, setIsMobileProjectsOpen] = useState(false)
 	const [workspaceView, setWorkspaceView] = useState<'board' | 'projects' | 'archived'>(
 		'board',
 	)
@@ -158,13 +287,20 @@ export function Workspace({ email }: { email: string }) {
 		}
 	}, [load, loadArchived])
 	const project = projects.find((project) => project.id === active)
+	function closeMobileProjects() {
+		setIsMobileProjectsOpen(false)
+		setAccountOpen(false)
+	}
+
 	function selectProject(projectId: string) {
 		setActive(projectId)
 		setWorkspaceView('board')
+		closeMobileProjects()
 	}
 
 	function openArchive() {
 		setWorkspaceView('archived')
+		closeMobileProjects()
 		void loadArchived()
 	}
 
@@ -179,6 +315,7 @@ export function Workspace({ email }: { email: string }) {
 			setProjects((previous) => [...previous, created])
 			setActive(created.id)
 			setWorkspaceView('board')
+			closeMobileProjects()
 			setError('')
 		} catch (error) {
 			setError(error instanceof Error ? error.message : 'Unable to create a new project.')
@@ -295,8 +432,19 @@ export function Workspace({ email }: { email: string }) {
 			</aside>
 			<main className="workspace-main flex min-h-screen min-w-0 flex-1 flex-col md:ml-16 md:h-dvh md:min-h-0 md:w-[calc(100%-4rem)] md:overflow-x-hidden md:overflow-y-auto">
 				<header className="workspace-mobile-header border-b border-border bg-[#161b22] md:hidden">
-					<div className="workspace-mobile-bar flex min-h-16 items-center gap-3 px-4">
-						<div className="workspace-brand flex shrink-0 items-center gap-2.5 text-base font-semibold tracking-tight">
+					<div className="workspace-mobile-bar relative flex min-h-16 items-center justify-between px-4">
+						<Button
+							className="workspace-mobile-project-menu rounded-full"
+							variant="ghost"
+							size="icon"
+							aria-label="Open projects"
+							aria-controls="mobile-project-drawer"
+							aria-expanded={isMobileProjectsOpen}
+							onClick={() => setIsMobileProjectsOpen(true)}
+						>
+							<Menu size={19} />
+						</Button>
+						<div className="workspace-brand pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-2.5 text-base font-semibold tracking-tight">
 							<Layers3 size={22} className="text-primary" />
 							DevBoard
 						</div>
@@ -321,39 +469,6 @@ export function Workspace({ email }: { email: string }) {
 							/>
 						</div>
 					</div>
-					<nav
-						aria-label="Projects"
-						className="workspace-mobile-project-list flex gap-1 overflow-x-auto border-t border-border px-3 py-2"
-					>
-						<Button
-							className="workspace-mobile-create shrink-0"
-							size="sm"
-							disabled={isCreatingProject}
-							onClick={() => void createEmptyProject()}
-							aria-label="New project"
-						>
-							<Plus size={15} />
-						</Button>
-						{projects.map((item) => (
-							<button
-								key={item.id}
-								onClick={() => selectProject(item.id)}
-								aria-current={
-									workspaceView === 'board' && active === item.id ? 'page' : undefined
-								}
-								className={`workspace-mobile-project-link shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors ${workspaceView === 'board' && active === item.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
-							>
-								{item.name}
-							</button>
-						))}
-						<button
-							onClick={openArchive}
-							className={`workspace-mobile-archive-link shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors ${workspaceView === 'archived' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
-						>
-							<Archive size={15} className="mr-1.5 inline" />
-							Archive
-						</button>
-					</nav>
 				</header>
 				{error && (
 					<div
@@ -470,6 +585,36 @@ export function Workspace({ email }: { email: string }) {
 					</motion.div>
 				)}
 			</main>
+			<AnimatePresence>
+				{isMobileProjectsOpen && (
+					<>
+						<motion.button
+							type="button"
+							className="workspace-mobile-drawer-backdrop fixed inset-0 z-40 bg-black/55 md:hidden"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							aria-label="Close projects"
+							onClick={closeMobileProjects}
+						/>
+						<MobileProjectDrawer
+							email={email}
+							projects={projects}
+							activeProjectId={active}
+							isLoading={loading}
+							isCreatingProject={isCreatingProject}
+							isAccountOpen={accountOpen}
+							onClose={closeMobileProjects}
+							onCreateProject={() => void createEmptyProject()}
+							onSelectProject={selectProject}
+							onOpenArchive={openArchive}
+							onToggleAccount={() => setAccountOpen((open) => !open)}
+							onCloseAccount={() => setAccountOpen(false)}
+							onReportError={setError}
+						/>
+					</>
+				)}
+			</AnimatePresence>
 			<ConfirmDialog
 				open={Boolean(archivedToDelete)}
 				onOpenChange={(open) => !open && setArchivedToDelete(null)}
