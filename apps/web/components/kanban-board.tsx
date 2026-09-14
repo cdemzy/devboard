@@ -232,7 +232,7 @@ function Column({
       ref={setNodeRef}
       data-kanban-column={status}
       aria-label={statusLabels[status]}
-      className={`kanban-column group/column min-h-[max(22rem,calc(100dvh-23rem))] min-w-0 rounded-lg border p-2 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
+      className={`kanban-column group/column min-h-[max(22rem,calc(100dvh-17rem))] min-w-0 rounded-lg border p-2 pb-4 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : "hover:border-[#484f58]"}`}
     >
       <header className="kanban-column-header mb-4 flex items-center gap-2 px-1 pt-1">
         <Icon
