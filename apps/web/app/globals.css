@@ -171,6 +171,73 @@
 	font-size: 13px !important;
 }
 
+
+[data-sonner-toast].task-archive-recovery-toast {
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr) 28px;
+	align-items: center;
+	column-gap: 6px;
+	overflow: hidden;
+}
+
+[data-sonner-toast].task-archive-recovery-toast::before {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	z-index: 1;
+	height: 3px;
+	width: 100%;
+	transform-origin: left;
+	background: var(--success-text);
+	animation: task-archive-recovery-countdown 15s linear forwards;
+	pointer-events: none;
+}
+
+[data-sonner-toast].task-archive-recovery-toast [data-icon] {
+	grid-column: 1;
+	margin: 0;
+	align-self: center;
+}
+
+[data-sonner-toast].task-archive-recovery-toast [data-content] {
+	grid-column: 2;
+	position: relative;
+	height: 28px;
+	align-self: center;
+}
+
+[data-sonner-toast].task-archive-recovery-toast [data-title] {
+	position: absolute;
+	top: 50%;
+	left: 0;
+	transform: translateY(-50%);
+	line-height: 1.5;
+}
+
+[data-sonner-toast].task-archive-recovery-toast [data-button] {
+	grid-column: 3;
+	margin: 0;
+	align-self: center;
+}
+
+[data-sonner-toaster][data-lifted='true'] .task-archive-recovery-toast::before,
+[data-sonner-toast].task-archive-recovery-toast:hover::before {
+	animation-play-state: paused;
+}
+
+@keyframes task-archive-recovery-countdown {
+	to {
+		transform: scaleX(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	[data-sonner-toast].task-archive-recovery-toast::before {
+		animation: none;
+	}
+}
+
 @media (max-width: 600px) {
 	.app-toaster[data-sonner-toaster][data-x-position='center'] {
 		left: 0;

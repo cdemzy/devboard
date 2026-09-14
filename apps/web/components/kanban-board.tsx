@@ -353,6 +353,7 @@ function Column({
 	disabled,
 	loading,
 	pointerY,
+	activeTaskStatus,
 	isMobile,
 	isExpanded,
 	onToggleExpanded,
@@ -369,6 +370,7 @@ function Column({
 	disabled: boolean
 	loading: boolean
 	pointerY: number | null
+	activeTaskStatus: Status | null
 	isMobile: boolean
 	isExpanded: boolean
 	onToggleExpanded: () => void
@@ -384,6 +386,8 @@ function Column({
 	const containsOverTask = tasks.some((task) => task.id === over?.id)
 	const isDropColumn = over?.id === status || containsOverTask
 	const isEmptyColumnDropTarget = tasks.length === 0 && over?.id === status
+	const shouldAppendCrossStatusDrop =
+		status === 'done' && activeTaskStatus !== null && activeTaskStatus !== status
 	useLayoutEffect(() => {
 		if (
 			!isDropColumn ||
@@ -398,6 +402,11 @@ function Column({
 		const cards = Array.from(
 			taskListRef.current.querySelectorAll<HTMLElement>('[data-task-id]'),
 		).filter((card) => card.dataset.taskId !== activeId)
+		if (shouldAppendCrossStatusDrop) {
+			const lastCard = cards.at(-1)
+			setDropIndicatorTop(lastCard ? lastCard.offsetTop + lastCard.offsetHeight + 4 : 4)
+			return
+		}
 		const nextCard = cards.find((card) => {
 			const rect = card.getBoundingClientRect()
 			return pointerY < rect.top + rect.height / 2
@@ -408,7 +417,7 @@ function Column({
 		}
 		const lastCard = cards.at(-1)
 		setDropIndicatorTop(lastCard ? lastCard.offsetTop + lastCard.offsetHeight + 4 : 4)
-	}, [active?.id, isDropColumn, pointerY, tasks.length])
+	}, [active?.id, isDropColumn, pointerY, shouldAppendCrossStatusDrop, tasks.length])
 	return (
 		<motion.section
 			ref={setNodeRef}
@@ -623,18 +632,23 @@ export function KanbanBoard({
 			tasks.filter((task) => task.id !== active.id),
 			status,
 		)
+		const activeTask = tasks.find((task) => task.id === active.id)
 		const fallbackPosition = targetTask
 			? column.findIndex((task) => task.id === targetTask.id) + 1
 			: column.length
+		const shouldAppendCrossStatusDrop =
+			status === 'done' && activeTask?.status !== status
 		move(
 			String(active.id),
 			status,
-			getColumnDropPosition(
-				status,
-				String(active.id),
-				dragPointerRef.current?.y ?? null,
-				fallbackPosition,
-			),
+			shouldAppendCrossStatusDrop
+				? column.length
+				: getColumnDropPosition(
+						status,
+						String(active.id),
+						dragPointerRef.current?.y ?? null,
+						fallbackPosition,
+					),
 		)
 	}
 	return (
@@ -692,6 +706,7 @@ export function KanbanBoard({
 							disabled={disabled}
 							loading={loading}
 							pointerY={pointerY}
+							activeTaskStatus={activeTask?.status ?? null}
 							isMobile={isMobileViewport}
 							isExpanded={expandedStatuses.has(status)}
 							onToggleExpanded={() => toggleColumnExpansion(status)}

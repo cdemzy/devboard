@@ -37,6 +37,7 @@ import {
 	Plus,
 	RotateCcw,
 	Trash2,
+	Undo2,
 	X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -384,7 +385,6 @@ export function ProjectView({
 	const [editor, setEditor] = useState<{ task: Task } | null>(null)
 	const [newTaskRequest, setNewTaskRequest] = useState(0)
 	const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
-	const [taskToArchive, setTaskToArchive] = useState<Task | null>(null)
 	const [isProjectArchiveConfirmOpen, setIsProjectArchiveConfirmOpen] = useState(false)
 	useEffect(() => {
 		void loadTagSuggestions().catch(() => undefined)
@@ -524,8 +524,60 @@ export function ProjectView({
 				}
 			})
 	}
+	function showTaskArchiveToast(archivedTask: Task, archiveRequest: Promise<unknown>) {
+		const recoveryToastId = toast.success(
+			'Task archived',
+			{
+				duration: 15_000,
+				className: 'task-archive-recovery-toast',
+				action: {
+					label: (
+						<span className="task-archive-recover-action relative grid h-4 w-4 place-items-center">
+							<Undo2 size={14} />
+						</span>
+					),
+					onClick: () => {
+						toast.dismiss(recoveryToastId)
+						restoreTaskFromToast(archivedTask, archiveRequest)
+					},
+				},
+				actionButtonStyle: {
+					width: 28,
+					height: 28,
+					padding: 0,
+					border: '1px solid #886826',
+					borderRadius: '9999px',
+					background: '#23221A',
+					color: '#d29922',
+					justifyContent: 'center',
+				},
+			},
+		)
+
+		return recoveryToastId
+	}
+
 	function archiveTask(task: Task) {
-		setTaskToArchive(task)
+		setTasks((current) => current.filter((item) => item.id !== task.id))
+		setArchivedTasks((current) => [
+			...current.filter((item) => item.id !== task.id),
+			{ ...task, archived: true },
+		])
+		const archiveRequest = api(`/tasks/${task.id}/archive`, json('POST'))
+		const recoveryToastId = showTaskArchiveToast(task, archiveRequest)
+
+		void archiveRequest
+			.then(() => {
+				if (view === 'archived') void loadArchivedTasks()
+			})
+			.catch((error) => {
+				setTasks((current) =>
+					current.some((item) => item.id === task.id) ? current : [...current, task],
+				)
+				setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
+				toast.dismiss(recoveryToastId)
+				reportBoardError(error, 'Unable to archive task.')
+			})
 	}
 	async function createInlineTask(status: Status, title: string) {
 		const task = await api<Task>(
@@ -540,11 +592,41 @@ export function ProjectView({
 		)
 		setTasks((current) => [...current, task])
 	}
-	function restoreTask(task: Task) {
+	function restoreTask(task: Task, archiveRequest?: Promise<unknown>) {
 		void action(async () => {
+			await archiveRequest
 			await api(`/tasks/${task.id}/restore`, json('POST'))
 			await Promise.all([loadTasks(), loadArchivedTasks()])
 		}, 'Task restored')
+	}
+	function restoreTaskFromToast(task: Task, archiveRequest: Promise<unknown>) {
+		setTasks((current) =>
+			current.some((item) => item.id === task.id)
+				? current
+				: [...current, { ...task, archived: false }],
+		)
+		setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
+
+		void (async () => {
+			try {
+				await archiveRequest
+			} catch {
+				return
+			}
+
+			try {
+				await api(`/tasks/${task.id}/restore`, json('POST'))
+				toast.success('Task restored')
+			} catch (error) {
+				setTasks((current) => current.filter((item) => item.id !== task.id))
+				setArchivedTasks((current) =>
+					current.some((item) => item.id === task.id)
+						? current
+						: [...current, { ...task, archived: true }],
+				)
+				reportBoardError(error, 'Unable to restore task.')
+			}
+		})()
 	}
 	function handleProjectArchiveAction() {
 		if (!project.archived) {
@@ -1332,21 +1414,6 @@ export function ProjectView({
 					await api(`/projects/${project.id}`, json('PATCH', { archived: true }))
 					await refresh()
 					toast.success('Project archived')
-				}}
-			/>
-			<ConfirmDialog
-				open={Boolean(taskToArchive)}
-				onOpenChange={(open) => !open && setTaskToArchive(null)}
-				title="Archive task?"
-				description={`Archive ${taskToArchive?.ticket_id ?? 'this task'}? You can restore it later from Archived tasks.`}
-				confirmLabel="Archive task"
-				busyLabel="Archiving..."
-				onConfirm={async () => {
-					if (!taskToArchive) return
-					await api(`/tasks/${taskToArchive.id}/archive`, json('POST'))
-					await loadTasks()
-					if (view === 'archived') await loadArchivedTasks()
-					toast.success('Task archived')
 				}}
 			/>
 			<ConfirmDialog
