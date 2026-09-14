@@ -234,7 +234,7 @@ export function Workspace({ email }: { email: string }) {
 					</div>
 					<nav
 						aria-label="Projects"
-						className="workspace-project-list min-h-0 flex-1 space-y-1 overflow-y-auto"
+						className="workspace-project-list -mr-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-2"
 					>
 						{loading ? (
 							<SidebarProjectSkeletons collapsed={sidebarCollapsed} />
