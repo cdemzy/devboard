@@ -131,7 +131,7 @@ function TaskCard({
 			onClick={() => edit(task)}
 			onMouseLeave={() => setActionsOpen(false)}
 			data-task-id={task.id}
-			className={`task-card group relative min-h-24 touch-auto rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? 'cursor-default' : 'cursor-pointer'} ${isDragging ? 'opacity-30' : 'hover:border-[#484f58]'}`}
+			className={`task-card group relative min-h-[6.5rem] touch-auto rounded-lg border p-3 shadow-sm transition-[border-color,opacity,transform] duration-150 ${statusStyle.ticket} ${disabled ? 'cursor-default' : 'cursor-pointer'} ${isDragging ? 'opacity-30' : 'hover:border-[#484f58]'}`}
 		>
 			<div className="task-card-header flex items-start gap-1">
 				<button
@@ -290,12 +290,12 @@ function NewTaskCard({
 				event.preventDefault()
 				void handleSave()
 			}}
-			className={`kanban-new-task-card rounded-lg border border-dashed p-3 ${statusStyle.ticket}`}
+			className={`kanban-new-task-card min-h-[6.5rem] rounded-lg border border-dashed p-3 ${statusStyle.ticket}`}
 		>
 			<span
 				className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}
 			>
-				New ticket
+				New Task
 			</span>
 			<input
 				autoFocus
@@ -461,7 +461,7 @@ function Column({
 							<div
 								key={index}
 								aria-hidden="true"
-								className="kanban-task-skeleton min-h-24 animate-pulse rounded-lg border border-border/60 bg-background/30 p-3"
+								className="kanban-task-skeleton min-h-[6.5rem] animate-pulse rounded-lg border border-border/60 bg-background/30 p-3"
 							>
 								<div className="h-2 w-12 rounded bg-muted-foreground/20" />
 								<div className="mt-4 h-3 w-4/5 rounded bg-muted-foreground/20" />
@@ -519,9 +519,9 @@ function Column({
 					<ChevronsUpDown size={15} />
 				</Button>
 			)}
-			{!loading && tasks.length === 0 && (
+			{!loading && tasks.length === 0 && newTaskStatus !== status && (
 				<p
-					className={`kanban-empty-state relative flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyColumnDropTarget ? statusStyle.emptyDrop : 'border-[#484f58] text-muted-foreground'}`}
+					className={`kanban-empty-state relative flex min-h-[6.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyColumnDropTarget ? statusStyle.emptyDrop : 'border-[#484f58] text-muted-foreground'}`}
 				>
 					{isEmptyColumnDropTarget && (
 						<span
