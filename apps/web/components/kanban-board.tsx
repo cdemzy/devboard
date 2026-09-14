@@ -247,6 +247,77 @@ function TaskCard({
 	)
 }
 
+function NewTaskCard({
+	status,
+	save,
+	cancel,
+}: {
+	status: Status
+	save: (title: string) => Promise<void>
+	cancel: () => void
+}) {
+	const [title, setTitle] = useState('')
+	const [isSaving, setIsSaving] = useState(false)
+	const [error, setError] = useState('')
+	const statusStyle = statusStyles[status]
+
+	async function handleSave() {
+		const nextTitle = title.trim()
+		if (!nextTitle) {
+			cancel()
+			return
+		}
+		if (isSaving) return
+
+		setIsSaving(true)
+		setError('')
+		try {
+			await save(nextTitle)
+		} catch (error) {
+			setError(error instanceof Error ? error.message : 'Unable to create task.')
+		} finally {
+			setIsSaving(false)
+		}
+	}
+
+	return (
+		<motion.form
+			initial={{ opacity: 0, y: -8 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: -6 }}
+			transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.65 }}
+			onSubmit={(event) => {
+				event.preventDefault()
+				void handleSave()
+			}}
+			className={`kanban-new-task-card rounded-lg border border-dashed p-3 ${statusStyle.ticket}`}
+		>
+			<span className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
+				New ticket
+			</span>
+			<input
+				autoFocus
+				value={title}
+				onChange={(event) => setTitle(event.target.value)}
+				onBlur={() => void handleSave()}
+				onKeyDown={(event) => {
+					if (event.key === 'Escape') cancel()
+				}}
+				placeholder="Task title"
+				aria-label={`New ${statusLabels[status]} task title`}
+				maxLength={240}
+				disabled={isSaving}
+				className="kanban-new-task-title h-auto !border-0 !bg-transparent px-0 py-0 text-[13px] font-medium !outline-none focus:!outline-none"
+			/>
+			{error && (
+				<p role="alert" className="kanban-new-task-error mt-2 text-xs text-rose-300">
+					{error}
+				</p>
+			)}
+		</motion.form>
+	)
+}
+
 function TaskDragPreview({ task }: { task: Task }) {
 	const statusStyle = statusStyles[task.status]
 	return (
@@ -273,7 +344,10 @@ function Column({
 	edit,
 	archive,
 	remove,
-	create,
+	newTaskStatus,
+	onStartTask,
+	onCreateTask,
+	onCancelTask,
 	disabled,
 	loading,
 	pointerY,
@@ -286,7 +360,10 @@ function Column({
 	edit: (task: Task) => void
 	archive: (task: Task) => void
 	remove: (task: Task) => void
-	create: (status: Status) => void
+	newTaskStatus: Status | null
+	onStartTask: (status: Status) => void
+	onCreateTask: (status: Status, title: string) => Promise<void>
+	onCancelTask: () => void
 	disabled: boolean
 	loading: boolean
 	pointerY: number | null
@@ -352,7 +429,7 @@ function Column({
 						className="ml-auto"
 						aria-label={`Add task to ${statusLabels[status]}`}
 						disabled={disabled || loading}
-						onClick={() => create(status)}
+						onClick={() => onStartTask(status)}
 					>
 						<Plus size={15} />
 					</Button>
@@ -413,7 +490,14 @@ function Column({
 									/>
 								</motion.div>
 							))}
-						</AnimatePresence>
+								</AnimatePresence>
+							)}
+					{newTaskStatus === status && (
+						<NewTaskCard
+							status={status}
+							save={(title) => onCreateTask(status, title)}
+							cancel={onCancelTask}
+						/>
 					)}
 				</motion.div>
 			</SortableContext>
@@ -451,7 +535,7 @@ function Column({
 				size="sm"
 				className="kanban-add-task mt-2 w-full justify-center bg-accent text-muted-foreground opacity-0 transition-[background-color,opacity,transform] duration-150 hover:bg-[#30363d] active:scale-95 group-hover/column:opacity-100 focus-visible:opacity-100"
 				disabled={disabled || loading}
-				onClick={() => create(status)}
+				onClick={() => onStartTask(status)}
 			>
 				<Plus size={14} />
 				<span className="hidden md:inline">Add task</span>
@@ -464,7 +548,8 @@ export function KanbanBoard({
 	edit,
 	archive,
 	remove,
-	create,
+	createTask,
+	newTaskRequest,
 	move,
 	disabled,
 	loading = false,
@@ -473,7 +558,8 @@ export function KanbanBoard({
 	edit: (task: Task) => void
 	archive: (task: Task) => void
 	remove: (task: Task) => void
-	create: (status: Status) => void
+	createTask: (status: Status, title: string) => Promise<void>
+	newTaskRequest: number
 	move: (id: string, status: Status, position: number) => void
 	disabled: boolean
 	loading?: boolean
@@ -482,8 +568,10 @@ export function KanbanBoard({
 	const [pointerY, setPointerY] = useState<number | null>(null)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const [expandedStatuses, setExpandedStatuses] = useState<Set<Status>>(() => new Set())
+	const [newTaskStatus, setNewTaskStatus] = useState<Status | null>(null)
 	const dragStartPointerRef = useRef<{ x: number; y: number } | null>(null)
 	const dragPointerRef = useRef<{ x: number; y: number } | null>(null)
+	const previousNewTaskRequest = useRef(newTaskRequest)
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 		useSensor(KeyboardSensor, {
@@ -499,6 +587,11 @@ export function KanbanBoard({
 
 		return () => mediaQuery.removeEventListener('change', handleViewportChange)
 	}, [])
+	useEffect(() => {
+		if (newTaskRequest === previousNewTaskRequest.current) return
+		previousNewTaskRequest.current = newTaskRequest
+		setNewTaskStatus('todo')
+	}, [newTaskRequest])
 
 	function toggleColumnExpansion(status: Status) {
 		setExpandedStatuses((current) => {
@@ -512,6 +605,10 @@ export function KanbanBoard({
 
 			return next
 		})
+	}
+	async function handleCreateTask(status: Status, title: string) {
+		await createTask(status, title)
+		setNewTaskStatus(null)
 	}
 	function onDragEnd({ active, over }: DragEndEvent) {
 		if (!over || active.id === over.id || disabled || loading) return
@@ -586,7 +683,10 @@ export function KanbanBoard({
 							edit={edit}
 							archive={archive}
 							remove={remove}
-							create={create}
+							newTaskStatus={newTaskStatus}
+							onStartTask={setNewTaskStatus}
+							onCreateTask={handleCreateTask}
+							onCancelTask={() => setNewTaskStatus(null)}
 							disabled={disabled}
 							loading={loading}
 							pointerY={pointerY}

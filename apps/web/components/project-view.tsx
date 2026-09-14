@@ -361,7 +361,8 @@ export function ProjectView({
 			reportBoardError(error, 'Unable to save project changes.')
 		}
 	}, [loadTagSuggestions, project, projectDraft, update])
-	const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(null)
+	const [editor, setEditor] = useState<{ task: Task } | null>(null)
+	const [newTaskRequest, setNewTaskRequest] = useState(0)
 	const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
 	const [taskToArchive, setTaskToArchive] = useState<Task | null>(null)
 	const [isProjectArchiveConfirmOpen, setIsProjectArchiveConfirmOpen] = useState(false)
@@ -505,6 +506,19 @@ export function ProjectView({
 	}
 	function archiveTask(task: Task) {
 		setTaskToArchive(task)
+	}
+	async function createInlineTask(status: Status, title: string) {
+		const task = await api<Task>(
+			`/projects/${project.id}/tasks`,
+			json('POST', {
+				title,
+				description: '',
+				status,
+				priority: 'medium',
+				complexity: 'standard',
+			}),
+		)
+		setTasks((current) => [...current, task])
 	}
 	function restoreTask(task: Task) {
 		void action(async () => {
@@ -1151,7 +1165,10 @@ export function ProjectView({
 								className="project-view-new-task !h-auto px-4 py-1.5 active:scale-95"
 								disabled={busy || loading}
 								aria-label="New task"
-								onClick={() => setEditor({})}
+								onClick={() => {
+									setView('board')
+									setNewTaskRequest((current) => current + 1)
+								}}
 							>
 								<Plus size={14} />
 							</Button>
@@ -1231,7 +1248,8 @@ export function ProjectView({
 							edit={(task) => setEditor({ task })}
 							archive={archiveTask}
 							remove={(task) => setTaskToDelete(task)}
-							create={(status) => setEditor({ status })}
+							createTask={createInlineTask}
+							newTaskRequest={newTaskRequest}
 							move={(...args) => void move(...args)}
 						/>
 					</motion.div>
@@ -1255,7 +1273,6 @@ export function ProjectView({
 			{editor && (
 				<TaskEditor
 					task={editor.task}
-					initialStatus={editor.status}
 					close={() => setEditor(null)}
 					save={async (data, taskId) => {
 						if (taskId) {
