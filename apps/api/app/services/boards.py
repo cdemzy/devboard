@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+from random import choice
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -17,6 +19,7 @@ from app.schemas import (
 from app.services.tickets import project_ticket_prefix
 
 NEW_PROJECT_NAME = "New Project"
+TAG_COLORS = ("green", "yellow", "purple", "orange", "blue", "pink", "red", "brown")
 
 
 def list_projects(db: Session, user: UUID, archived: bool):
@@ -39,19 +42,39 @@ def list_project_tags(db: Session, user: UUID):
     )
 
 
-def sync_project_tags(db: Session, user: UUID, tags: list[str]):
+def sync_project_tags(
+    db: Session,
+    user: UUID,
+    tags: list[str],
+    new_tag_colors: Mapping[str, str] | None = None,
+):
+    # O(n + k * c): scan existing tags once, then inspect the fixed color palette per new tag.
     existing_tags = list(db.scalars(select(ProjectTag).where(ProjectTag.owner_id == user)))
     existing = {tag.normalized_name for tag in existing_tags}
+    used_colors = {tag.color for tag in existing_tags}
+    colors_by_name = {name.casefold(): color for name, color in (new_tag_colors or {}).items()}
     next_position = len(existing_tags)
     for name in tags:
         normalized = name.casefold()
         if normalized not in existing:
+            available_colors = tuple(color for color in TAG_COLORS if color not in used_colors)
+            selected_color = colors_by_name.get(normalized)
+            color = (
+                selected_color
+                if selected_color in (available_colors or TAG_COLORS)
+                else choice(available_colors or TAG_COLORS)
+            )
             db.add(
                 ProjectTag(
-                    owner_id=user, name=name, normalized_name=normalized, position=next_position
+                    owner_id=user,
+                    name=name,
+                    normalized_name=normalized,
+                    color=color,
+                    position=next_position,
                 )
             )
             existing.add(normalized)
+            used_colors.add(color)
             next_position += 1
 
 
@@ -99,9 +122,11 @@ def create_project(db: Session, user: UUID, data: ProjectCreate):
 def update_project(db: Session, user: UUID, project_id: UUID, data: ProjectUpdate):
     project = owned_project(db, project_id, user, lock=True)
     for key, value in data.model_dump(exclude_unset=True).items():
+        if key == "new_tag_colors":
+            continue
         setattr(project, key, value)
     if data.tags is not None:
-        sync_project_tags(db, user, data.tags)
+        sync_project_tags(db, user, data.tags, data.new_tag_colors)
     db.commit()
     db.refresh(project)
     return project

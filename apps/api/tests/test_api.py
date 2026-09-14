@@ -133,11 +133,8 @@ def test_project_tags_are_reusable_per_owner(client):
     client.post("/projects", json={"name": "One", "tags": ["Frontend", "Urgent"]})
     client.post("/projects", json={"name": "Two", "tags": ["urgent", "Backend"]})
     tags = client.get("/project-tags").json()
-    assert [(tag["name"], tag["color"]) for tag in tags] == [
-        ("Frontend", "purple"),
-        ("Urgent", "purple"),
-        ("Backend", "purple"),
-    ]
+    assert [tag["name"] for tag in tags] == ["Frontend", "Urgent", "Backend"]
+    assert len({tag["color"] for tag in tags}) == len(tags)
     reordered = client.put(
         "/project-tags/order", json={"tag_ids": [tag["id"] for tag in reversed(tags)]}
     )
@@ -159,6 +156,27 @@ def test_project_tags_are_reusable_per_owner(client):
     assert all("Priority" in project["tags"] for project in client.get("/projects").json())
     assert client.delete(f"/project-tags/{urgent['id']}").status_code == 204
     assert all("Urgent" not in project["tags"] for project in client.get("/projects").json())
+
+
+def test_new_project_tags_use_unused_colors_before_reusing_colors(client):
+    tag_names = [f"Tag {index}" for index in range(9)]
+    client.post("/projects", json={"name": "Palette", "tags": tag_names})
+    tags = client.get("/project-tags").json()
+    colors = [tag["color"] for tag in tags]
+
+    assert len(set(colors[:8])) == 8
+    assert colors[8] in colors[:8]
+
+
+def test_new_project_tag_uses_the_requested_preview_color(client):
+    project_id = project(client)
+    response = client.patch(
+        f"/projects/{project_id}",
+        json={"tags": ["Preview"], "new_tag_colors": {"Preview": "green"}},
+    )
+
+    assert response.status_code == 200
+    assert client.get("/project-tags").json()[0]["color"] == "green"
 
 
 def test_task_archive_restore_and_permanent_delete(client):

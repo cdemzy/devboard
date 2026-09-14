@@ -38,6 +38,7 @@ class ProjectUpdate(Patch):
     description: ProjectDescription | None = None
     archived: bool | None = None
     tags: list[Tag] | None = Field(default=None, max_length=20)
+    new_tag_colors: dict[Tag, TagColor] | None = None
 
 
 class ProjectOut(ProjectCreate):

@@ -317,6 +317,7 @@ export function ProjectView({
 		tags: project.tags,
 	}))
 	const [tagInput, setTagInputState] = useState('')
+	const [newTagColor, setNewTagColor] = useState<ProjectTag['color'] | null>(null)
 	const [tagSuggestions, setTagSuggestions] = useState<ProjectTag[]>([])
 	const [tagCatalogLoaded, setTagCatalogLoaded] = useState(false)
 	const [tagMenuId, setTagMenuId] = useState<string | null>(null)
@@ -350,6 +351,17 @@ export function ProjectView({
 	}, [])
 	const saveProjectDraft = useCallback(async () => {
 		const name = projectDraft.name.trim() || 'New Project'
+		const newTagColors = Object.fromEntries(
+			tagSuggestions
+				.filter(
+					(tag) =>
+						tag.id.startsWith('pending-') &&
+						projectDraft.tags.some(
+							(name) => name.toLowerCase() === tag.name.toLowerCase(),
+						),
+				)
+				.map((tag) => [tag.name, tag.color]),
+		)
 		const unchanged =
 			name === project.name &&
 			projectDraft.description === project.description &&
@@ -360,7 +372,7 @@ export function ProjectView({
 			update(
 				await api<Project>(
 					`/projects/${project.id}`,
-					json('PATCH', { ...projectDraft, name }),
+					json('PATCH', { ...projectDraft, name, new_tag_colors: newTagColors }),
 				),
 			)
 			void loadTagSuggestions().catch(() => undefined)
@@ -368,7 +380,7 @@ export function ProjectView({
 		} catch (error) {
 			reportBoardError(error, 'Unable to save project changes.')
 		}
-	}, [loadTagSuggestions, project, projectDraft, update])
+	}, [loadTagSuggestions, project, projectDraft, tagSuggestions, update])
 	const [editor, setEditor] = useState<{ task: Task } | null>(null)
 	const [newTaskRequest, setNewTaskRequest] = useState(0)
 	const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
@@ -552,6 +564,7 @@ export function ProjectView({
 		!tagInput.trim() && tagSuggestions.every((tag) => !tag.id.startsWith('pending-'))
 	function addTag() {
 		const tag = capitalizePlatform(tagInput.trim())
+		const color = newTagColor ?? getNewTagColor(tagSuggestions)
 		if (
 			!tag ||
 			tag.length > 40 ||
@@ -567,7 +580,7 @@ export function ProjectView({
 						{
 							id: `pending-${tag.toLowerCase()}`,
 							name: tag,
-							color: getNewTagColor(current),
+							color,
 							position: current.length,
 						},
 					],
@@ -591,6 +604,9 @@ export function ProjectView({
 			setTagMenuId(null)
 		}
 		setTagInputState(value)
+		setNewTagColor((current) =>
+			value.trim() ? (current ?? getNewTagColor(tagSuggestions)) : null,
+		)
 	}
 	function handleTagOrderEnd({ active, over }: DragEndEvent) {
 		if (!over || active.id === over.id) return
@@ -1115,10 +1131,14 @@ export function ProjectView({
 													<button
 														type="button"
 														onClick={addTag}
+														aria-label={`Create ${tagInput.trim()} tag with ${newTagColor ?? 'a random'} color`}
 														className="project-tag-create mt-2 flex w-full items-center gap-2 rounded bg-[#2d333b] px-2 py-1.5 text-left text-xs"
 													>
 														Create{' '}
-														<span className="project-tag-create-name rounded-sm bg-[#484f58] px-2 py-0.5 text-foreground">
+														<span
+															style={{ backgroundColor: tagColorValues[newTagColor ?? 'purple'] }}
+															className="project-tag-create-color-preview project-tag-create-name rounded-sm px-2 py-0.5 text-foreground"
+														>
 															{tagInput.trim()}
 														</span>
 													</button>
