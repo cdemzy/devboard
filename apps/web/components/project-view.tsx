@@ -231,6 +231,8 @@ export function ProjectView({
 	}, [loadTagSuggestions, project, projectDraft, update])
 	const [editor, setEditor] = useState<{ task?: Task; status?: Status } | null>(null)
 	const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
+	const [taskToArchive, setTaskToArchive] = useState<Task | null>(null)
+	const [isProjectArchiveConfirmOpen, setIsProjectArchiveConfirmOpen] = useState(false)
 	useEffect(() => {
 		void loadTagSuggestions().catch(() => undefined)
 	}, [loadTagSuggestions])
@@ -363,11 +365,7 @@ export function ProjectView({
 			})
 	}
 	function archiveTask(task: Task) {
-		void action(async () => {
-			await api(`/tasks/${task.id}/archive`, json('POST'))
-			await loadTasks()
-			if (view === 'archived') await loadArchivedTasks()
-		}, 'Task archived')
+		setTaskToArchive(task)
 	}
 	function restoreTask(task: Task) {
 		void action(async () => {
@@ -853,18 +851,20 @@ export function ProjectView({
 								size="icon"
 								aria-label={project.archived ? 'Restore project' : 'Archive project'}
 								disabled={busy}
-								onClick={() =>
-									void action(
-										async () => {
-											await api(
-												`/projects/${project.id}`,
-												json('PATCH', { archived: !project.archived }),
-											)
-											await refresh()
-										},
-										project.archived ? 'Project restored' : 'Project archived',
-									)
-								}
+								onClick={() => {
+									if (!project.archived) {
+										setIsProjectArchiveConfirmOpen(true)
+										return
+									}
+
+									void action(async () => {
+										await api(
+											`/projects/${project.id}`,
+											json('PATCH', { archived: false }),
+										)
+										await refresh()
+									}, 'Project restored')
+								}}
 							>
 								{project.archived ? <ArrowLeft size={15} /> : <Archive size={15} />}
 							</Button>
@@ -1017,6 +1017,34 @@ export function ProjectView({
 					}}
 				/>
 			)}
+			<ConfirmDialog
+				open={isProjectArchiveConfirmOpen}
+				onOpenChange={setIsProjectArchiveConfirmOpen}
+				title="Archive project?"
+				description={`Archive "${project.name}"? You can restore it later from Archived projects.`}
+				confirmLabel="Archive project"
+				busyLabel="Archiving..."
+				onConfirm={async () => {
+					await api(`/projects/${project.id}`, json('PATCH', { archived: true }))
+					await refresh()
+					toast.success('Project archived')
+				}}
+			/>
+			<ConfirmDialog
+				open={Boolean(taskToArchive)}
+				onOpenChange={(open) => !open && setTaskToArchive(null)}
+				title="Archive task?"
+				description={`Archive ${taskToArchive?.ticket_id ?? 'this task'}? You can restore it later from Archived tasks.`}
+				confirmLabel="Archive task"
+				busyLabel="Archiving..."
+				onConfirm={async () => {
+					if (!taskToArchive) return
+					await api(`/tasks/${taskToArchive.id}/archive`, json('POST'))
+					await loadTasks()
+					if (view === 'archived') await loadArchivedTasks()
+					toast.success('Task archived')
+				}}
+			/>
 			<ConfirmDialog
 				open={Boolean(taskToDelete)}
 				onOpenChange={(open) => !open && setTaskToDelete(null)}

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
 	Archive,
-	ChevronLeft,
 	CircleUserRound,
 	FolderKanban,
 	Layers3,
@@ -22,7 +21,6 @@ import { ProjectView } from './project-view'
 import { Button } from './ui/button'
 import { ConfirmDialog } from './ui/confirm-dialog'
 import { SectionLoader } from './ui/section-loader'
-import { Tooltip } from './ui/tooltip'
 
 function AccountMenu({
 	email,
@@ -97,10 +95,10 @@ interface MobileProjectDrawerProps {
 	email: string
 	projects: Project[]
 	activeProjectId: string | null
+	isOpen: boolean
 	isLoading: boolean
 	isCreatingProject: boolean
 	isAccountOpen: boolean
-	onClose: () => void
 	onCreateProject: () => void
 	onSelectProject: (projectId: string) => void
 	onOpenArchive: () => void
@@ -113,10 +111,10 @@ function MobileProjectDrawer({
 	email,
 	projects,
 	activeProjectId,
+	isOpen,
 	isLoading,
 	isCreatingProject,
 	isAccountOpen,
-	onClose,
 	onCreateProject,
 	onSelectProject,
 	onOpenArchive,
@@ -125,24 +123,13 @@ function MobileProjectDrawer({
 	onReportError,
 }: MobileProjectDrawerProps) {
 	return (
-		<motion.aside
+		<aside
 			id="mobile-project-drawer"
-			initial={{ x: '-100%' }}
-			animate={{ x: 0 }}
-			exit={{ x: '-100%' }}
-			transition={{ duration: 0.22, ease: 'easeOut' }}
-			className="workspace-mobile-drawer fixed inset-y-0 left-0 z-50 flex w-[calc(100%-3rem)] max-w-sm flex-col border-r border-border bg-[#161b22] shadow-2xl md:hidden"
+			aria-hidden={!isOpen}
+			inert={!isOpen}
+			className="workspace-mobile-drawer fixed inset-y-0 left-0 z-20 flex w-[78%] max-w-sm flex-col bg-[#161b22] md:hidden"
 		>
-			<header className="workspace-mobile-drawer-header relative flex h-16 shrink-0 items-center justify-center border-b border-border px-4">
-				<Button
-					className="workspace-mobile-drawer-close absolute left-4 rounded-full"
-					variant="ghost"
-					size="icon"
-					aria-label="Close projects"
-					onClick={onClose}
-				>
-					<Menu size={19} />
-				</Button>
+			<header className="workspace-mobile-drawer-header flex h-16 shrink-0 items-center px-5">
 				<div className="workspace-mobile-drawer-brand flex items-center gap-2.5 text-base font-semibold tracking-tight">
 					<Layers3 size={21} className="text-primary" />
 					DevBoard
@@ -206,16 +193,7 @@ function MobileProjectDrawer({
 					</div>
 				</footer>
 			</div>
-			<Button
-				className="workspace-mobile-drawer-handle absolute left-full top-1/2 h-20 w-8 -translate-y-1/2 rounded-l-none rounded-r-full border border-l-0 border-border bg-[#21262d] text-muted-foreground shadow-lg"
-				variant="ghost"
-				size="icon"
-				aria-label="Close projects"
-				onClick={onClose}
-			>
-				<ChevronLeft size={18} />
-			</Button>
-		</motion.aside>
+		</aside>
 	)
 }
 
@@ -228,6 +206,7 @@ export function Workspace({ email }: { email: string }) {
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
 	const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false)
 	const [isMobileProjectsOpen, setIsMobileProjectsOpen] = useState(false)
+	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const [workspaceView, setWorkspaceView] = useState<'board' | 'projects' | 'archived'>(
 		'board',
 	)
@@ -240,6 +219,7 @@ export function Workspace({ email }: { email: string }) {
 	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
 	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
 	const sidebarItemGapClass = sidebarCollapsed ? 'gap-0' : 'gap-1.5'
+	const isMobilePanelVisible = isMobileViewport && isMobileProjectsOpen
 
 	const load = useCallback(async () => {
 		const current = ++request.current
@@ -286,6 +266,16 @@ export function Workspace({ email }: { email: string }) {
 			cancelled = true
 		}
 	}, [load, loadArchived])
+
+	useEffect(() => {
+		const mediaQuery = window.matchMedia('(max-width: 767px)')
+		const handleViewportChange = () => setIsMobileViewport(mediaQuery.matches)
+
+		handleViewportChange()
+		mediaQuery.addEventListener('change', handleViewportChange)
+
+		return () => mediaQuery.removeEventListener('change', handleViewportChange)
+	}, [])
 	const project = projects.find((project) => project.id === active)
 	function closeMobileProjects() {
 		setIsMobileProjectsOpen(false)
@@ -338,7 +328,7 @@ export function Workspace({ email }: { email: string }) {
 	}
 
 	return (
-		<div className="workspace-shell min-h-screen">
+		<div className="workspace-shell min-h-screen max-md:overflow-x-clip">
 			<aside
 				onMouseEnter={() => {
 					if (isSidebarCollapsed) setIsSidebarHoverExpanded(true)
@@ -430,46 +420,57 @@ export function Workspace({ email }: { email: string }) {
 					</div>
 				</div>
 			</aside>
-			<main className="workspace-main flex min-h-screen min-w-0 flex-1 flex-col md:ml-16 md:h-dvh md:min-h-0 md:w-[calc(100%-4rem)] md:overflow-x-hidden md:overflow-y-auto">
-				<header className="workspace-mobile-header border-b border-border bg-[#161b22] md:hidden">
-					<div className="workspace-mobile-bar relative flex min-h-16 items-center justify-between px-4">
+			<MobileProjectDrawer
+				email={email}
+				projects={projects}
+				activeProjectId={active}
+				isOpen={isMobilePanelVisible}
+				isLoading={loading}
+				isCreatingProject={isCreatingProject}
+				isAccountOpen={accountOpen}
+				onCreateProject={() => void createEmptyProject()}
+				onSelectProject={selectProject}
+				onOpenArchive={openArchive}
+				onToggleAccount={() => setAccountOpen((open) => !open)}
+				onCloseAccount={() => setAccountOpen(false)}
+				onReportError={setError}
+			/>
+			<main
+				style={
+					isMobileViewport
+						? {
+								transform: isMobilePanelVisible
+									? 'translateX(min(78vw, 24rem))'
+									: 'translateX(0)',
+							}
+						: undefined
+				}
+				className={`workspace-main flex min-h-screen min-w-0 flex-1 flex-col transition-transform duration-300 ease-out max-md:relative max-md:z-30 max-md:bg-background md:ml-16 md:h-dvh md:min-h-0 md:w-[calc(100%-4rem)] md:overflow-x-hidden md:overflow-y-auto ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
+			>
+				<header className="workspace-mobile-header relative z-20 md:hidden">
+					<div className="workspace-mobile-bar relative flex min-h-16 items-center justify-center px-4">
 						<Button
-							className="workspace-mobile-project-menu rounded-full"
+							className="workspace-mobile-project-menu absolute left-4 !h-10 !w-10 rounded-full border border-border bg-[#21262d] shadow-sm hover:bg-accent"
 							variant="ghost"
 							size="icon"
-							aria-label="Open projects"
+							aria-label={isMobilePanelVisible ? 'Close projects' : 'Open projects'}
 							aria-controls="mobile-project-drawer"
 							aria-expanded={isMobileProjectsOpen}
-							onClick={() => setIsMobileProjectsOpen(true)}
+							onClick={() => setIsMobileProjectsOpen((open) => !open)}
 						>
 							<Menu size={19} />
 						</Button>
-						<div className="workspace-brand pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-2.5 text-base font-semibold tracking-tight">
-							<Layers3 size={22} className="text-primary" />
-							DevBoard
-						</div>
-						<div className="workspace-account relative ml-auto">
-							<Tooltip label="Account">
-								<Button
-									className="workspace-account-trigger"
-									variant="ghost"
-									size="icon"
-									aria-label="Account"
-									onClick={() => setAccountOpen((open) => !open)}
-								>
-									<CircleUserRound size={20} />
-								</Button>
-							</Tooltip>
-							<AccountMenu
-								email={email}
-								open={accountOpen}
-								close={() => setAccountOpen(false)}
-								reportError={setError}
-								variant="popover"
-							/>
+						<div className="workspace-brand pointer-events-none flex items-center">
+							<Layers3 size={22} className="text-primary" aria-label="DevBoard" />
 						</div>
 					</div>
 				</header>
+				{isMobilePanelVisible && (
+					<div
+						aria-hidden="true"
+						className="workspace-mobile-panel-scrim absolute inset-0 z-10 bg-black/55 md:hidden"
+					/>
+				)}
 				{error && (
 					<div
 						role="alert"
@@ -585,36 +586,6 @@ export function Workspace({ email }: { email: string }) {
 					</motion.div>
 				)}
 			</main>
-			<AnimatePresence>
-				{isMobileProjectsOpen && (
-					<>
-						<motion.button
-							type="button"
-							className="workspace-mobile-drawer-backdrop fixed inset-0 z-40 bg-black/55 md:hidden"
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							aria-label="Close projects"
-							onClick={closeMobileProjects}
-						/>
-						<MobileProjectDrawer
-							email={email}
-							projects={projects}
-							activeProjectId={active}
-							isLoading={loading}
-							isCreatingProject={isCreatingProject}
-							isAccountOpen={accountOpen}
-							onClose={closeMobileProjects}
-							onCreateProject={() => void createEmptyProject()}
-							onSelectProject={selectProject}
-							onOpenArchive={openArchive}
-							onToggleAccount={() => setAccountOpen((open) => !open)}
-							onCloseAccount={() => setAccountOpen(false)}
-							onReportError={setError}
-						/>
-					</>
-				)}
-			</AnimatePresence>
 			<ConfirmDialog
 				open={Boolean(archivedToDelete)}
 				onOpenChange={(open) => !open && setArchivedToDelete(null)}

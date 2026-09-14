@@ -13,7 +13,13 @@ export default function RootLayout({
 		<html lang="en">
 			<body>
 				{children}
-				<Toaster position="top-center" theme="dark" richColors />
+				<Toaster
+					className="app-toaster"
+					position="top-center"
+					theme="dark"
+					richColors
+					mobileOffset={{ top: 12 }}
+				/>
 				<Analytics />
 			</body>
 		</html>

@@ -170,3 +170,31 @@
 [aria-label='Project tag options'] button[style*='font-size'] {
 	font-size: 13px !important;
 }
+
+@media (max-width: 600px) {
+	.app-toaster[data-sonner-toaster][data-x-position='center'] {
+		left: 0;
+		right: 0;
+		width: 100%;
+		transform: none;
+	}
+
+	.app-toaster[data-sonner-toaster] [data-sonner-toast] {
+		left: 50%;
+		right: auto;
+		width: fit-content;
+		max-width: calc(100vw - 2rem);
+		padding: 10px 12px;
+		translate: -50% 0;
+	}
+}
+
+@media (max-width: 767px) {
+	.ui-tooltip-content {
+		display: none;
+	}
+
+	.task-actions-trigger {
+		opacity: 1;
+	}
+}

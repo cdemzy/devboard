@@ -10,6 +10,7 @@ export function ConfirmDialog({
 	title,
 	description,
 	confirmLabel = 'Delete',
+	busyLabel = 'Deleting...',
 	onConfirm,
 }: {
 	open: boolean
@@ -17,6 +18,7 @@ export function ConfirmDialog({
 	title: string
 	description: string
 	confirmLabel?: string
+	busyLabel?: string
 	onConfirm: () => Promise<void>
 }) {
 	const [busy, setBusy] = useState(false)
@@ -64,7 +66,7 @@ export function ConfirmDialog({
 						disabled={busy}
 						onClick={() => void confirm()}
 					>
-						{busy ? 'Deleting...' : confirmLabel}
+						{busy ? busyLabel : confirmLabel}
 					</Button>
 				</div>
 			</DialogContent>
