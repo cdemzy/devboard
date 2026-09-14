@@ -28,7 +28,7 @@ import { KanbanBoard } from "./kanban-board";
 
 const boardErrorToastId = "board-error";
 const platformNameToastId = "platform-name-error";
-const tagColorValues = { green: "#386C4E", yellow: "#886826", purple: "#6C5082", orange: "#88522F", blue: "#355F8B", pink: "#7B4760", red: "#924943", brown: "#6D5340" } as const;
+const tagColorValues = { green: "#386C4E", yellow: "#886826", purple: "#6C5082", orange: "#88522F", blue: "#2f81f7", pink: "#7B4760", red: "#924943", brown: "#6D5340" } as const;
 
 function reportBoardError(error: unknown, fallback: string, retry?: () => void) {
   toast.error(error instanceof Error ? error.message : fallback, {
