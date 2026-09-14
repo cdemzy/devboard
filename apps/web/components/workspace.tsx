@@ -130,8 +130,8 @@ function MobileProjectDrawer({
 			className="workspace-mobile-drawer fixed inset-y-0 left-0 z-20 flex w-[78%] max-w-sm flex-col bg-[#161b22] md:hidden"
 		>
 			<header className="workspace-mobile-drawer-header flex h-16 shrink-0 items-center px-5">
-				<div className="workspace-mobile-drawer-brand flex items-center gap-2.5 text-base font-semibold tracking-tight">
-					<Layers3 size={21} className="text-primary" />
+				<div className="workspace-mobile-drawer-brand flex items-center gap-2.5 text-[17px] font-semibold tracking-tight">
+					<Layers3 size={23} className="text-primary" />
 					DevBoard
 				</div>
 			</header>
@@ -150,31 +150,31 @@ function MobileProjectDrawer({
 									type="button"
 									onClick={() => onSelectProject(project.id)}
 									aria-current={activeProjectId === project.id ? 'page' : undefined}
-									className={`workspace-mobile-drawer-project-link flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${activeProjectId === project.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+									className={`workspace-mobile-drawer-project-link flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-[15px] transition-colors ${activeProjectId === project.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
 								>
-									<FolderKanban size={16} className="shrink-0" />
+									<FolderKanban size={17} className="shrink-0" />
 									<span className="truncate">{project.name}</span>
 								</button>
 							))
 						)}
 					</div>
 					<Button
-						className="workspace-mobile-drawer-create absolute bottom-3 left-0 z-10 rounded-full px-3 shadow-lg"
+						className="workspace-mobile-drawer-create absolute bottom-3 left-0 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
 						size="sm"
 						disabled={isCreatingProject}
 						onClick={onCreateProject}
 					>
-						<Plus size={14} />
+						<Plus size={15} />
 						New Project
 					</Button>
 				</nav>
 				<footer className="workspace-mobile-drawer-footer mt-auto border-t border-border pt-3">
 					<Button
-						className="workspace-mobile-drawer-archive w-full justify-start"
+						className="workspace-mobile-drawer-archive w-full justify-start text-[15px]"
 						variant="ghost"
 						onClick={onOpenArchive}
 					>
-						<Archive size={16} />
+						<Archive size={18} />
 						Archived projects
 					</Button>
 					<div className="workspace-mobile-drawer-account mt-2">
@@ -186,11 +186,11 @@ function MobileProjectDrawer({
 							variant="sidebar"
 						/>
 						<Button
-							className="workspace-mobile-drawer-account-trigger w-full justify-start"
+							className="workspace-mobile-drawer-account-trigger w-full justify-start text-[15px]"
 							variant="ghost"
 							onClick={onToggleAccount}
 						>
-							<CircleUserRound size={17} />
+							<CircleUserRound size={18} />
 							Account
 						</Button>
 					</div>
