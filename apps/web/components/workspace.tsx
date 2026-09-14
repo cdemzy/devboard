@@ -136,34 +136,37 @@ function MobileProjectDrawer({
 				</div>
 			</header>
 			<div className="workspace-mobile-drawer-content flex min-h-0 flex-1 flex-col p-3">
-				<Button
-					className="workspace-mobile-drawer-create w-full justify-start"
-					disabled={isCreatingProject}
-					onClick={onCreateProject}
-				>
-					<Plus size={17} />
-					New Project
-				</Button>
 				<nav
 					aria-label="Projects"
-					className="workspace-mobile-drawer-project-list -mr-3 mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto pr-3"
+					className="workspace-mobile-drawer-project-list relative -mr-3 min-h-0 flex-1"
 				>
-					{isLoading ? (
-						<SidebarProjectSkeletons collapsed={false} />
-					) : (
-						projects.map((project) => (
-							<button
-								key={project.id}
-								type="button"
-								onClick={() => onSelectProject(project.id)}
-								aria-current={activeProjectId === project.id ? 'page' : undefined}
-								className={`workspace-mobile-drawer-project-link flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${activeProjectId === project.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
-							>
-								<FolderKanban size={16} className="shrink-0" />
-								<span className="truncate">{project.name}</span>
-							</button>
-						))
-					)}
+					<div className="workspace-mobile-drawer-project-scroll h-full space-y-1 overflow-y-auto pb-12 pr-3">
+						{isLoading ? (
+							<SidebarProjectSkeletons collapsed={false} />
+						) : (
+							projects.map((project) => (
+								<button
+									key={project.id}
+									type="button"
+									onClick={() => onSelectProject(project.id)}
+									aria-current={activeProjectId === project.id ? 'page' : undefined}
+									className={`workspace-mobile-drawer-project-link flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${activeProjectId === project.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+								>
+									<FolderKanban size={16} className="shrink-0" />
+									<span className="truncate">{project.name}</span>
+								</button>
+							))
+						)}
+					</div>
+					<Button
+						className="workspace-mobile-drawer-create absolute bottom-3 left-0 z-10 rounded-full px-3 shadow-lg"
+						size="sm"
+						disabled={isCreatingProject}
+						onClick={onCreateProject}
+					>
+						<Plus size={14} />
+						New Project
+					</Button>
 				</nav>
 				<footer className="workspace-mobile-drawer-footer mt-auto border-t border-border pt-3">
 					<Button
