@@ -706,6 +706,7 @@ export function ProjectView({
 										<motion.button
 											type="button"
 											aria-label="Close project tag options"
+											data-no-drawer-drag="true"
 											className="project-tag-sheet-backdrop fixed inset-0 z-40 bg-black/50 md:hidden"
 											initial={{ opacity: 0 }}
 											animate={{ opacity: 1 }}
@@ -724,6 +725,7 @@ export function ProjectView({
 										<motion.div
 											role="dialog"
 											aria-label="Project tag options"
+											data-no-drawer-drag="true"
 											className="project-tag-options fixed inset-x-0 bottom-0 z-50 max-h-[80dvh] overflow-y-auto overscroll-contain rounded-t-xl border border-border bg-[#161b22] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl md:absolute md:inset-x-0 md:top-full md:bottom-auto md:z-20 md:max-h-none md:overflow-visible md:rounded-b-md md:rounded-t-none md:border-t-0 md:p-2 md:pb-2 md:shadow-xl"
 											drag={isMobileViewport ? 'y' : false}
 											dragControls={tagSheetDragControls}
@@ -737,15 +739,13 @@ export function ProjectView({
 													setTagsOpen(false)
 												}
 											}}
-											initial={
-												isMobileViewport ? { opacity: 0, y: '100%' } : { opacity: 0 }
-											}
-											animate={{ opacity: 1, y: 0 }}
-											exit={isMobileViewport ? { opacity: 0, y: '100%' } : { opacity: 0 }}
+											initial={isMobileViewport ? { opacity: 0, y: '100%' } : false}
+											animate={isMobileViewport ? { opacity: 1, y: 0 } : undefined}
+											exit={isMobileViewport ? { opacity: 0, y: '100%' } : undefined}
 											transition={
 												isMobileViewport
 													? { type: 'spring', stiffness: 420, damping: 36, mass: 0.75 }
-													: { duration: 0.15 }
+													: { duration: 0 }
 											}
 										>
 											<div className="project-tag-sheet-header mb-4 pt-4 md:hidden">
