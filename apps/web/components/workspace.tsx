@@ -159,7 +159,7 @@ function MobileProjectDrawer({
 						)}
 					</div>
 					<Button
-						className="workspace-mobile-drawer-create absolute bottom-3 left-0 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
+						className="workspace-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
 						size="sm"
 						disabled={isCreatingProject}
 						onClick={onCreateProject}
