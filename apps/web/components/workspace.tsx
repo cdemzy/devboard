@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { animate, AnimatePresence, motion, useMotionValue } from 'motion/react'
 import {
 	Archive,
 	CircleUserRound,
@@ -108,6 +108,21 @@ interface MobileProjectDrawerProps {
 	onReportError: (message: string) => void
 }
 
+interface MobileDrawerDragState {
+	pointerId: number
+	startX: number
+	startY: number
+	initialOffset: number
+	isDragging: boolean
+}
+
+const mobileDrawerSpring = {
+	type: 'spring',
+	stiffness: 420,
+	damping: 38,
+	mass: 0.7,
+} as const
+
 function MobileProjectDrawer({
 	email,
 	projects,
@@ -212,6 +227,7 @@ export function Workspace({ email }: { email: string }) {
 	const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false)
 	const [isMobileProjectsOpen, setIsMobileProjectsOpen] = useState(false)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
+	const mobilePanelX = useMotionValue(0)
 	const [workspaceView, setWorkspaceView] = useState<'board' | 'projects' | 'archived'>(
 		'board',
 	)
@@ -220,6 +236,7 @@ export function Workspace({ email }: { email: string }) {
 	const [error, setError] = useState('')
 	const [archivedToDelete, setArchivedToDelete] = useState<Project | null>(null)
 	const request = useRef(0)
+	const mobileDrawerDrag = useRef<MobileDrawerDragState | null>(null)
 	const sidebarCollapsed = isSidebarCollapsed && !isSidebarHoverExpanded
 	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
 	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
@@ -283,6 +300,19 @@ export function Workspace({ email }: { email: string }) {
 	}, [])
 
 	useEffect(() => {
+		if (!isMobileViewport) {
+			mobilePanelX.jump(0)
+			return
+		}
+
+		void animate(
+			mobilePanelX,
+			isMobilePanelVisible ? getMobileDrawerWidth() : 0,
+			mobileDrawerSpring,
+		)
+	}, [isMobilePanelVisible, isMobileViewport, mobilePanelX])
+
+	useEffect(() => {
 		if (!isMobilePanelVisible) return
 
 		const previousBodyOverflow = document.body.style.overflow
@@ -299,6 +329,84 @@ export function Workspace({ email }: { email: string }) {
 	function closeMobileProjects() {
 		setIsMobileProjectsOpen(false)
 		setAccountOpen(false)
+	}
+
+	function getMobileDrawerWidth() {
+		return Math.min(window.innerWidth * 0.78, 384)
+	}
+
+	function isDrawerDragExcludedTarget(target: EventTarget | null) {
+		return (
+			target instanceof Element &&
+			Boolean(target.closest('button, a, input, textarea, select, [data-no-drawer-drag]'))
+		)
+	}
+
+	function handleMobilePanelPointerDown(event: React.PointerEvent<HTMLElement>) {
+		if (
+			!isMobileViewport ||
+			event.pointerType !== 'touch' ||
+			isDrawerDragExcludedTarget(event.target)
+		) {
+			return
+		}
+
+		mobileDrawerDrag.current = {
+			pointerId: event.pointerId,
+			startX: event.clientX,
+			startY: event.clientY,
+			initialOffset: isMobilePanelVisible ? getMobileDrawerWidth() : 0,
+			isDragging: false,
+		}
+		mobilePanelX.jump(mobilePanelX.get())
+		event.currentTarget.setPointerCapture(event.pointerId)
+	}
+
+	function handleMobilePanelPointerMove(event: React.PointerEvent<HTMLElement>) {
+		const drag = mobileDrawerDrag.current
+		if (!drag || drag.pointerId !== event.pointerId) return
+
+		const horizontalDistance = event.clientX - drag.startX
+		const verticalDistance = event.clientY - drag.startY
+
+		if (!drag.isDragging) {
+			if (
+				Math.abs(horizontalDistance) < 8 ||
+				Math.abs(horizontalDistance) <= Math.abs(verticalDistance)
+			) {
+				return
+			}
+
+			drag.isDragging = true
+		}
+
+		const drawerWidth = getMobileDrawerWidth()
+		const nextOffset = Math.min(
+			drawerWidth,
+			Math.max(0, drag.initialOffset + horizontalDistance),
+		)
+		mobilePanelX.set(nextOffset)
+	}
+
+	function handleMobilePanelPointerEnd(event: React.PointerEvent<HTMLElement>) {
+		const drag = mobileDrawerDrag.current
+		if (!drag || drag.pointerId !== event.pointerId) return
+
+		mobileDrawerDrag.current = null
+
+		if (!drag.isDragging) return
+
+		const drawerWidth = getMobileDrawerWidth()
+		const finalOffset =
+			event.type === 'pointercancel'
+				? drag.initialOffset
+				: Math.min(
+						drawerWidth,
+						Math.max(0, drag.initialOffset + event.clientX - drag.startX),
+					)
+		const shouldOpen = finalOffset >= drawerWidth / 2
+		setIsMobileProjectsOpen(shouldOpen)
+		void animate(mobilePanelX, shouldOpen ? drawerWidth : 0, mobileDrawerSpring)
 	}
 
 	function selectProject(projectId: string) {
@@ -454,17 +562,13 @@ export function Workspace({ email }: { email: string }) {
 				onCloseAccount={() => setAccountOpen(false)}
 				onReportError={setError}
 			/>
-			<main
-				style={
-					isMobileViewport
-						? {
-								transform: isMobilePanelVisible
-									? 'translateX(min(78vw, 24rem))'
-									: 'translateX(0)',
-							}
-						: undefined
-				}
-				className={`workspace-main flex min-h-screen min-w-0 flex-1 flex-col transition-transform duration-300 ease-out max-md:relative max-md:z-30 max-md:bg-background md:ml-16 md:h-dvh md:min-h-0 md:w-[calc(100%-4rem)] md:overflow-x-hidden md:overflow-y-auto ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
+			<motion.main
+				style={isMobileViewport ? { x: mobilePanelX } : undefined}
+				onPointerDown={handleMobilePanelPointerDown}
+				onPointerMove={handleMobilePanelPointerMove}
+				onPointerUp={handleMobilePanelPointerEnd}
+				onPointerCancel={handleMobilePanelPointerEnd}
+				className={`workspace-main flex min-h-screen min-w-0 flex-1 flex-col max-md:touch-pan-y max-md:relative max-md:z-30 max-md:bg-background md:ml-16 md:h-dvh md:min-h-0 md:w-[calc(100%-4rem)] md:overflow-x-hidden md:overflow-y-auto ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
 			>
 				<header className="workspace-mobile-header relative z-20 md:hidden">
 					<div className="workspace-mobile-bar relative flex min-h-16 items-center justify-center px-4">
@@ -604,7 +708,7 @@ export function Workspace({ email }: { email: string }) {
 						)}
 					</motion.div>
 				)}
-			</main>
+			</motion.main>
 			<ConfirmDialog
 				open={Boolean(archivedToDelete)}
 				onOpenChange={(open) => !open && setArchivedToDelete(null)}
