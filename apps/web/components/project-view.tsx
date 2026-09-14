@@ -73,6 +73,14 @@ function capitalizePlatform(value: string) {
 	return value.replace(/(^|[\s-])\p{L}/gu, (character) => character.toUpperCase())
 }
 
+function getNewTagColor(tags: ProjectTag[]): ProjectTag['color'] {
+	const colors = Object.keys(tagColorValues) as ProjectTag['color'][]
+	const usedColors = new Set(tags.map((tag) => tag.color))
+	const availableColors = colors.filter((color) => !usedColors.has(color))
+	const candidates = availableColors.length > 0 ? availableColors : colors
+	return candidates[Math.floor(Math.random() * candidates.length)]
+}
+
 function PlatformTagSkeletons() {
 	return (
 		<span
@@ -559,7 +567,7 @@ export function ProjectView({
 						{
 							id: `pending-${tag.toLowerCase()}`,
 							name: tag,
-							color: 'purple',
+							color: getNewTagColor(current),
 							position: current.length,
 						},
 					],

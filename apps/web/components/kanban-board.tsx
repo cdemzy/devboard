@@ -292,7 +292,9 @@ function NewTaskCard({
 			}}
 			className={`kanban-new-task-card rounded-lg border border-dashed p-3 ${statusStyle.ticket}`}
 		>
-			<span className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}>
+			<span
+				className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}
+			>
 				New ticket
 			</span>
 			<input
@@ -490,8 +492,8 @@ function Column({
 									/>
 								</motion.div>
 							))}
-								</AnimatePresence>
-							)}
+						</AnimatePresence>
+					)}
 					{newTaskStatus === status && (
 						<NewTaskCard
 							status={status}
@@ -571,7 +573,7 @@ export function KanbanBoard({
 	const [newTaskStatus, setNewTaskStatus] = useState<Status | null>(null)
 	const dragStartPointerRef = useRef<{ x: number; y: number } | null>(null)
 	const dragPointerRef = useRef<{ x: number; y: number } | null>(null)
-	const previousNewTaskRequest = useRef(newTaskRequest)
+	const previousNewTaskRequest = useRef(0)
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 		useSensor(KeyboardSensor, {
