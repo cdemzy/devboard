@@ -109,16 +109,28 @@ function SortableProjectTag({
 		<div
 			ref={setNodeRef}
 			style={style}
-			className={`project-tag-option border-0 ${isDragging ? 'opacity-60' : ''}`}
+			className={`project-tag-option w-full ${isDragging ? 'opacity-60' : ''}`}
 		>
-			<div
-				style={{
-					backgroundColor: tagColorValues[tag.color],
-					fontSize: '12px',
-					lineHeight: 1,
-				}}
-				className="project-tag-chip relative flex border-0 items-center rounded-sm text-white"
-			>
+			<div className="project-tag-chip relative flex w-full items-center gap-1.5 rounded-sm px-1 py-1 text-[13px] text-white hover:bg-[#30363d] md:text-xs">
+				{sortable && (
+					<button
+						type="button"
+						aria-label={`Reorder ${tag.name}`}
+						className="project-tag-drag-handle touch-none rounded-sm p-0.5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+						{...attributes}
+						{...listeners}
+					>
+						<GripVertical size={13} className="h-4 w-4 md:h-[13px] md:w-[13px]" />
+					</button>
+				)}
+				<button
+					type="button"
+					onClick={onSelect}
+					style={{ backgroundColor: tagColorValues[tag.color], lineHeight: 1 }}
+					className="project-tag-select rounded-sm px-1.5 py-1 text-white"
+				>
+					{tag.name}
+				</button>
 				<button
 					type="button"
 					onClick={(event) => {
@@ -126,31 +138,67 @@ function SortableProjectTag({
 						onOptions()
 					}}
 					aria-label={`Platform options for ${tag.name}`}
-					className="project-tag-options-trigger ml-0.5 rounded-sm p-0.5 text-white/70 hover:text-white"
+					className="project-tag-options-trigger ml-auto rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
 				>
-					<Info size={13} />
+					<Info size={13} className="h-4 w-4 md:h-[13px] md:w-[13px]" />
 				</button>
-				<button
-					type="button"
-					onClick={onSelect}
-					className="project-tag-select px-1.5 py-1"
-				>
-					{tag.name}
-				</button>
-				{sortable && (
-					<button
-						type="button"
-						aria-label={`Reorder ${tag.name}`}
-						className="project-tag-drag-handle mr-0.5 touch-none rounded-sm p-0.5 text-white/70 hover:text-white cursor-grab active:cursor-grabbing"
-						{...attributes}
-						{...listeners}
-					>
-						<GripVertical size={13} />
-					</button>
-				)}
 				{children}
 			</div>
 		</div>
+	)
+}
+
+interface SortableSelectedProjectTagProps {
+	tag: string
+	color: string
+	onRemove: () => void
+}
+
+function SortableSelectedProjectTag({
+	tag,
+	color,
+	onRemove,
+}: SortableSelectedProjectTagProps) {
+	const { attributes, isDragging, listeners, setNodeRef, transform, transition } =
+		useSortable({
+			id: `selected-tag-${tag}`,
+		})
+	const style: CSSProperties = {
+		backgroundColor: color,
+		lineHeight: 1,
+		transform: CSS.Translate.toString(transform),
+		transition,
+	}
+
+	return (
+		<span
+			ref={setNodeRef}
+			style={style}
+			className={`project-selected-tag flex shrink-0 items-center gap-1 rounded-sm px-2 py-1.5 text-[13px] text-white md:px-1.5 md:py-1 md:text-xs ${isDragging ? 'opacity-60' : ''}`}
+		>
+			{tag}
+			<button
+				type="button"
+				aria-label={`Reorder ${tag}`}
+				className="project-selected-tag-drag-handle touch-none rounded-sm p-0.5 text-white/70 hover:text-white cursor-grab active:cursor-grabbing"
+				onClick={(event) => event.stopPropagation()}
+				{...attributes}
+				{...listeners}
+			>
+				<GripVertical size={13} className="h-4 w-4 md:h-[13px] md:w-[13px]" />
+			</button>
+			<button
+				type="button"
+				onClick={(event) => {
+					event.stopPropagation()
+					onRemove()
+				}}
+				aria-label={`Remove ${tag} tag`}
+				className="project-selected-tag-remove rounded-sm text-white/65 hover:text-white"
+			>
+				<X size={12} className="h-[14px] w-[14px] md:h-3 md:w-3" />
+			</button>
+		</span>
 	)
 }
 
@@ -159,7 +207,8 @@ interface ProjectTagEditorFormProps {
 	tagNameDraft: string
 	tagNameInputRef: RefObject<HTMLInputElement | null>
 	onTagNameChange: (value: string) => void
-	onRename: (value: string) => void
+	onRename: (value: string, closeAfterSave: boolean) => void
+	closeOnRename?: boolean
 	onDelete: () => void
 	onCancel: () => void
 	onColorChange: (color: ProjectTag['color']) => void
@@ -171,6 +220,7 @@ function ProjectTagEditorForm({
 	tagNameInputRef,
 	onTagNameChange,
 	onRename,
+	closeOnRename = true,
 	onDelete,
 	onCancel,
 	onColorChange,
@@ -182,7 +232,7 @@ function ProjectTagEditorForm({
 					ref={tagNameInputRef}
 					value={tagNameDraft}
 					onChange={(event) => onTagNameChange(event.target.value)}
-					onBlur={(event) => onRename(event.target.value)}
+					onBlur={(event) => onRename(event.target.value, closeOnRename)}
 					onKeyDown={(event) => {
 						if (event.key === 'Enter') event.currentTarget.blur()
 						if (event.key === 'Escape') onCancel()
@@ -259,6 +309,10 @@ export function ProjectView({
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const tagSheetDragControls = useDragControls()
 	const tagSensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	)
+	const selectedTagSensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
 	)
@@ -538,6 +592,20 @@ export function ProjectView({
 				}
 			})
 	}
+	function handleSelectedTagOrderEnd({ active, over }: DragEndEvent) {
+		if (!over || active.id === over.id) return
+		const activeIndex = projectDraft.tags.findIndex(
+			(tag) => `selected-tag-${tag}` === String(active.id),
+		)
+		const overIndex = projectDraft.tags.findIndex(
+			(tag) => `selected-tag-${tag}` === String(over.id),
+		)
+		if (activeIndex < 0 || overIndex < 0) return
+		setProjectDraft((current) => ({
+			...current,
+			tags: arrayMove(current.tags, activeIndex, overIndex),
+		}))
+	}
 	function saveFallbackProjectName() {
 		void saveProjectDraft()
 	}
@@ -577,16 +645,16 @@ export function ProjectView({
 			reportBoardError(error, 'Unable to save platform color.')
 		}
 	}
-	async function renameTag(tag: ProjectTag, value: string) {
+	async function renameTag(tag: ProjectTag, value: string, closeAfterSave = true) {
 		const name = capitalizePlatform(value.trim())
 		if (!name) {
 			setTagNameDraft(tag.name)
-			setTagMenuId(null)
+			if (closeAfterSave) setTagMenuId(null)
 			return
 		}
 		if (name.length > 40 || name === tag.name) {
 			setTagNameDraft(tag.name)
-			if (name === tag.name) setTagMenuId(null)
+			if (name === tag.name && closeAfterSave) setTagMenuId(null)
 			return
 		}
 		if (
@@ -601,7 +669,7 @@ export function ProjectView({
 			)
 			return
 		}
-		setTagMenuId(null)
+		if (closeAfterSave) setTagMenuId(null)
 		const previousSuggestions = tagSuggestions
 		const previousProjectTags = projectDraft.tags
 		setTagSuggestions((tags) =>
@@ -740,7 +808,7 @@ export function ProjectView({
 										</span>
 									) : !tagCatalogLoaded ? (
 										<PlatformTagSkeletons />
-									) : (
+									) : isMobileViewport ? (
 										projectDraft.tags.map((tag) => {
 											const catalog = tagSuggestions.find(
 												(item) => item.name.toLowerCase() === tag.toLowerCase(),
@@ -775,6 +843,40 @@ export function ProjectView({
 												</span>
 											)
 										})
+									) : (
+										<DndContext
+											sensors={selectedTagSensors}
+											collisionDetection={closestCenter}
+											onDragEnd={handleSelectedTagOrderEnd}
+										>
+											<SortableContext
+												items={projectDraft.tags.map((tag) => `selected-tag-${tag}`)}
+												strategy={rectSortingStrategy}
+											>
+												<div className="project-selected-tag-list flex flex-wrap gap-1.5">
+													{projectDraft.tags.map((tag) => {
+														const catalog = tagSuggestions.find(
+															(item) => item.name.toLowerCase() === tag.toLowerCase(),
+														)
+														return (
+															<SortableSelectedProjectTag
+																key={tag}
+																tag={tag}
+																color={
+																	catalog ? tagColorValues[catalog.color] : '#30363d'
+																}
+																onRemove={() => {
+																	setProjectDraft((current) => ({
+																		...current,
+																		tags: current.tags.filter((item) => item !== tag),
+																	}))
+																}}
+															/>
+														)
+													})}
+												</div>
+											</SortableContext>
+										</DndContext>
 									)}
 								</div>
 								<AnimatePresence>
@@ -845,39 +947,46 @@ export function ProjectView({
 											</div>
 											<div className="project-tag-sheet-selected mb-4 rounded-lg bg-accent/70 p-3 md:hidden">
 												{projectDraft.tags.length > 0 ? (
-													<div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
-														{projectDraft.tags.map((tag) => {
-															const catalog = tagSuggestions.find(
-																(item) => item.name.toLowerCase() === tag.toLowerCase(),
-															)
-															return (
-																<span
-																	key={tag}
-																	style={{
-																		backgroundColor: catalog
-																			? tagColorValues[catalog.color]
-																			: '#30363d',
-																	}}
-																	className="project-tag-sheet-selected-tag flex shrink-0 items-center gap-1 rounded-sm px-2 py-1 text-xs text-white"
-																>
-																	{tag}
-																	<button
-																		type="button"
-																		onClick={() => {
-																			setProjectDraft((current) => ({
-																				...current,
-																				tags: current.tags.filter((item) => item !== tag),
-																			}))
-																		}}
-																		aria-label={`Remove ${tag} tag`}
-																		className="rounded-sm text-white/65 hover:text-white"
-																	>
-																		<X size={12} />
-																	</button>
-																</span>
-															)
-														})}
-													</div>
+													<DndContext
+														sensors={selectedTagSensors}
+														collisionDetection={closestCenter}
+														onDragEnd={handleSelectedTagOrderEnd}
+													>
+														<SortableContext
+															items={projectDraft.tags.map(
+																(tag) => `selected-tag-${tag}`,
+															)}
+															strategy={rectSortingStrategy}
+														>
+															<div className="project-tag-sheet-selected-list flex flex-wrap gap-1.5">
+																{projectDraft.tags.map((tag) => {
+																	const catalog = tagSuggestions.find(
+																		(item) =>
+																			item.name.toLowerCase() === tag.toLowerCase(),
+																	)
+																	return (
+																		<SortableSelectedProjectTag
+																			key={tag}
+																			tag={tag}
+																			color={
+																				catalog
+																					? tagColorValues[catalog.color]
+																					: '#30363d'
+																			}
+																			onRemove={() => {
+																				setProjectDraft((current) => ({
+																					...current,
+																					tags: current.tags.filter(
+																						(item) => item !== tag,
+																					),
+																				}))
+																			}}
+																		/>
+																	)
+																})}
+															</div>
+														</SortableContext>
+													</DndContext>
 												) : (
 													<p className="text-xs text-muted-foreground">
 														No platforms selected
@@ -918,7 +1027,7 @@ export function ProjectView({
 														items={matchingTags.map((tag) => tag.id)}
 														strategy={rectSortingStrategy}
 													>
-														<div className="project-tag-list flex flex-wrap gap-1.5">
+														<div className="project-tag-list flex flex-col gap-1">
 															{matchingTags.map((tag) => (
 																<SortableProjectTag
 																	key={tag.id}
@@ -952,33 +1061,37 @@ export function ProjectView({
 													</SortableContext>
 												</DndContext>
 											)}
-											{isMobileViewport && activeTag && (
-												<div className="project-tag-mobile-editor mt-3 rounded-md border border-border bg-background p-3 md:hidden">
-													<div className="mb-3 flex items-center justify-between gap-3">
-														<p className="truncate text-xs font-medium text-foreground">
-															Edit {activeTag.name}
-														</p>
-														<button
-															type="button"
-															onClick={() => closeTagMenu(activeTag)}
-															aria-label={`Close ${activeTag.name} editor`}
-															className="project-tag-mobile-editor-close flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-muted-foreground hover:text-foreground"
-														>
-															<X size={14} />
-														</button>
-													</div>
-													<ProjectTagEditorForm
-														tag={activeTag}
-														tagNameDraft={tagNameDraft}
-														tagNameInputRef={tagNameInputRef}
-														onTagNameChange={updateTagNameDraft}
-														onRename={(value) => void renameTag(activeTag, value)}
-														onDelete={() => void deleteTag(activeTag)}
-														onCancel={() => closeTagMenu(activeTag)}
-														onColorChange={(color) => updateTagColor(activeTag, color)}
-													/>
-												</div>
-											)}
+											<AnimatePresence initial={false}>
+												{isMobileViewport && activeTag && (
+													<motion.div
+														key={activeTag.id}
+														initial={{ opacity: 0, y: 12 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: 8 }}
+														transition={{
+															type: 'spring',
+															stiffness: 420,
+															damping: 34,
+															mass: 0.65,
+														}}
+														className="project-tag-mobile-editor mt-3 rounded-md border border-border bg-background p-3 md:hidden"
+													>
+														<ProjectTagEditorForm
+															tag={activeTag}
+															tagNameDraft={tagNameDraft}
+															tagNameInputRef={tagNameInputRef}
+															onTagNameChange={updateTagNameDraft}
+															onRename={(value, closeAfterSave) =>
+																void renameTag(activeTag, value, closeAfterSave)
+															}
+															closeOnRename={false}
+															onDelete={() => void deleteTag(activeTag)}
+															onCancel={() => closeTagMenu(activeTag)}
+															onColorChange={(color) => updateTagColor(activeTag, color)}
+														/>
+													</motion.div>
+												)}
+											</AnimatePresence>
 											{tagInput.trim() &&
 												!tagSuggestions.some(
 													(tag) =>
