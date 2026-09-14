@@ -24,14 +24,13 @@ import {
   Circle,
   CircleDashed,
   CircleCheck,
+  Gauge,
   Archive,
   GripVertical,
   MoreVertical,
   Plus,
   AlignLeft,
-  SignalHigh,
-  SignalMedium,
-  SignalLow,
+  Flag,
   Trash2,
 } from "lucide-react";
 import { columnTasks } from "@/lib/board";
@@ -108,11 +107,6 @@ function TaskCard({
     setNodeRef,
     isDragging,
   } = useSortable({ id: task.id, disabled });
-  const PriorityIcon = {
-    low: SignalLow,
-    medium: SignalMedium,
-    high: SignalHigh,
-  }[task.priority];
   const statusStyle = statusStyles[task.status];
   return (
     <motion.article
@@ -146,12 +140,12 @@ function TaskCard({
       </div>
       <div className="task-card-footer mt-4 flex items-center justify-between text-muted-foreground">
         <span
-          className={`task-card-priority flex items-center gap-1.5 text-[11px] capitalize ${task.priority === "high" ? "text-orange-300" : ""}`}
+          className={`task-card-priority flex items-center gap-1.5 text-[12px] leading-none capitalize ${task.priority === "high" ? "text-orange-300" : ""}`}
         >
-          <PriorityIcon size={13} />
+          <Flag size={14} className="shrink-0" />
           {task.priority}
         </span>
-        <span className="task-card-complexity text-[11px] capitalize">{task.complexity}</span>
+        <span className={`task-card-complexity flex items-center gap-1.5 text-[12px] leading-none capitalize ${task.complexity === "hard" ? "text-orange-300" : ""}`}><Gauge size={14} className="shrink-0" />{task.complexity}</span>
         <div className="task-card-actions relative">
           <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setActionsOpen((open) => !open); }} disabled={disabled} aria-label={`Actions for ${task.ticket_id}`} className="task-actions-trigger focus-visible:outline-primary"><MoreVertical size={14} /></button>
           <AnimatePresence>
