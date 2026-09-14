@@ -8,11 +8,9 @@ import {
   Archive,
   ArrowLeft,
   Database,
-  FolderKanban,
   GripVertical,
   Info,
   LayoutDashboard,
-  LoaderCircle,
   Plus,
   RotateCcw,
   Trash2,
@@ -25,7 +23,6 @@ import type { Project, ProjectTag, Status, Task } from "@/lib/types";
 import { Button } from "./ui/button";
 import { ConfirmDialog } from "./ui/confirm-dialog";
 import { Tooltip } from "./ui/tooltip";
-import { SectionLoader } from "./ui/section-loader";
 import { TaskEditor } from "./editors";
 import { KanbanBoard } from "./kanban-board";
 
@@ -42,6 +39,10 @@ function reportBoardError(error: unknown, fallback: string, retry?: () => void) 
 }
 function capitalizePlatform(value: string) {
   return value.replace(/(^|[\s-])\p{L}/gu, (character) => character.toUpperCase());
+}
+
+function PlatformTagSkeletons() {
+  return <span role="status" aria-label="Loading platform tags" className="project-tag-catalog-loader flex items-center gap-1.5"><span className="h-5 w-12 animate-pulse rounded-sm bg-muted-foreground/25" /><span className="h-5 w-16 animate-pulse rounded-sm bg-muted-foreground/25" /></span>;
 }
 
 function SortableProjectTag({
@@ -412,7 +413,7 @@ export function ProjectView({
               <div className="project-platform-label flex shrink-0 items-center gap-2 text-sm text-muted-foreground"><Database size={15} />Platform</div>
               <div ref={tagMenuRef} className="project-platform-editor relative min-w-0 flex-1">
               <div role="button" tabIndex={0} onMouseDown={(event) => { if (event.target === event.currentTarget) event.preventDefault(); }} onClick={() => setTagsOpen(true)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setTagsOpen(true); } }} className={`project-tag-trigger flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 border-0 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? "rounded-t-md bg-accent px-2 py-3" : "rounded-md px-2 py-3"}`} aria-label="Edit project tags" aria-expanded={tagsOpen}>
-                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : !tagCatalogLoaded ? <span role="status" aria-label="Loading platform tags" className="project-tag-catalog-loader flex h-7 w-7 items-center justify-center text-muted-foreground"><LoaderCircle size={15} className="animate-spin" /></span> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: catalog ? tagColorValues[catalog.color] : "#30363d", fontSize: "12px", lineHeight: 1 }} className="flex border-0 items-center gap-1 rounded-sm px-1.5 py-1 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
+                {projectDraft.tags.length === 0 && !tagsOpen ? <span className="px-1 text-xs text-muted-foreground">Add platform</span> : !tagCatalogLoaded ? <PlatformTagSkeletons /> : projectDraft.tags.map((tag) => { const catalog = tagSuggestions.find((item) => item.name.toLowerCase() === tag.toLowerCase()); return <span key={tag} style={{ backgroundColor: catalog ? tagColorValues[catalog.color] : "#30363d", fontSize: "12px", lineHeight: 1 }} className="flex border-0 items-center gap-1 rounded-sm px-1.5 py-1 text-white">{tag}<button type="button" onClick={(event) => { event.stopPropagation(); setProjectDraft((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) })); }} aria-label={`Remove ${tag} tag`} className="rounded-sm text-white/65 hover:text-white"><X size={12} /></button></span>; })}
                 {tagsOpen && <input autoFocus value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const exactMatch = tagSuggestions.find((tag) => tag.name.toLowerCase() === tagInput.trim().toLowerCase()); if (exactMatch) toggleTag(exactMatch.name); else addTag(); } }} aria-label="Search or create a project tag" maxLength={40} placeholder="Search for an option…" className="project-tag-search -ml-1 h-7 min-w-36 flex-1 !border-0 !bg-transparent px-0 text-xs !outline-none focus:!outline-none" />}
               </div>
               {tagsOpen && <div role="dialog" aria-label="Project tag options" className="project-tag-options absolute inset-x-0 top-full z-20 rounded-b-md border border-t-0 border-border bg-[#161b22] p-2 shadow-xl">
@@ -475,22 +476,18 @@ export function ProjectView({
         </header>
         <div className="project-view-tabs mb-5 flex flex-wrap items-center border-b border-border pb-3"><div className="project-view-tab-list flex items-center gap-1"><button onClick={() => setView("board")} className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "board" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><LayoutDashboard size={14} className={view === "board" ? "text-primary" : ""} />Board</button><button onClick={() => { setView("archived"); void loadArchivedTasks(); }} className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === "archived" ? "bg-[#30363d] text-foreground shadow-sm" : "text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground"}`}><Archive size={14} /><span className="sm:hidden">Archived</span><span className="hidden sm:inline">Archived tasks</span></button></div>{view === "board" && <span className="project-task-summary mt-2 w-full text-xs text-muted-foreground sm:ml-auto sm:mt-0 sm:w-auto">{`${tasks.length} tasks · ${completed} completed`}</span>}</div>
         {view === "archived" && <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="archived-tasks-panel rounded-lg border border-border bg-[#161b22] p-4">{archivedTasksLoading ? <p className="archived-tasks-loading text-sm text-muted-foreground">Loading archived tasks…</p> : archivedTasks.length === 0 ? <p className="archived-tasks-empty text-sm text-muted-foreground">No archived tasks.</p> : <div className="archived-task-list space-y-2">{archivedTasks.map((task) => <div key={task.id} className="archived-task flex items-center gap-3 rounded-md border border-border bg-background p-3"><div className="archived-task-content min-w-0 flex-1"><span className="archived-task-ticket text-xs font-medium text-primary">{task.ticket_id}</span><p className="archived-task-title truncate text-sm font-medium">{task.title}</p></div><Tooltip label="Restore"><Button variant="ghost" size="icon" aria-label={`Restore ${task.ticket_id}`} disabled={busy || project.archived} onClick={() => restoreTask(task)}><RotateCcw size={15} /></Button></Tooltip><Tooltip label="Delete permanently"><Button variant="ghost" size="icon" aria-label={`Delete ${task.ticket_id}`} disabled={busy} className="archived-task-delete text-rose-300" onClick={() => setTaskToDelete(task)}><Trash2 size={15} /></Button></Tooltip></div>)}</div>}</motion.section>}
-        {view === "board" && <motion.div key="board" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>{loading ? (
-          <SectionLoader
-            icon={project.archived ? Archive : FolderKanban}
-            label="Loading board..."
-          />
-        ) : (
+        {view === "board" && <motion.div key="board" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
           <KanbanBoard
             tasks={tasks}
             disabled={project.archived}
+            loading={loading}
             edit={(task) => setEditor({ task })}
             archive={archiveTask}
             remove={(task) => setTaskToDelete(task)}
             create={(status) => setEditor({ status })}
             move={(...args) => void move(...args)}
           />
-        )}</motion.div>}
+        </motion.div>}
         {project.archived && <p className="project-archived-note pb-6 text-[11px] text-muted-foreground">Restore this project to change its tasks.</p>}
       </div>
       {editor && (

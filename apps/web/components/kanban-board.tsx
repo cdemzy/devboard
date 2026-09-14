@@ -183,6 +183,7 @@ function Column({
   remove,
   create,
   disabled,
+  loading,
   pointerY,
 }: {
   status: Status;
@@ -192,6 +193,7 @@ function Column({
   remove: (task: Task) => void;
   create: (status: Status) => void;
   disabled: boolean;
+  loading: boolean;
   pointerY: number | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled });
@@ -242,7 +244,7 @@ function Column({
             size="icon"
             className="ml-auto"
             aria-label={`Add task to ${statusLabels[status]}`}
-            disabled={disabled}
+            disabled={disabled || loading}
             onClick={() => create(status)}
           >
             <Plus size={15} />
@@ -255,7 +257,13 @@ function Column({
       >
         <div ref={taskListRef} className="kanban-task-list relative space-y-2">
           {dropIndicatorTop !== null && <div aria-hidden="true" style={{ top: dropIndicatorTop }} className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full ${statusStyle.drop}`} />}
-          {tasks.map((task) => (
+          {loading ? Array.from({ length: 3 }, (_, index) => (
+            <div key={index} aria-hidden="true" className="kanban-task-skeleton min-h-24 animate-pulse rounded-lg border border-border/60 bg-background/30 p-3">
+              <div className="h-2 w-12 rounded bg-muted-foreground/20" />
+              <div className="mt-4 h-3 w-4/5 rounded bg-muted-foreground/20" />
+              <div className="mt-4 h-2 w-16 rounded bg-muted-foreground/20" />
+            </div>
+          )) : tasks.map((task) => (
             <TaskCard
               key={task.id}
               task={task}
@@ -267,7 +275,7 @@ function Column({
           ))}
         </div>
       </SortableContext>
-      {tasks.length === 0 && (
+      {!loading && tasks.length === 0 && (
         <p className={`kanban-empty-state relative flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyColumnDropTarget ? statusStyle.emptyDrop : "border-[#484f58] text-muted-foreground"}`}>
           {isEmptyColumnDropTarget && <span aria-hidden="true" className={`kanban-empty-drop-indicator pointer-events-none absolute -top-2 left-2 right-2 h-0.5 rounded-full ${statusStyle.drop}`} />}
           {isEmptyColumnDropTarget ? "Move here" : "No tasks yet"}
@@ -277,7 +285,7 @@ function Column({
         variant="ghost"
         size="sm"
         className="kanban-add-task mt-2 w-full justify-center text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 focus-visible:opacity-100"
-        disabled={disabled}
+        disabled={disabled || loading}
         onClick={() => create(status)}
       >
         <Plus size={14} />
@@ -294,6 +302,7 @@ export function KanbanBoard({
   create,
   move,
   disabled,
+  loading = false,
 }: {
   tasks: Task[];
   edit: (task: Task) => void;
@@ -302,6 +311,7 @@ export function KanbanBoard({
   create: (status: Status) => void;
   move: (id: string, status: Status, position: number) => void;
   disabled: boolean;
+  loading?: boolean;
 }) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [pointerY, setPointerY] = useState<number | null>(null);
@@ -314,7 +324,7 @@ export function KanbanBoard({
     }),
   );
   function onDragEnd({ active, over }: DragEndEvent) {
-    if (!over || active.id === over.id || disabled) return;
+    if (!over || active.id === over.id || disabled || loading) return;
     const targetTask = tasks.find((task) => task.id === over.id);
     const status =
       targetTask?.status ??
@@ -376,6 +386,7 @@ export function KanbanBoard({
               remove={remove}
               create={create}
               disabled={disabled}
+              loading={loading}
               pointerY={pointerY}
             />
           ))}
