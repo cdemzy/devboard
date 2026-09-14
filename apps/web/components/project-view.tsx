@@ -16,9 +16,11 @@ import {
 	useSensor,
 	useSensors,
 	type DragEndEvent,
+	type Modifier,
 } from '@dnd-kit/core'
 import {
 	arrayMove,
+	horizontalListSortingStrategy,
 	rectSortingStrategy,
 	SortableContext,
 	sortableKeyboardCoordinates,
@@ -59,6 +61,10 @@ const recoveryToastStyle: CSSProperties = {
 	backgroundRepeat: 'no-repeat',
 	backgroundSize: '100% 3px',
 }
+const restrictSelectedTagDragToHorizontalAxis: Modifier = ({ transform }) => ({
+	...transform,
+	y: 0,
+})
 const tagColorValues = {
 	green: '#386C4E',
 	yellow: '#886826',
@@ -123,10 +129,6 @@ interface PendingTaskArchiveChange {
 	isArchived: boolean
 	toastId: string | number
 	timer: ReturnType<typeof createRecoveryToastTimer>
-}
-
-function capitalizePlatform(value: string) {
-	return value.replace(/(^|[\s-])\p{L}/gu, (character) => character.toUpperCase())
 }
 
 function getNewTagColor(tags: ProjectTag[]): ProjectTag['color'] {
@@ -234,6 +236,7 @@ function SortableSelectedProjectTag({
 		lineHeight: 1,
 		transform: CSS.Translate.toString(transform),
 		transition,
+		zIndex: isDragging ? 40 : undefined,
 	}
 
 	return (
@@ -242,7 +245,7 @@ function SortableSelectedProjectTag({
 			style={style}
 			className={`project-selected-tag flex shrink-0 items-center gap-1 rounded-sm px-2 py-1.5 text-[13px] text-white md:px-1.5 md:py-1 md:text-xs ${isDragging ? 'opacity-60' : ''}`}
 		>
-			<span className="project-selected-tag-label order-2 md:order-1">{tag}</span>
+			<span className="project-selected-tag-label order-2">{tag}</span>
 			<button
 				type="button"
 				onClick={(event) => {
@@ -250,7 +253,7 @@ function SortableSelectedProjectTag({
 					onRemove()
 				}}
 				aria-label={`Remove ${tag} tag`}
-				className="project-selected-tag-remove order-1 rounded-sm text-white/65 hover:text-white md:order-2"
+				className="project-selected-tag-remove order-1 rounded-sm text-white/65 hover:text-white"
 			>
 				<X size={12} className="h-[14px] w-[14px] md:h-3 md:w-3" />
 			</button>
@@ -745,7 +748,7 @@ export function ProjectView({
 	const canReorderTags =
 		!tagInput.trim() && tagSuggestions.every((tag) => !tag.id.startsWith('pending-'))
 	function addTag() {
-		const tag = capitalizePlatform(tagInput.trim())
+		const tag = tagInput.trim()
 		const color = newTagColor ?? getNewTagColor(tagSuggestions)
 		if (
 			!tag ||
@@ -871,7 +874,7 @@ export function ProjectView({
 		}
 	}
 	async function renameTag(tag: ProjectTag, value: string, closeAfterSave = true) {
-		const name = capitalizePlatform(value.trim())
+		const name = value.trim()
 		if (!name) {
 			setTagNameDraft(tag.name)
 			if (closeAfterSave) setTagMenuId(null)
@@ -1069,14 +1072,15 @@ export function ProjectView({
 											)
 										})
 									) : (
-										<DndContext
-											sensors={selectedTagSensors}
-											collisionDetection={closestCenter}
-											onDragEnd={handleSelectedTagOrderEnd}
+						<DndContext
+							sensors={selectedTagSensors}
+							collisionDetection={closestCenter}
+							modifiers={[restrictSelectedTagDragToHorizontalAxis]}
+							onDragEnd={handleSelectedTagOrderEnd}
 										>
 											<SortableContext
 												items={projectDraft.tags.map((tag) => `selected-tag-${tag}`)}
-												strategy={rectSortingStrategy}
+							strategy={horizontalListSortingStrategy}
 											>
 												<div className="project-selected-tag-list flex flex-nowrap gap-1.5">
 													{projectDraft.tags.map((tag) => {
@@ -1172,10 +1176,11 @@ export function ProjectView({
 											</div>
 											<div className="project-tag-sheet-selected mb-4 rounded-lg bg-accent/70 p-3 md:hidden">
 												{projectDraft.tags.length > 0 ? (
-													<DndContext
-														sensors={selectedTagSensors}
-														collisionDetection={closestCenter}
-														onDragEnd={handleSelectedTagOrderEnd}
+											<DndContext
+												sensors={selectedTagSensors}
+												collisionDetection={closestCenter}
+												modifiers={[restrictSelectedTagDragToHorizontalAxis]}
+												onDragEnd={handleSelectedTagOrderEnd}
 													>
 														<SortableContext
 															items={projectDraft.tags.map(
