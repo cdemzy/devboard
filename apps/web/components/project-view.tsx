@@ -373,7 +373,6 @@ export function ProjectView({
 			await Promise.all([loadTasks(), loadArchivedTasks()])
 		}, 'Task restored')
 	}
-	const completed = tasks.filter((task) => task.status === 'done').length
 	const matchingTags = tagSuggestions.filter((tag) =>
 		tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()),
 	)
@@ -885,29 +884,27 @@ export function ProjectView({
 					<div className="project-view-tab-list flex items-center gap-1">
 						<button
 							onClick={() => setView('board')}
+							aria-label="Board"
 							className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === 'board' ? 'bg-[#30363d] text-foreground shadow-sm' : 'text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground'}`}
 						>
 							<LayoutDashboard
 								size={14}
 								className={view === 'board' ? 'text-primary' : ''}
 							/>
-							Board
+							<span className="hidden md:inline">Board</span>
 						</button>
 						<button
 							onClick={() => {
 								setView('archived')
 								void loadArchivedTasks()
 							}}
+							aria-label="Archived tasks"
 							className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === 'archived' ? 'bg-[#30363d] text-foreground shadow-sm' : 'text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground'}`}
 						>
 							<Archive size={14} />
-							<span className="sm:hidden">Archived</span>
-							<span className="hidden sm:inline">Archived tasks</span>
+							<span className="hidden md:inline">Archived tasks</span>
 						</button>
 					</div>
-					{view === 'board' && (
-						<span className="project-task-summary mt-2 w-full text-xs text-muted-foreground sm:ml-auto sm:mt-0 sm:w-auto">{`${tasks.length} tasks · ${completed} completed`}</span>
-					)}
 				</div>
 				{view === 'archived' && (
 					<motion.section
