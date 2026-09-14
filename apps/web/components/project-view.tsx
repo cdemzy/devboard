@@ -232,9 +232,14 @@ function ProjectTagEditorForm({
 					ref={tagNameInputRef}
 					value={tagNameDraft}
 					onChange={(event) => onTagNameChange(event.target.value)}
-					onBlur={(event) => onRename(event.target.value, closeOnRename)}
+					onBlur={(event) => {
+						if (closeOnRename) onRename(event.target.value, true)
+					}}
 					onKeyDown={(event) => {
-						if (event.key === 'Enter') event.currentTarget.blur()
+						if (event.key === 'Enter') {
+							if (closeOnRename) event.currentTarget.blur()
+							else onRename(event.currentTarget.value, false)
+						}
 						if (event.key === 'Escape') onCancel()
 					}}
 					aria-label={`Rename ${tag.name}`}
@@ -261,9 +266,10 @@ function ProjectTagEditorForm({
 						key={color}
 						type="button"
 						aria-label={`Set ${tag.name} to ${color}`}
+						aria-pressed={tag.color === color}
 						onClick={() => onColorChange(color as ProjectTag['color'])}
 						style={{ backgroundColor: value }}
-						className="project-tag-color h-5 rounded-sm"
+						className={`project-tag-color h-5 rounded-sm transition-shadow ${tag.color === color ? 'ring-2 ring-foreground ring-offset-1 ring-offset-background' : 'hover:ring-1 hover:ring-foreground/60'}`}
 					/>
 				))}
 			</div>
@@ -1064,7 +1070,6 @@ export function ProjectView({
 											<AnimatePresence initial={false}>
 												{isMobileViewport && activeTag && (
 													<motion.div
-														key={activeTag.id}
 														initial={{ opacity: 0, y: 12 }}
 														animate={{ opacity: 1, y: 0 }}
 														exit={{ opacity: 0, y: 8 }}

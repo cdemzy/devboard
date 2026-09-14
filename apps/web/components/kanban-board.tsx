@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import {
 	DndContext,
 	PointerSensor,
@@ -331,8 +331,12 @@ function Column({
 		setDropIndicatorTop(lastCard ? lastCard.offsetTop + lastCard.offsetHeight + 4 : 4)
 	}, [active?.id, isDropColumn, pointerY, tasks.length])
 	return (
-		<section
+		<motion.section
 			ref={setNodeRef}
+			layout={isMobile}
+			transition={{
+				layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
+			}}
 			data-kanban-column={status}
 			aria-label={statusLabels[status]}
 			className={`kanban-column group/column min-h-0 min-w-0 rounded-lg border p-2 pb-4 shadow-sm transition-all duration-150 md:min-h-[max(22rem,calc(100dvh-17rem))] ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : 'hover:border-[#484f58]'}`}
@@ -358,7 +362,14 @@ function Column({
 				items={visibleTasks.map((task) => task.id)}
 				strategy={verticalListSortingStrategy}
 			>
-				<div ref={taskListRef} className="kanban-task-list relative space-y-2">
+				<motion.div
+					ref={taskListRef}
+					layout={isMobile}
+					transition={{
+						layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
+					}}
+					className="kanban-task-list relative space-y-2"
+				>
 					{dropIndicatorTop !== null && (
 						<div
 							aria-hidden="true"
@@ -366,29 +377,45 @@ function Column({
 							className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full ${statusStyle.drop}`}
 						/>
 					)}
-					{loading
-						? Array.from({ length: 3 }, (_, index) => (
-								<div
-									key={index}
-									aria-hidden="true"
-									className="kanban-task-skeleton min-h-24 animate-pulse rounded-lg border border-border/60 bg-background/30 p-3"
-								>
-									<div className="h-2 w-12 rounded bg-muted-foreground/20" />
-									<div className="mt-4 h-3 w-4/5 rounded bg-muted-foreground/20" />
-									<div className="mt-4 h-2 w-16 rounded bg-muted-foreground/20" />
-								</div>
-							))
-						: visibleTasks.map((task) => (
-								<TaskCard
+					{loading ? (
+						Array.from({ length: 3 }, (_, index) => (
+							<div
+								key={index}
+								aria-hidden="true"
+								className="kanban-task-skeleton min-h-24 animate-pulse rounded-lg border border-border/60 bg-background/30 p-3"
+							>
+								<div className="h-2 w-12 rounded bg-muted-foreground/20" />
+								<div className="mt-4 h-3 w-4/5 rounded bg-muted-foreground/20" />
+								<div className="mt-4 h-2 w-16 rounded bg-muted-foreground/20" />
+							</div>
+						))
+					) : (
+						<AnimatePresence initial={false}>
+							{visibleTasks.map((task) => (
+								<motion.div
 									key={task.id}
-									task={task}
-									edit={edit}
-									archive={archive}
-									remove={remove}
-									disabled={disabled}
-								/>
+									layout="position"
+									initial={isMobile ? { opacity: 0, y: -10 } : false}
+									animate={{ opacity: 1, y: 0 }}
+									exit={isMobile ? { opacity: 0, y: -8 } : undefined}
+									transition={{
+										layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
+										opacity: { duration: 0.16 },
+										y: { type: 'spring', stiffness: 420, damping: 32, mass: 0.65 },
+									}}
+								>
+									<TaskCard
+										task={task}
+										edit={edit}
+										archive={archive}
+										remove={remove}
+										disabled={disabled}
+									/>
+								</motion.div>
 							))}
-				</div>
+						</AnimatePresence>
+					)}
+				</motion.div>
 			</SortableContext>
 			{canToggleTasks && (
 				<Button
@@ -429,7 +456,7 @@ function Column({
 				<Plus size={14} />
 				<span className="hidden md:inline">Add task</span>
 			</Button>
-		</section>
+		</motion.section>
 	)
 }
 export function KanbanBoard({
@@ -549,8 +576,8 @@ export function KanbanBoard({
 				setActiveTask(null)
 			}}
 		>
-			<div className="kanban-board-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
-				<>
+			<LayoutGroup id="kanban-columns">
+				<div className="kanban-board-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
 					{statuses.map((status) => (
 						<Column
 							key={status}
@@ -568,8 +595,8 @@ export function KanbanBoard({
 							onToggleExpanded={() => toggleColumnExpansion(status)}
 						/>
 					))}
-				</>
-			</div>
+				</div>
+			</LayoutGroup>
 			<DragOverlay dropAnimation={null}>
 				{activeTask ? <TaskDragPreview task={activeTask} /> : null}
 			</DragOverlay>
