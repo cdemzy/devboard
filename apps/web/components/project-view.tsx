@@ -5,6 +5,7 @@ import {
 	useRef,
 	useState,
 	type CSSProperties,
+	type RefObject,
 	type ReactNode,
 } from 'react'
 import {
@@ -150,6 +151,73 @@ function SortableProjectTag({
 				{children}
 			</div>
 		</div>
+	)
+}
+
+interface ProjectTagEditorFormProps {
+	tag: ProjectTag
+	tagNameDraft: string
+	tagNameInputRef: RefObject<HTMLInputElement | null>
+	onTagNameChange: (value: string) => void
+	onRename: (value: string) => void
+	onDelete: () => void
+	onCancel: () => void
+	onColorChange: (color: ProjectTag['color']) => void
+}
+
+function ProjectTagEditorForm({
+	tag,
+	tagNameDraft,
+	tagNameInputRef,
+	onTagNameChange,
+	onRename,
+	onDelete,
+	onCancel,
+	onColorChange,
+}: ProjectTagEditorFormProps) {
+	return (
+		<>
+			<div className="project-tag-menu-edit flex gap-1.5">
+				<input
+					ref={tagNameInputRef}
+					value={tagNameDraft}
+					onChange={(event) => onTagNameChange(event.target.value)}
+					onBlur={(event) => onRename(event.target.value)}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter') event.currentTarget.blur()
+						if (event.key === 'Escape') onCancel()
+					}}
+					aria-label={`Rename ${tag.name}`}
+					maxLength={40}
+					className="project-tag-name-input h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none"
+				/>
+				<button
+					type="button"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={onDelete}
+					aria-label={`Delete ${tag.name}`}
+					className="project-tag-delete flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"
+				>
+					<Trash2 size={13} />
+				</button>
+			</div>
+			<div className="my-2 border-t border-border" />
+			<p className="project-tag-colors-label mb-1.5 text-[11px] font-medium text-muted-foreground">
+				Colors
+			</p>
+			<div className="project-tag-colors grid grid-cols-4 gap-1">
+				{Object.entries(tagColorValues).map(([color, value]) => (
+					<button
+						key={color}
+						type="button"
+						aria-label={`Set ${tag.name} to ${color}`}
+						onClick={() => onColorChange(color as ProjectTag['color'])}
+						style={{ backgroundColor: value }}
+						className="project-tag-color h-5 rounded-sm"
+					/>
+				))}
+			</div>
+		</>
 	)
 }
 
@@ -396,6 +464,9 @@ export function ProjectView({
 	const matchingTags = tagSuggestions.filter((tag) =>
 		tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()),
 	)
+	const activeTag = tagMenuId
+		? (tagSuggestions.find((tag) => tag.id === tagMenuId) ?? null)
+		: null
 	const canReorderTags =
 		!tagInput.trim() && tagSuggestions.every((tag) => !tag.id.startsWith('pending-'))
 	function addTag() {
@@ -560,13 +631,18 @@ export function ProjectView({
 			reportBoardError(error, 'Unable to rename platform.')
 		}
 	}
+	function closeTagMenu(tag: ProjectTag) {
+		if (!tagNameDraft.trim()) setTagNameDraft(tag.name)
+		void persistTagColor(tag)
+		setTagMenuId(null)
+	}
+	function updateTagNameDraft(value: string) {
+		setTagNameDraft(value)
+		if (value.trim()) toast.dismiss(platformNameToastId)
+	}
 	function toggleTagMenu(tag: ProjectTag) {
 		if (tagMenuId === tag.id) {
-			if (!tagNameDraft.trim()) {
-				setTagNameDraft(tag.name)
-			}
-			void persistTagColor(tag)
-			setTagMenuId(null)
+			closeTagMenu(tag)
 			return
 		}
 		const activeTag = tagSuggestions.find((item) => item.id === tagMenuId)
@@ -854,66 +930,20 @@ export function ProjectView({
 																	}}
 																	onOptions={() => toggleTagMenu(tag)}
 																>
-																	{tagMenuId === tag.id && (
+																	{!isMobileViewport && tagMenuId === tag.id && (
 																		<div className="project-tag-menu absolute left-0 top-full z-30 mt-1 w-40 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl">
-																			<div className="project-tag-menu-edit flex gap-1.5">
-																				<input
-																					ref={tagNameInputRef}
-																					value={tagNameDraft}
-																					onChange={(event) => {
-																						setTagNameDraft(event.target.value)
-																						if (event.target.value.trim())
-																							toast.dismiss(platformNameToastId)
-																					}}
-																					onBlur={(event) =>
-																						void renameTag(tag, event.target.value)
-																					}
-																					onKeyDown={(event) => {
-																						if (event.key === 'Enter')
-																							event.currentTarget.blur()
-																						if (event.key === 'Escape') {
-																							setTagNameDraft(tag.name)
-																							void persistTagColor(tag)
-																							setTagMenuId(null)
-																						}
-																					}}
-																					aria-label={`Rename ${tag.name}`}
-																					maxLength={40}
-																					className="project-tag-name-input h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none"
-																				/>
-																				<button
-																					type="button"
-																					onMouseDown={(event) => event.preventDefault()}
-																					onClick={() => void deleteTag(tag)}
-																					aria-label={`Delete ${tag.name}`}
-																					className="project-tag-delete flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"
-																				>
-																					<Trash2 size={13} />
-																				</button>
-																			</div>
-																			<div className="my-2 border-t border-border" />
-																			<p className="project-tag-colors-label mb-1.5 text-[11px] font-medium text-muted-foreground">
-																				Colors
-																			</p>
-																			<div className="project-tag-colors grid grid-cols-4 gap-1">
-																				{Object.entries(tagColorValues).map(
-																					([color, value]) => (
-																						<button
-																							key={color}
-																							type="button"
-																							aria-label={`Set ${tag.name} to ${color}`}
-																							onClick={() =>
-																								updateTagColor(
-																									tag,
-																									color as ProjectTag['color'],
-																								)
-																							}
-																							style={{ backgroundColor: value }}
-																							className="project-tag-color h-5 rounded-sm"
-																						/>
-																					),
-																				)}
-																			</div>
+																			<ProjectTagEditorForm
+																				tag={tag}
+																				tagNameDraft={tagNameDraft}
+																				tagNameInputRef={tagNameInputRef}
+																				onTagNameChange={updateTagNameDraft}
+																				onRename={(value) => void renameTag(tag, value)}
+																				onDelete={() => void deleteTag(tag)}
+																				onCancel={() => closeTagMenu(tag)}
+																				onColorChange={(color) =>
+																					updateTagColor(tag, color)
+																				}
+																			/>
 																		</div>
 																	)}
 																</SortableProjectTag>
@@ -921,6 +951,33 @@ export function ProjectView({
 														</div>
 													</SortableContext>
 												</DndContext>
+											)}
+											{isMobileViewport && activeTag && (
+												<div className="project-tag-mobile-editor mt-3 rounded-md border border-border bg-background p-3 md:hidden">
+													<div className="mb-3 flex items-center justify-between gap-3">
+														<p className="truncate text-xs font-medium text-foreground">
+															Edit {activeTag.name}
+														</p>
+														<button
+															type="button"
+															onClick={() => closeTagMenu(activeTag)}
+															aria-label={`Close ${activeTag.name} editor`}
+															className="project-tag-mobile-editor-close flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-muted-foreground hover:text-foreground"
+														>
+															<X size={14} />
+														</button>
+													</div>
+													<ProjectTagEditorForm
+														tag={activeTag}
+														tagNameDraft={tagNameDraft}
+														tagNameInputRef={tagNameInputRef}
+														onTagNameChange={updateTagNameDraft}
+														onRename={(value) => void renameTag(activeTag, value)}
+														onDelete={() => void deleteTag(activeTag)}
+														onCancel={() => closeTagMenu(activeTag)}
+														onColorChange={(color) => updateTagColor(activeTag, color)}
+													/>
+												</div>
 											)}
 											{tagInput.trim() &&
 												!tagSuggestions.some(
