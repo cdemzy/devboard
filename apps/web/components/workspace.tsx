@@ -279,6 +279,20 @@ export function Workspace({ email }: { email: string }) {
 
 		return () => mediaQuery.removeEventListener('change', handleViewportChange)
 	}, [])
+
+	useEffect(() => {
+		if (!isMobilePanelVisible) return
+
+		const previousBodyOverflow = document.body.style.overflow
+		const previousRootOverflow = document.documentElement.style.overflow
+		document.body.style.overflow = 'hidden'
+		document.documentElement.style.overflow = 'hidden'
+
+		return () => {
+			document.body.style.overflow = previousBodyOverflow
+			document.documentElement.style.overflow = previousRootOverflow
+		}
+	}, [isMobilePanelVisible])
 	const project = projects.find((project) => project.id === active)
 	function closeMobileProjects() {
 		setIsMobileProjectsOpen(false)
