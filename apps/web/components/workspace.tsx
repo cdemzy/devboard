@@ -130,6 +130,7 @@ interface MobileDrawerDragState {
 	startX: number
 	startY: number
 	initialOffset: number
+	axis: 'pending' | 'horizontal'
 	isDragging: boolean
 }
 
@@ -390,6 +391,7 @@ export function Workspace({ email }: { email: string }) {
 		if (
 			!isMobileViewport ||
 			event.pointerType !== 'touch' ||
+			(!isMobilePanelVisible && event.clientX > 32) ||
 			isDrawerDragExcludedTarget(event.target)
 		) {
 			return
@@ -400,10 +402,10 @@ export function Workspace({ email }: { email: string }) {
 			startX: event.clientX,
 			startY: event.clientY,
 			initialOffset: isMobilePanelVisible ? getMobileDrawerWidth() : 0,
+			axis: 'pending',
 			isDragging: false,
 		}
 		mobilePanelX.jump(mobilePanelX.get())
-		event.currentTarget.setPointerCapture(event.pointerId)
 	}
 
 	function handleMobilePanelPointerMove(event: React.PointerEvent<HTMLElement>) {
@@ -413,15 +415,24 @@ export function Workspace({ email }: { email: string }) {
 		const horizontalDistance = event.clientX - drag.startX
 		const verticalDistance = event.clientY - drag.startY
 
-		if (!drag.isDragging) {
-			if (
-				Math.abs(horizontalDistance) < 8 ||
-				Math.abs(horizontalDistance) <= Math.abs(verticalDistance)
-			) {
+		if (drag.axis === 'pending') {
+			if (Math.max(Math.abs(horizontalDistance), Math.abs(verticalDistance)) < 8) {
 				return
 			}
 
+			if (Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) {
+				mobileDrawerDrag.current = null
+				return
+			}
+
+			if (!isMobilePanelVisible && horizontalDistance < 0) {
+				mobileDrawerDrag.current = null
+				return
+			}
+
+			drag.axis = 'horizontal'
 			drag.isDragging = true
+			event.currentTarget.setPointerCapture(event.pointerId)
 		}
 
 		const drawerWidth = getMobileDrawerWidth()

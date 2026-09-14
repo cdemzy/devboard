@@ -841,7 +841,7 @@ export function ProjectView({
 											setTagsOpen(true)
 										}
 									}}
-									className={`project-tag-trigger flex min-h-14 cursor-pointer flex-nowrap items-center gap-1.5 overflow-x-auto !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none md:min-h-12 md:flex-wrap md:overflow-visible ${tagsOpen ? 'rounded-md px-2 py-3 md:rounded-t-md md:rounded-b-none md:bg-accent md:shadow-[inset_0_1px_0_var(--color-border),inset_1px_0_0_var(--color-border),inset_-1px_0_0_var(--color-border)]' : 'rounded-md px-2 py-3'}`}
+									className={`project-tag-trigger flex h-14 cursor-pointer flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none md:h-12 ${tagsOpen ? 'rounded-md px-2 py-3 md:rounded-t-md md:rounded-b-none md:bg-accent md:shadow-[inset_0_1px_0_var(--color-border),inset_1px_0_0_var(--color-border),inset_-1px_0_0_var(--color-border)]' : 'rounded-md px-2 py-3'}`}
 									aria-label="Edit project tags"
 									aria-expanded={tagsOpen}
 								>
@@ -896,7 +896,7 @@ export function ProjectView({
 												items={projectDraft.tags.map((tag) => `selected-tag-${tag}`)}
 												strategy={rectSortingStrategy}
 											>
-												<div className="project-selected-tag-list flex flex-wrap gap-1.5">
+												<div className="project-selected-tag-list flex flex-nowrap gap-1.5">
 													{projectDraft.tags.map((tag) => {
 														const catalog = tagSuggestions.find(
 															(item) => item.name.toLowerCase() === tag.toLowerCase(),
