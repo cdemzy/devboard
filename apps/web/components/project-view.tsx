@@ -141,9 +141,8 @@ export function ProjectView({
     function closeTags(event: PointerEvent) {
       if (tagsOpen && tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
         if (tagMenuId && !tagNameDraft.trim()) {
-          toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity });
-          window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
-          return;
+          const activeTag = tagSuggestions.find((tag) => tag.id === tagMenuId);
+          if (activeTag) setTagNameDraft(activeTag.name);
         }
         const activeTag = tagSuggestions.find((tag) => tag.id === tagMenuId);
         if (activeTag) void persistTagColor(activeTag);
@@ -335,14 +334,13 @@ export function ProjectView({
   async function renameTag(tag: ProjectTag, value: string) {
     const name = capitalizePlatform(value.trim());
     if (!name) {
-      setTagsOpen(true);
-      setTagMenuId(tag.id);
-      toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity });
-      window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
+      setTagNameDraft(tag.name);
+      setTagMenuId(null);
       return;
     }
     if (name.length > 40 || name === tag.name) {
       setTagNameDraft(tag.name);
+      if (name === tag.name) setTagMenuId(null);
       return;
     }
     if (tagSuggestions.some((item) => item.id !== tag.id && item.name.toLowerCase() === name.toLowerCase())) {
@@ -350,6 +348,7 @@ export function ProjectView({
       reportBoardError(new Error("A platform with this name already exists"), "Unable to rename platform.");
       return;
     }
+    setTagMenuId(null);
     const previousSuggestions = tagSuggestions;
     const previousProjectTags = projectDraft.tags;
     setTagSuggestions((tags) => tags.map((item) => item.id === tag.id ? { ...item, name } : item));
@@ -370,9 +369,7 @@ export function ProjectView({
   function toggleTagMenu(tag: ProjectTag) {
     if (tagMenuId === tag.id) {
       if (!tagNameDraft.trim()) {
-        toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity });
-        window.requestAnimationFrame(() => tagNameInputRef.current?.focus());
-        return;
+        setTagNameDraft(tag.name);
       }
       void persistTagColor(tag);
       setTagMenuId(null);
@@ -425,7 +422,7 @@ export function ProjectView({
                   <SortableContext items={matchingTags.map((tag) => tag.id)} strategy={rectSortingStrategy}>
                     <div className="project-tag-list flex flex-wrap gap-1.5">
                       {matchingTags.map((tag) => <SortableProjectTag key={tag.id} tag={tag} sortable={canReorderTags} onSelect={() => { setTagMenuId(null); toggleTag(tag.name); }} onOptions={() => toggleTagMenu(tag)}>
-                        {tagMenuId === tag.id && <div className="project-tag-menu absolute left-0 top-full z-30 mt-1 w-52 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="project-tag-menu-edit flex gap-1.5"><input ref={tagNameInputRef} value={tagNameDraft} onChange={(event) => { setTagNameDraft(event.target.value); if (event.target.value.trim()) toast.dismiss(platformNameToastId); }} onBlur={(event) => void renameTag(tag, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { if (!tagNameDraft.trim()) { toast.error("Platform name is required.", { id: platformNameToastId, duration: Infinity }); return; } void persistTagColor(tag); setTagNameDraft(tag.name); setTagMenuId(null); } }} aria-label={`Rename ${tag.name}`} maxLength={40} className="project-tag-name-input h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none" /><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void deleteTag(tag)} aria-label={`Delete ${tag.name}`} className="project-tag-delete flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"><Trash2 size={13} /></button></div><div className="my-2 border-t border-border" /><p className="project-tag-colors-label mb-1.5 text-[11px] font-medium text-muted-foreground">Colors</p><div className="project-tag-colors grid grid-cols-4 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="project-tag-color h-5 rounded-sm" />)}</div></div>}
+                        {tagMenuId === tag.id && <div className="project-tag-menu absolute left-0 top-full z-30 mt-1 w-40 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl"><div className="project-tag-menu-edit flex gap-1.5"><input ref={tagNameInputRef} value={tagNameDraft} onChange={(event) => { setTagNameDraft(event.target.value); if (event.target.value.trim()) toast.dismiss(platformNameToastId); }} onBlur={(event) => void renameTag(tag, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setTagNameDraft(tag.name); void persistTagColor(tag); setTagMenuId(null); } }} aria-label={`Rename ${tag.name}`} maxLength={40} className="project-tag-name-input h-8 !border !border-[#484f58] !bg-[#2d333b] px-2 py-1 text-xs !outline-none focus:!outline-none" /><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void deleteTag(tag)} aria-label={`Delete ${tag.name}`} className="project-tag-delete flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-[#484f58] bg-[#2d333b] text-rose-300 hover:text-rose-200"><Trash2 size={13} /></button></div><div className="my-2 border-t border-border" /><p className="project-tag-colors-label mb-1.5 text-[11px] font-medium text-muted-foreground">Colors</p><div className="project-tag-colors grid grid-cols-4 gap-1">{Object.entries(tagColorValues).map(([color, value]) => <button key={color} type="button" aria-label={`Set ${tag.name} to ${color}`} onClick={() => updateTagColor(tag, color as ProjectTag["color"])} style={{ backgroundColor: value }} className="project-tag-color h-5 rounded-sm" />)}</div></div>}
                       </SortableProjectTag>)}
                     </div>
                   </SortableContext>
