@@ -24,8 +24,7 @@ import {
 	Circle,
 	CircleDashed,
 	CircleCheck,
-	ChevronsDown,
-	ChevronsUp,
+	ChevronsUpDown,
 	Gauge,
 	Archive,
 	GripVertical,
@@ -404,8 +403,7 @@ function Column({
 					}
 					onClick={onToggleExpanded}
 				>
-					{isExpanded ? <ChevronsUp size={15} /> : <ChevronsDown size={15} />}
-					{isExpanded ? 'Collapse' : `Show ${tasks.length - 3} more`}
+					<ChevronsUpDown size={15} />
 				</Button>
 			)}
 			{!loading && tasks.length === 0 && (
