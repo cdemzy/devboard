@@ -178,17 +178,7 @@ function SortableSelectedProjectTag({
 			style={style}
 			className={`project-selected-tag flex shrink-0 items-center gap-1 rounded-sm px-2 py-1.5 text-[13px] text-white md:px-1.5 md:py-1 md:text-xs ${isDragging ? 'opacity-60' : ''}`}
 		>
-			{tag}
-			<button
-				type="button"
-				aria-label={`Reorder ${tag}`}
-				className="project-selected-tag-drag-handle touch-none rounded-sm p-0.5 text-white/70 hover:text-white cursor-grab active:cursor-grabbing"
-				onClick={(event) => event.stopPropagation()}
-				{...attributes}
-				{...listeners}
-			>
-				<GripVertical size={13} className="h-4 w-4 md:h-[13px] md:w-[13px]" />
-			</button>
+			<span className="project-selected-tag-label order-2 md:order-1">{tag}</span>
 			<button
 				type="button"
 				onClick={(event) => {
@@ -196,9 +186,19 @@ function SortableSelectedProjectTag({
 					onRemove()
 				}}
 				aria-label={`Remove ${tag} tag`}
-				className="project-selected-tag-remove rounded-sm text-white/65 hover:text-white"
+				className="project-selected-tag-remove order-1 rounded-sm text-white/65 hover:text-white md:order-2"
 			>
 				<X size={12} className="h-[14px] w-[14px] md:h-3 md:w-3" />
+			</button>
+			<button
+				type="button"
+				aria-label={`Reorder ${tag}`}
+				className="project-selected-tag-drag-handle order-3 touch-none rounded-sm p-0.5 text-white/70 hover:text-white cursor-grab active:cursor-grabbing"
+				onClick={(event) => event.stopPropagation()}
+				{...attributes}
+				{...listeners}
+			>
+				<GripVertical size={13} className="h-4 w-4 md:h-[13px] md:w-[13px]" />
 			</button>
 		</span>
 	)
@@ -807,8 +807,8 @@ export function ProjectView({
 									aria-label="Edit project tags"
 									aria-expanded={tagsOpen}
 								>
-									{projectDraft.tags.length === 0 && !tagsOpen ? (
-										<span className="px-1 text-xs text-muted-foreground">
+									{projectDraft.tags.length === 0 && (!tagsOpen || isMobileViewport) ? (
+										<span className="flex shrink-0 items-center rounded-sm px-1.5 py-1 text-xs leading-3 text-muted-foreground">
 											Add platform
 										</span>
 									) : !tagCatalogLoaded ? (
@@ -841,7 +841,7 @@ export function ProjectView({
 															}))
 														}}
 														aria-label={`Remove ${tag} tag`}
-														className="rounded-sm text-white/65 hover:text-white"
+														className="hidden rounded-sm text-white/65 hover:text-white md:inline-flex"
 													>
 														<X size={12} />
 													</button>

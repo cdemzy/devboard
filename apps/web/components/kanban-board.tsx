@@ -171,7 +171,7 @@ function TaskCard({
 					</button>
 				</Tooltip>
 			</div>
-			<div className="task-card-footer mt-4 flex items-center justify-between text-muted-foreground">
+			<div className="task-card-footer mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 text-muted-foreground">
 				<span
 					className={`task-card-priority flex items-center gap-1.5 text-[12px] leading-none capitalize ${task.priority === 'high' ? 'text-orange-300' : ''}`}
 				>
