@@ -69,6 +69,12 @@
 }
 
 @layer components {
+  .workspace-sidebar-brand,
+  .workspace-brand,
+  .auth-brand {
+    user-select: none;
+  }
+
   .task-actions-trigger {
     @apply rounded p-1 text-muted-foreground opacity-0 transition-opacity;
   }
