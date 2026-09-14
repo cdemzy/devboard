@@ -116,6 +116,15 @@ function createRecoveryToastTimer(onExpire?: () => void) {
 		},
 	}
 }
+
+interface PendingTaskArchiveChange {
+	task: Task
+	wasArchived: boolean
+	isArchived: boolean
+	toastId: string | number
+	timer: ReturnType<typeof createRecoveryToastTimer>
+}
+
 function capitalizePlatform(value: string) {
 	return value.replace(/(^|[\s-])\p{L}/gu, (character) => character.toUpperCase())
 }
@@ -355,7 +364,7 @@ export function ProjectView({
 	)
 	const moveRevisions = useRef(new Map<string, number>())
 	const moveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
-	const taskUndoToastIds = useRef(new Map<string, string | number>())
+	const pendingTaskArchiveChanges = useRef(new Map<string, PendingTaskArchiveChange>())
 	const queuedMoveIds = useRef(new Set<string>())
 	const tagOrderQueue = useRef(Promise.resolve())
 	const tagOrderRevision = useRef(0)
@@ -504,6 +513,8 @@ export function ProjectView({
 		() => () => {
 			moveTimers.current.forEach((timer) => clearTimeout(timer))
 			moveTimers.current.clear()
+			pendingTaskArchiveChanges.current.forEach((change) => change.timer.dismiss())
+			pendingTaskArchiveChanges.current.clear()
 		},
 		[],
 	)
@@ -570,76 +581,89 @@ export function ProjectView({
 				}
 			})
 	}
-	function replaceTaskUndoToast(taskId: string, toastId: string | number) {
-		const previousToastId = taskUndoToastIds.current.get(taskId)
-		if (previousToastId !== undefined) toast.dismiss(previousToastId)
-		taskUndoToastIds.current.set(taskId, toastId)
-	}
+	function applyCachedTaskArchiveState(task: Task, isArchived: boolean) {
+		if (isArchived) {
+			setTasks((current) => current.filter((item) => item.id !== task.id))
+			setArchivedTasks((current) => [
+				...current.filter((item) => item.id !== task.id),
+				{ ...task, archived: true },
+			])
+			return
+		}
 
-	function showTaskArchiveToast(archivedTask: Task, archiveRequest: Promise<unknown>) {
-		const toastTimer = createRecoveryToastTimer()
-		const recoveryToastId = toast.success(
-			'Task archived',
-			{
-				duration: Infinity,
-				className: 'task-archive-recovery-toast',
-				style: recoveryToastStyle,
-				action: {
-					label: (
-						<span
-							className="task-archive-recover-action relative grid h-4 w-4 place-items-center"
-							onPointerEnter={toastTimer.pause}
-							onPointerLeave={toastTimer.resume}
-						>
-							<Undo2 size={14} />
-						</span>
-					),
-					onClick: () => {
-						toastTimer.dismiss()
-						restoreTaskFromToast(archivedTask, archiveRequest)
-					},
-				},
-				actionButtonStyle: {
-					width: 28,
-					height: 28,
-					padding: 0,
-					border: '1px solid #886826',
-					borderRadius: '9999px',
-					background: '#23221A',
-					color: '#d29922',
-					justifyContent: 'center',
+		setTasks((current) =>
+			current.some((item) => item.id === task.id)
+				? current
+				: [...current, { ...task, archived: false }],
+		)
+		setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
+	}
+	function cancelPendingTaskArchiveChange(taskId: string) {
+		const pendingChange = pendingTaskArchiveChanges.current.get(taskId)
+		if (!pendingChange) return
+		pendingChange.timer.dismiss()
+		pendingTaskArchiveChanges.current.delete(taskId)
+	}
+	function commitTaskArchiveChange(change: PendingTaskArchiveChange) {
+		if (pendingTaskArchiveChanges.current.get(change.task.id) !== change) return
+		pendingTaskArchiveChanges.current.delete(change.task.id)
+
+		if (change.isArchived === change.wasArchived) return
+
+		const endpoint = change.isArchived ? 'archive' : 'restore'
+		const failureMessage = change.isArchived ? 'Unable to archive task.' : 'Failed to recover task.'
+		void api(`/tasks/${change.task.id}/${endpoint}`, json('POST')).catch((error) => {
+			applyCachedTaskArchiveState(change.task, change.wasArchived)
+			reportBoardError(error, failureMessage)
+		})
+	}
+	function stageTaskArchiveChange(task: Task, isArchived: boolean) {
+		const existingChange = pendingTaskArchiveChanges.current.get(task.id)
+		const wasArchived = existingChange?.wasArchived ?? task.archived
+		existingChange?.timer.dismiss()
+
+		applyCachedTaskArchiveState(task, isArchived)
+		const change = {} as PendingTaskArchiveChange
+		const timer = createRecoveryToastTimer(() => commitTaskArchiveChange(change))
+		const toastId = toast.success(isArchived ? 'Task archived' : 'Task restored', {
+			duration: Infinity,
+			className: 'task-archive-recovery-toast',
+			style: recoveryToastStyle,
+			action: {
+				label: (
+					<span
+						className="task-archive-recover-action relative grid h-4 w-4 place-items-center"
+						onPointerEnter={timer.pause}
+						onPointerLeave={timer.resume}
+					>
+						<Undo2 size={14} />
+					</span>
+				),
+				onClick: () => {
+					timer.dismiss()
+					stageTaskArchiveChange(task, !isArchived)
 				},
 			},
-		)
-		toastTimer.start(recoveryToastId)
-		replaceTaskUndoToast(archivedTask.id, recoveryToastId)
-
-		return recoveryToastId
+			actionButtonStyle: {
+				width: 28,
+				height: 28,
+				padding: 0,
+				border: '1px solid #886826',
+				borderRadius: '9999px',
+				background: '#23221A',
+				color: '#d29922',
+				justifyContent: 'center',
+			},
+		})
+		Object.assign(change, { task, wasArchived, isArchived, timer, toastId })
+		pendingTaskArchiveChanges.current.set(task.id, change)
+		timer.start(toastId)
 	}
-
 	function archiveTask(task: Task) {
-		setTasks((current) => current.filter((item) => item.id !== task.id))
-		setArchivedTasks((current) => [
-			...current.filter((item) => item.id !== task.id),
-			{ ...task, archived: true },
-		])
-		const archiveRequest = api(`/tasks/${task.id}/archive`, json('POST'))
-		const recoveryToastId = showTaskArchiveToast(task, archiveRequest)
-
-		void archiveRequest
-			.then(() => {
-				if (view === 'archived') void loadArchivedTasks()
-			})
-			.catch((error) => {
-				setTasks((current) =>
-					current.some((item) => item.id === task.id) ? current : [...current, task],
-				)
-				setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
-				toast.dismiss(recoveryToastId)
-				reportBoardError(error, 'Unable to archive task.')
-			})
+		stageTaskArchiveChange(task, true)
 	}
 	function deleteTask(task: Task) {
+		cancelPendingTaskArchiveChange(task.id)
 		setTasks((current) => current.filter((item) => item.id !== task.id))
 		setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
 		const toastTimer = createRecoveryToastTimer(() => {
@@ -688,73 +712,6 @@ export function ProjectView({
 		})
 		toastTimer.start(deletionToastId)
 	}
-	function showTaskRestoreToast(restoredTask: Task, restoreRequest: Promise<unknown>) {
-		const toastTimer = createRecoveryToastTimer()
-		const archiveToastId = toast.success('Task restored', {
-			duration: Infinity,
-			className: 'task-archive-recovery-toast',
-			style: recoveryToastStyle,
-			action: {
-				label: (
-					<span
-						className="task-archive-recover-action relative grid h-4 w-4 place-items-center"
-						onPointerEnter={toastTimer.pause}
-						onPointerLeave={toastTimer.resume}
-					>
-						<Undo2 size={14} />
-					</span>
-				),
-				onClick: () => {
-					toastTimer.dismiss()
-					archiveTaskFromRestoreToast(restoredTask, restoreRequest)
-				},
-			},
-			actionButtonStyle: {
-				width: 28,
-				height: 28,
-				padding: 0,
-				border: '1px solid #886826',
-				borderRadius: '9999px',
-				background: '#23221A',
-				color: '#d29922',
-				justifyContent: 'center',
-			},
-		})
-		toastTimer.start(archiveToastId)
-		replaceTaskUndoToast(restoredTask.id, archiveToastId)
-
-		return archiveToastId
-	}
-
-	function archiveTaskFromRestoreToast(task: Task, restoreRequest: Promise<unknown>) {
-		setTasks((current) => current.filter((item) => item.id !== task.id))
-		setArchivedTasks((current) => [
-			...current.filter((item) => item.id !== task.id),
-			{ ...task, archived: true },
-		])
-
-		void (async () => {
-			try {
-				await restoreRequest
-			} catch {
-				return
-			}
-
-			try {
-				const archiveRequest = api(`/tasks/${task.id}/archive`, json('POST'))
-				await archiveRequest
-				showTaskArchiveToast({ ...task, archived: true }, archiveRequest)
-			} catch (error) {
-				setTasks((current) =>
-					current.some((item) => item.id === task.id)
-						? current
-						: [...current, { ...task, archived: false }],
-				)
-				setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
-				reportBoardError(error, 'Failed to archive task.')
-			}
-		})()
-	}
 	async function createInlineTask(status: Status, title: string) {
 		const task = await api<Task>(
 			`/projects/${project.id}/tasks`,
@@ -769,59 +726,7 @@ export function ProjectView({
 		setTasks((current) => [...current, task])
 	}
 	function restoreTask(task: Task) {
-		setTasks((current) =>
-			current.some((item) => item.id === task.id)
-				? current
-				: [...current, { ...task, archived: false }],
-		)
-		setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
-
-		const restoreRequest = api(`/tasks/${task.id}/restore`, json('POST'))
-		const archiveToastId = showTaskRestoreToast(task, restoreRequest)
-
-		void restoreRequest
-			.catch((error) => {
-				setTasks((current) => current.filter((item) => item.id !== task.id))
-				setArchivedTasks((current) =>
-					current.some((item) => item.id === task.id)
-						? current
-						: [...current, { ...task, archived: true }],
-				)
-				toast.dismiss(archiveToastId)
-				reportBoardError(error, 'Failed to recover task.')
-			})
-	}
-	function restoreTaskFromToast(task: Task, archiveRequest: Promise<unknown>) {
-		setTasks((current) =>
-			current.some((item) => item.id === task.id)
-				? current
-				: [...current, { ...task, archived: false }],
-		)
-		setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
-
-		void (async () => {
-			try {
-				await archiveRequest
-			} catch {
-				return
-			}
-
-			let archiveToastId: string | number | undefined
-			try {
-				const restoreRequest = api(`/tasks/${task.id}/restore`, json('POST'))
-				archiveToastId = showTaskRestoreToast(task, restoreRequest)
-				await restoreRequest
-			} catch (error) {
-				setTasks((current) => current.filter((item) => item.id !== task.id))
-				setArchivedTasks((current) =>
-					current.some((item) => item.id === task.id)
-						? current
-						: [...current, { ...task, archived: true }],
-				)
-				if (archiveToastId !== undefined) toast.dismiss(archiveToastId)
-				reportBoardError(error, 'Unable to restore task.')
-			}
-		})()
+		stageTaskArchiveChange(task, false)
 	}
 	function handleProjectArchiveAction() {
 		if (!project.archived) {
