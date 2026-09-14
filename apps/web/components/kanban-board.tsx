@@ -1,5 +1,5 @@
 'use client'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
 	DndContext,
@@ -24,6 +24,8 @@ import {
 	Circle,
 	CircleDashed,
 	CircleCheck,
+	ChevronsDown,
+	ChevronsUp,
 	Gauge,
 	Archive,
 	GripVertical,
@@ -276,6 +278,9 @@ function Column({
 	disabled,
 	loading,
 	pointerY,
+	isMobile,
+	isExpanded,
+	onToggleExpanded,
 }: {
 	status: Status
 	tasks: Task[]
@@ -286,6 +291,9 @@ function Column({
 	disabled: boolean
 	loading: boolean
 	pointerY: number | null
+	isMobile: boolean
+	isExpanded: boolean
+	onToggleExpanded: () => void
 }) {
 	const { setNodeRef, isOver } = useDroppable({ id: status, disabled })
 	const { active, over } = useDndContext()
@@ -293,6 +301,8 @@ function Column({
 	const [dropIndicatorTop, setDropIndicatorTop] = useState<number | null>(null)
 	const Icon = statusIcons[status]
 	const statusStyle = statusStyles[status]
+	const visibleTasks = isMobile && !isExpanded ? tasks.slice(0, 3) : tasks
+	const canToggleTasks = !loading && isMobile && tasks.length > 3
 	const containsOverTask = tasks.some((task) => task.id === over?.id)
 	const isDropColumn = over?.id === status || containsOverTask
 	const isEmptyColumnDropTarget = tasks.length === 0 && over?.id === status
@@ -326,7 +336,7 @@ function Column({
 			ref={setNodeRef}
 			data-kanban-column={status}
 			aria-label={statusLabels[status]}
-			className={`kanban-column group/column min-h-[max(22rem,calc(100dvh-17rem))] min-w-0 rounded-lg border p-2 pb-4 shadow-sm transition-all duration-150 ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : 'hover:border-[#484f58]'}`}
+			className={`kanban-column group/column min-h-0 min-w-0 rounded-lg border p-2 pb-4 shadow-sm transition-all duration-150 md:min-h-[max(22rem,calc(100dvh-17rem))] ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : 'hover:border-[#484f58]'}`}
 		>
 			<header className="kanban-column-header mb-4 flex items-center gap-2 px-1 pt-1">
 				<Icon size={15} className={statusStyle.accent} />
@@ -346,7 +356,7 @@ function Column({
 				</Tooltip>
 			</header>
 			<SortableContext
-				items={tasks.map((task) => task.id)}
+				items={visibleTasks.map((task) => task.id)}
 				strategy={verticalListSortingStrategy}
 			>
 				<div ref={taskListRef} className="kanban-task-list relative space-y-2">
@@ -369,7 +379,7 @@ function Column({
 									<div className="mt-4 h-2 w-16 rounded bg-muted-foreground/20" />
 								</div>
 							))
-						: tasks.map((task) => (
+						: visibleTasks.map((task) => (
 								<TaskCard
 									key={task.id}
 									task={task}
@@ -381,6 +391,23 @@ function Column({
 							))}
 				</div>
 			</SortableContext>
+			{canToggleTasks && (
+				<Button
+					className="kanban-column-expand mt-2 w-full"
+					variant="ghost"
+					size="sm"
+					aria-expanded={isExpanded}
+					aria-label={
+						isExpanded
+							? `Collapse ${statusLabels[status]} tasks`
+							: `Show all ${statusLabels[status]} tasks`
+					}
+					onClick={onToggleExpanded}
+				>
+					{isExpanded ? <ChevronsUp size={15} /> : <ChevronsDown size={15} />}
+					{isExpanded ? 'Collapse' : `Show ${tasks.length - 3} more`}
+				</Button>
+			)}
 			{!loading && tasks.length === 0 && (
 				<p
 					className={`kanban-empty-state relative flex min-h-[7.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyColumnDropTarget ? statusStyle.emptyDrop : 'border-[#484f58] text-muted-foreground'}`}
@@ -397,12 +424,12 @@ function Column({
 			<Button
 				variant="ghost"
 				size="sm"
-				className="kanban-add-task mt-2 w-full justify-center text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 focus-visible:opacity-100"
+				className="kanban-add-task mt-2 w-full justify-center bg-accent text-muted-foreground opacity-0 transition-[background-color,opacity,transform] duration-150 hover:bg-[#30363d] active:scale-95 group-hover/column:opacity-100 focus-visible:opacity-100"
 				disabled={disabled || loading}
 				onClick={() => create(status)}
 			>
 				<Plus size={14} />
-				Add task
+				<span className="hidden md:inline">Add task</span>
 			</Button>
 		</section>
 	)
@@ -428,6 +455,8 @@ export function KanbanBoard({
 }) {
 	const [activeTask, setActiveTask] = useState<Task | null>(null)
 	const [pointerY, setPointerY] = useState<number | null>(null)
+	const [isMobileViewport, setIsMobileViewport] = useState(false)
+	const [expandedStatuses, setExpandedStatuses] = useState<Set<Status>>(() => new Set())
 	const dragStartPointerRef = useRef<{ x: number; y: number } | null>(null)
 	const dragPointerRef = useRef<{ x: number; y: number } | null>(null)
 	const sensors = useSensors(
@@ -436,6 +465,29 @@ export function KanbanBoard({
 			coordinateGetter: sortableKeyboardCoordinates,
 		}),
 	)
+	useEffect(() => {
+		const mediaQuery = window.matchMedia('(max-width: 767px)')
+		const handleViewportChange = () => setIsMobileViewport(mediaQuery.matches)
+
+		handleViewportChange()
+		mediaQuery.addEventListener('change', handleViewportChange)
+
+		return () => mediaQuery.removeEventListener('change', handleViewportChange)
+	}, [])
+
+	function toggleColumnExpansion(status: Status) {
+		setExpandedStatuses((current) => {
+			const next = new Set(current)
+
+			if (next.has(status)) {
+				next.delete(status)
+			} else {
+				next.add(status)
+			}
+
+			return next
+		})
+	}
 	function onDragEnd({ active, over }: DragEndEvent) {
 		if (!over || active.id === over.id || disabled || loading) return
 		const targetTask = tasks.find((task) => task.id === over.id)
@@ -513,6 +565,9 @@ export function KanbanBoard({
 							disabled={disabled}
 							loading={loading}
 							pointerY={pointerY}
+							isMobile={isMobileViewport}
+							isExpanded={expandedStatuses.has(status)}
+							onToggleExpanded={() => toggleColumnExpansion(status)}
 						/>
 					))}
 				</>

@@ -201,4 +201,8 @@
 	.task-actions-trigger {
 		opacity: 1;
 	}
+
+	.kanban-add-task {
+		opacity: 1;
+	}
 }
