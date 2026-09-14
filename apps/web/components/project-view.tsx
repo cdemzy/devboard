@@ -78,7 +78,7 @@ function reportBoardError(error: unknown, fallback: string, retry?: () => void) 
 	})
 }
 
-function createRecoveryToastTimer() {
+function createRecoveryToastTimer(onExpire?: () => void) {
 	let toastId: string | number | null = null
 	let timeoutId: ReturnType<typeof setTimeout> | null = null
 	let remaining = recoveryToastDuration
@@ -94,7 +94,10 @@ function createRecoveryToastTimer() {
 	function resume() {
 		if (timeoutId || toastId === null) return
 		startedAt = Date.now()
-		timeoutId = setTimeout(() => dismiss(), remaining)
+		timeoutId = setTimeout(() => {
+			dismiss()
+			onExpire?.()
+		}, remaining)
 	}
 
 	function dismiss() {
@@ -352,6 +355,7 @@ export function ProjectView({
 	)
 	const moveRevisions = useRef(new Map<string, number>())
 	const moveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+	const taskUndoToastIds = useRef(new Map<string, string | number>())
 	const queuedMoveIds = useRef(new Set<string>())
 	const tagOrderQueue = useRef(Promise.resolve())
 	const tagOrderRevision = useRef(0)
@@ -427,7 +431,6 @@ export function ProjectView({
 	}, [loadTagSuggestions, project, projectDraft, tagSuggestions, update])
 	const [editor, setEditor] = useState<{ task: Task } | null>(null)
 	const [newTaskRequest, setNewTaskRequest] = useState(0)
-	const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
 	const [isProjectArchiveConfirmOpen, setIsProjectArchiveConfirmOpen] = useState(false)
 	useEffect(() => {
 		void loadTagSuggestions().catch(() => undefined)
@@ -567,6 +570,12 @@ export function ProjectView({
 				}
 			})
 	}
+	function replaceTaskUndoToast(taskId: string, toastId: string | number) {
+		const previousToastId = taskUndoToastIds.current.get(taskId)
+		if (previousToastId !== undefined) toast.dismiss(previousToastId)
+		taskUndoToastIds.current.set(taskId, toastId)
+	}
+
 	function showTaskArchiveToast(archivedTask: Task, archiveRequest: Promise<unknown>) {
 		const toastTimer = createRecoveryToastTimer()
 		const recoveryToastId = toast.success(
@@ -603,6 +612,7 @@ export function ProjectView({
 			},
 		)
 		toastTimer.start(recoveryToastId)
+		replaceTaskUndoToast(archivedTask.id, recoveryToastId)
 
 		return recoveryToastId
 	}
@@ -628,6 +638,55 @@ export function ProjectView({
 				toast.dismiss(recoveryToastId)
 				reportBoardError(error, 'Unable to archive task.')
 			})
+	}
+	function deleteTask(task: Task) {
+		setTasks((current) => current.filter((item) => item.id !== task.id))
+		setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
+		const toastTimer = createRecoveryToastTimer(() => {
+			void api(`/tasks/${task.id}`, json('DELETE')).catch((error) => {
+				if (task.archived) {
+					setArchivedTasks((current) => [...current, task])
+				} else {
+					setTasks((current) => [...current, task])
+				}
+				reportBoardError(error, 'Failed to delete task.')
+			})
+		})
+		const deletionToastId = toast.success('Task deleted', {
+			duration: Infinity,
+			className: 'task-archive-recovery-toast',
+			style: recoveryToastStyle,
+			action: {
+				label: (
+					<span
+						className="task-archive-recover-action relative grid h-4 w-4 place-items-center"
+						onPointerEnter={toastTimer.pause}
+						onPointerLeave={toastTimer.resume}
+					>
+						<Undo2 size={14} />
+					</span>
+				),
+				onClick: () => {
+					toastTimer.dismiss()
+					if (task.archived) {
+						setArchivedTasks((current) => [...current, task])
+					} else {
+						setTasks((current) => [...current, task])
+					}
+				},
+			},
+			actionButtonStyle: {
+				width: 28,
+				height: 28,
+				padding: 0,
+				border: '1px solid #886826',
+				borderRadius: '9999px',
+				background: '#23221A',
+				color: '#d29922',
+				justifyContent: 'center',
+			},
+		})
+		toastTimer.start(deletionToastId)
 	}
 	function showTaskRestoreToast(restoredTask: Task, restoreRequest: Promise<unknown>) {
 		const toastTimer = createRecoveryToastTimer()
@@ -662,6 +721,7 @@ export function ProjectView({
 			},
 		})
 		toastTimer.start(archiveToastId)
+		replaceTaskUndoToast(restoredTask.id, archiveToastId)
 
 		return archiveToastId
 	}
@@ -681,8 +741,9 @@ export function ProjectView({
 			}
 
 			try {
-				await api(`/tasks/${task.id}/archive`, json('POST'))
-				toast.success('Task archived')
+				const archiveRequest = api(`/tasks/${task.id}/archive`, json('POST'))
+				await archiveRequest
+				showTaskArchiveToast({ ...task, archived: true }, archiveRequest)
 			} catch (error) {
 				setTasks((current) =>
 					current.some((item) => item.id === task.id)
@@ -1467,7 +1528,7 @@ export function ProjectView({
 												aria-label={`Delete ${task.ticket_id}`}
 												disabled={busy}
 												className="archived-task-delete text-rose-300"
-												onClick={() => setTaskToDelete(task)}
+								onClick={() => deleteTask(task)}
 											>
 												<Trash2 size={15} />
 											</Button>
@@ -1491,7 +1552,7 @@ export function ProjectView({
 							loading={loading}
 							edit={(task) => setEditor({ task })}
 							archive={archiveTask}
-							remove={(task) => setTaskToDelete(task)}
+							remove={deleteTask}
 							createTask={createInlineTask}
 							newTaskRequest={newTaskRequest}
 							move={(...args) => void move(...args)}
@@ -1548,18 +1609,6 @@ export function ProjectView({
 					await api(`/projects/${project.id}`, json('PATCH', { archived: true }))
 					await refresh()
 					toast.success('Project archived')
-				}}
-			/>
-			<ConfirmDialog
-				open={Boolean(taskToDelete)}
-				onOpenChange={(open) => !open && setTaskToDelete(null)}
-				title="Delete task?"
-				description={`This will permanently delete ${taskToDelete?.ticket_id ?? 'this task'}.`}
-				confirmLabel="Delete task"
-				onConfirm={async () => {
-					if (!taskToDelete) return
-					await api(`/tasks/${taskToDelete.id}`, json('DELETE'))
-					await Promise.all([loadTasks(), loadArchivedTasks()])
 				}}
 			/>
 		</>
