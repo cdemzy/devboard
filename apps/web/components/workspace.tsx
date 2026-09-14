@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { animate, AnimatePresence, motion, useMotionValue } from 'motion/react'
 import {
 	Archive,
@@ -27,16 +27,33 @@ function AccountMenu({
 	open,
 	close,
 	reportError,
+	containerRef,
 	variant = 'popover',
 }: {
 	email: string
 	open: boolean
 	close: () => void
 	reportError: (message: string) => void
+	containerRef: RefObject<HTMLElement | null>
 	variant?: 'popover' | 'sidebar' | 'drawer'
 }) {
 	const isSidebarPanel = variant === 'sidebar'
 	const isDrawerPanel = variant === 'drawer'
+	useEffect(() => {
+		if (!open) return
+
+		function closeWhenOutside(event: Event) {
+			if (!containerRef.current?.contains(event.target as Node)) close()
+		}
+
+		document.addEventListener('pointerdown', closeWhenOutside)
+		document.addEventListener('focusin', closeWhenOutside)
+
+		return () => {
+			document.removeEventListener('pointerdown', closeWhenOutside)
+			document.removeEventListener('focusin', closeWhenOutside)
+		}
+	}, [close, containerRef, open])
 	return (
 		<AnimatePresence>
 			{open && (
@@ -145,6 +162,7 @@ function MobileProjectDrawer({
 	onCloseAccount,
 	onReportError,
 }: MobileProjectDrawerProps) {
+	const accountRef = useRef<HTMLDivElement>(null)
 	return (
 		<aside
 			id="mobile-project-drawer"
@@ -157,7 +175,10 @@ function MobileProjectDrawer({
 					<Layers3 size={23} className="text-primary" />
 					DevBoard
 				</div>
-				<div className="workspace-mobile-drawer-account relative ml-auto">
+				<div
+					ref={accountRef}
+					className="workspace-mobile-drawer-account relative ml-auto"
+				>
 					<Button
 						asChild
 						className="workspace-mobile-drawer-account-trigger !h-10 !w-10 rounded-full border border-border bg-[#21262d] shadow-sm hover:bg-accent"
@@ -179,6 +200,7 @@ function MobileProjectDrawer({
 						open={isAccountOpen}
 						close={onCloseAccount}
 						reportError={onReportError}
+						containerRef={accountRef}
 						variant="drawer"
 					/>
 				</div>
@@ -258,6 +280,7 @@ export function Workspace({ email }: { email: string }) {
 	const [archivedToDelete, setArchivedToDelete] = useState<Project | null>(null)
 	const request = useRef(0)
 	const mobileDrawerDrag = useRef<MobileDrawerDragState | null>(null)
+	const sidebarAccountRef = useRef<HTMLDivElement>(null)
 	const sidebarCollapsed = isSidebarCollapsed && !isSidebarHoverExpanded
 	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
 	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
@@ -542,12 +565,13 @@ export function Workspace({ email }: { email: string }) {
 							</span>
 							<span className={sidebarStaticLabelClass}>Archived projects</span>
 						</button>
-						<div className="workspace-account mt-2">
+						<div ref={sidebarAccountRef} className="workspace-account mt-2">
 							<AccountMenu
 								email={email}
 								open={accountOpen}
 								close={() => setAccountOpen(false)}
 								reportError={setError}
+								containerRef={sidebarAccountRef}
 								variant="sidebar"
 							/>
 							<button
