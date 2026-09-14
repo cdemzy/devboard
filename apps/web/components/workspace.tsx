@@ -59,9 +59,7 @@ function AccountMenu({
 								if (error) throw error
 								close()
 							} catch (error) {
-								reportError(
-									error instanceof Error ? error.message : 'Unable to log out.',
-								)
+								reportError(error instanceof Error ? error.message : 'Unable to log out.')
 							}
 						}}
 					>
@@ -86,9 +84,7 @@ function SidebarProjectSkeletons({ collapsed }: { collapsed: boolean }) {
 					<span className="flex w-8 shrink-0 items-center justify-center">
 						<span className="h-4 w-4 rounded bg-muted-foreground/20" />
 					</span>
-					{!collapsed && (
-						<span className="h-3 flex-1 rounded bg-muted-foreground/20" />
-					)}
+					{!collapsed && <span className="h-3 flex-1 rounded bg-muted-foreground/20" />}
 				</div>
 			))}
 		</div>
@@ -103,9 +99,9 @@ export function Workspace({ email }: { email: string }) {
 	const [isCreatingProject, setIsCreatingProject] = useState(false)
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
 	const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false)
-	const [workspaceView, setWorkspaceView] = useState<
-		'board' | 'projects' | 'archived'
-	>('board')
+	const [workspaceView, setWorkspaceView] = useState<'board' | 'projects' | 'archived'>(
+		'board',
+	)
 	const [accountOpen, setAccountOpen] = useState(false)
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState('')
@@ -130,9 +126,7 @@ export function Workspace({ email }: { email: string }) {
 			)
 		} catch (error) {
 			if (current === request.current)
-				setError(
-					error instanceof Error ? error.message : 'Unable to load projects.',
-				)
+				setError(error instanceof Error ? error.message : 'Unable to load projects.')
 		} finally {
 			if (current === request.current) setLoading(false)
 		}
@@ -144,9 +138,7 @@ export function Workspace({ email }: { email: string }) {
 			setArchivedProjects(await api<Project[]>('/projects?archived=true'))
 		} catch (error) {
 			setError(
-				error instanceof Error
-					? error.message
-					: 'Unable to load archived projects.',
+				error instanceof Error ? error.message : 'Unable to load archived projects.',
 			)
 		} finally {
 			setArchiveLoading(false)
@@ -189,11 +181,7 @@ export function Workspace({ email }: { email: string }) {
 			setWorkspaceView('board')
 			setError('')
 		} catch (error) {
-			setError(
-				error instanceof Error
-					? error.message
-					: 'Unable to create a new project.',
-			)
+			setError(error instanceof Error ? error.message : 'Unable to create a new project.')
 		} finally {
 			setIsCreatingProject(false)
 		}
@@ -241,14 +229,12 @@ export function Workspace({ email }: { email: string }) {
 							<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
 								<Plus size={17} />
 							</span>
-							<span className={`truncate ${sidebarLabelClass}`}>
-								New Project
-							</span>
+							<span className={`truncate ${sidebarLabelClass}`}>New Project</span>
 						</Button>
 					</div>
 					<nav
 						aria-label="Projects"
-						className="workspace-project-list min-h-0 flex-1 space-y-1 overflow-y-auto pr-1"
+						className="workspace-project-list min-h-0 flex-1 space-y-1 overflow-y-auto"
 					>
 						{loading ? (
 							<SidebarProjectSkeletons collapsed={sidebarCollapsed} />
@@ -259,18 +245,14 @@ export function Workspace({ email }: { email: string }) {
 									onClick={() => selectProject(item.id)}
 									aria-label={sidebarCollapsed ? item.name : undefined}
 									aria-current={
-										workspaceView === 'board' && active === item.id
-											? 'page'
-											: undefined
+										workspaceView === 'board' && active === item.id ? 'page' : undefined
 									}
 									className={`workspace-project-link flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md py-2 px-1.5 text-left text-sm transition-colors ${workspaceView === 'board' && active === item.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
 								>
 									<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
 										<FolderKanban size={15} />
 									</span>
-									<span className={`truncate ${sidebarLabelClass}`}>
-										{item.name}
-									</span>
+									<span className={`truncate ${sidebarLabelClass}`}>{item.name}</span>
 								</button>
 							))
 						)}
@@ -305,9 +287,7 @@ export function Workspace({ email }: { email: string }) {
 								<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
 									<CircleUserRound size={17} />
 								</span>
-								<span className={`truncate ${sidebarStaticLabelClass}`}>
-									Account
-								</span>
+								<span className={`truncate ${sidebarStaticLabelClass}`}>Account</span>
 							</button>
 						</div>
 					</div>
@@ -359,9 +339,7 @@ export function Workspace({ email }: { email: string }) {
 								key={item.id}
 								onClick={() => selectProject(item.id)}
 								aria-current={
-									workspaceView === 'board' && active === item.id
-										? 'page'
-										: undefined
+									workspaceView === 'board' && active === item.id ? 'page' : undefined
 								}
 								className={`workspace-mobile-project-link shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors ${workspaceView === 'board' && active === item.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
 							>
@@ -476,12 +454,9 @@ export function Workspace({ email }: { email: string }) {
 						) : (
 							<div className="workspace-empty-projects flex min-h-[65vh] flex-col items-center justify-center p-8 text-center">
 								<FolderKanban size={32} className="mb-5 text-primary" />
-								<h1 className="text-xl font-semibold">
-									Make room for your next idea
-								</h1>
+								<h1 className="text-xl font-semibold">Make room for your next idea</h1>
 								<p className="mb-6 mt-2 max-w-sm text-sm text-muted-foreground">
-									Create a project, add a few tasks, and take it one step at a
-									time.
+									Create a project, add a few tasks, and take it one step at a time.
 								</p>
 								<Button
 									disabled={isCreatingProject}

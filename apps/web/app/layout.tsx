@@ -1,21 +1,21 @@
-import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
-import { Toaster } from "sonner";
-import "./globals.css";
+import type { Metadata } from 'next'
+import { Analytics } from '@vercel/analytics/next'
+import { Toaster } from 'sonner'
+import './globals.css'
 export const metadata: Metadata = {
-  title: "DevBoard",
-  description: "A focused workspace for your projects and tasks.",
-};
+	title: 'DevBoard',
+	description: 'A focused workspace for your projects and tasks.',
+}
 export default function RootLayout({
-  children,
+	children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-        <Toaster position="top-center" theme="dark" richColors />
-        <Analytics />
-      </body>
-    </html>
-  );
+	return (
+		<html lang="en">
+			<body>
+				{children}
+				<Toaster position="top-center" theme="dark" richColors />
+				<Analytics />
+			</body>
+		</html>
+	)
 }
