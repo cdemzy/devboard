@@ -52,6 +52,13 @@ import { KanbanBoard } from './kanban-board'
 
 const boardErrorToastId = 'board-error'
 const platformNameToastId = 'platform-name-error'
+const recoveryToastDuration = 15_000
+const recoveryToastStyle: CSSProperties = {
+	backgroundImage: 'linear-gradient(var(--success-text), var(--success-text))',
+	backgroundPosition: 'left bottom',
+	backgroundRepeat: 'no-repeat',
+	backgroundSize: '100% 3px',
+}
 const tagColorValues = {
 	green: '#386C4E',
 	yellow: '#886826',
@@ -69,6 +76,42 @@ function reportBoardError(error: unknown, fallback: string, retry?: () => void) 
 		duration: Infinity,
 		...(retry ? { action: { label: 'Reload board', onClick: retry } } : {}),
 	})
+}
+
+function createRecoveryToastTimer() {
+	let toastId: string | number | null = null
+	let timeoutId: ReturnType<typeof setTimeout> | null = null
+	let remaining = recoveryToastDuration
+	let startedAt = 0
+
+	function pause() {
+		if (!timeoutId) return
+		clearTimeout(timeoutId)
+		timeoutId = null
+		remaining -= Date.now() - startedAt
+	}
+
+	function resume() {
+		if (timeoutId || toastId === null) return
+		startedAt = Date.now()
+		timeoutId = setTimeout(() => dismiss(), remaining)
+	}
+
+	function dismiss() {
+		if (timeoutId) clearTimeout(timeoutId)
+		timeoutId = null
+		if (toastId !== null) toast.dismiss(toastId)
+	}
+
+	return {
+		pause,
+		resume,
+		dismiss,
+		start(id: string | number) {
+			toastId = id
+			resume()
+		},
+	}
 }
 function capitalizePlatform(value: string) {
 	return value.replace(/(^|[\s-])\p{L}/gu, (character) => character.toUpperCase())
@@ -525,19 +568,25 @@ export function ProjectView({
 			})
 	}
 	function showTaskArchiveToast(archivedTask: Task, archiveRequest: Promise<unknown>) {
+		const toastTimer = createRecoveryToastTimer()
 		const recoveryToastId = toast.success(
 			'Task archived',
 			{
-				duration: 15_000,
+				duration: Infinity,
 				className: 'task-archive-recovery-toast',
+				style: recoveryToastStyle,
 				action: {
 					label: (
-						<span className="task-archive-recover-action relative grid h-4 w-4 place-items-center">
+						<span
+							className="task-archive-recover-action relative grid h-4 w-4 place-items-center"
+							onPointerEnter={toastTimer.pause}
+							onPointerLeave={toastTimer.resume}
+						>
 							<Undo2 size={14} />
 						</span>
 					),
 					onClick: () => {
-						toast.dismiss(recoveryToastId)
+						toastTimer.dismiss()
 						restoreTaskFromToast(archivedTask, archiveRequest)
 					},
 				},
@@ -553,6 +602,7 @@ export function ProjectView({
 				},
 			},
 		)
+		toastTimer.start(recoveryToastId)
 
 		return recoveryToastId
 	}
@@ -579,6 +629,71 @@ export function ProjectView({
 				reportBoardError(error, 'Unable to archive task.')
 			})
 	}
+	function showTaskRestoreToast(restoredTask: Task, restoreRequest: Promise<unknown>) {
+		const toastTimer = createRecoveryToastTimer()
+		const archiveToastId = toast.success('Task restored', {
+			duration: Infinity,
+			className: 'task-archive-recovery-toast',
+			style: recoveryToastStyle,
+			action: {
+				label: (
+					<span
+						className="task-archive-recover-action relative grid h-4 w-4 place-items-center"
+						onPointerEnter={toastTimer.pause}
+						onPointerLeave={toastTimer.resume}
+					>
+						<Undo2 size={14} />
+					</span>
+				),
+				onClick: () => {
+					toastTimer.dismiss()
+					archiveTaskFromRestoreToast(restoredTask, restoreRequest)
+				},
+			},
+			actionButtonStyle: {
+				width: 28,
+				height: 28,
+				padding: 0,
+				border: '1px solid #886826',
+				borderRadius: '9999px',
+				background: '#23221A',
+				color: '#d29922',
+				justifyContent: 'center',
+			},
+		})
+		toastTimer.start(archiveToastId)
+
+		return archiveToastId
+	}
+
+	function archiveTaskFromRestoreToast(task: Task, restoreRequest: Promise<unknown>) {
+		setTasks((current) => current.filter((item) => item.id !== task.id))
+		setArchivedTasks((current) => [
+			...current.filter((item) => item.id !== task.id),
+			{ ...task, archived: true },
+		])
+
+		void (async () => {
+			try {
+				await restoreRequest
+			} catch {
+				return
+			}
+
+			try {
+				await api(`/tasks/${task.id}/archive`, json('POST'))
+				toast.success('Task archived')
+			} catch (error) {
+				setTasks((current) =>
+					current.some((item) => item.id === task.id)
+						? current
+						: [...current, { ...task, archived: false }],
+				)
+				setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
+				reportBoardError(error, 'Failed to archive task.')
+			}
+		})()
+	}
 	async function createInlineTask(status: Status, title: string) {
 		const task = await api<Task>(
 			`/projects/${project.id}/tasks`,
@@ -592,12 +707,28 @@ export function ProjectView({
 		)
 		setTasks((current) => [...current, task])
 	}
-	function restoreTask(task: Task, archiveRequest?: Promise<unknown>) {
-		void action(async () => {
-			await archiveRequest
-			await api(`/tasks/${task.id}/restore`, json('POST'))
-			await Promise.all([loadTasks(), loadArchivedTasks()])
-		}, 'Task restored')
+	function restoreTask(task: Task) {
+		setTasks((current) =>
+			current.some((item) => item.id === task.id)
+				? current
+				: [...current, { ...task, archived: false }],
+		)
+		setArchivedTasks((current) => current.filter((item) => item.id !== task.id))
+
+		const restoreRequest = api(`/tasks/${task.id}/restore`, json('POST'))
+		const archiveToastId = showTaskRestoreToast(task, restoreRequest)
+
+		void restoreRequest
+			.catch((error) => {
+				setTasks((current) => current.filter((item) => item.id !== task.id))
+				setArchivedTasks((current) =>
+					current.some((item) => item.id === task.id)
+						? current
+						: [...current, { ...task, archived: true }],
+				)
+				toast.dismiss(archiveToastId)
+				reportBoardError(error, 'Failed to recover task.')
+			})
 	}
 	function restoreTaskFromToast(task: Task, archiveRequest: Promise<unknown>) {
 		setTasks((current) =>
@@ -614,9 +745,11 @@ export function ProjectView({
 				return
 			}
 
+			let archiveToastId: string | number | undefined
 			try {
-				await api(`/tasks/${task.id}/restore`, json('POST'))
-				toast.success('Task restored')
+				const restoreRequest = api(`/tasks/${task.id}/restore`, json('POST'))
+				archiveToastId = showTaskRestoreToast(task, restoreRequest)
+				await restoreRequest
 			} catch (error) {
 				setTasks((current) => current.filter((item) => item.id !== task.id))
 				setArchivedTasks((current) =>
@@ -624,6 +757,7 @@ export function ProjectView({
 						? current
 						: [...current, { ...task, archived: true }],
 				)
+				if (archiveToastId !== undefined) toast.dismiss(archiveToastId)
 				reportBoardError(error, 'Unable to restore task.')
 			}
 		})()
