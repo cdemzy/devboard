@@ -270,6 +270,7 @@ export function Workspace({ email }: { email: string }) {
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
 	const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false)
 	const [isMobileProjectsOpen, setIsMobileProjectsOpen] = useState(false)
+	const [isMobileDrawerRevealed, setIsMobileDrawerRevealed] = useState(false)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const mobilePanelX = useMotionValue(0)
 	const [workspaceView, setWorkspaceView] = useState<'board' | 'projects' | 'archived'>(
@@ -336,7 +337,10 @@ export function Workspace({ email }: { email: string }) {
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia('(max-width: 767px)')
-		const handleViewportChange = () => setIsMobileViewport(mediaQuery.matches)
+		const handleViewportChange = () => {
+			setIsMobileViewport(mediaQuery.matches)
+			if (!mediaQuery.matches) setIsMobileDrawerRevealed(false)
+		}
 
 		handleViewportChange()
 		mediaQuery.addEventListener('change', handleViewportChange)
@@ -350,11 +354,17 @@ export function Workspace({ email }: { email: string }) {
 			return
 		}
 
-		void animate(
+		const controls = animate(
 			mobilePanelX,
 			isMobilePanelVisible ? getMobileDrawerWidth() : 0,
 			mobileDrawerSpring,
 		)
+
+		if (!isMobilePanelVisible) {
+			void controls.then(() => setIsMobileDrawerRevealed(false))
+		}
+
+		return controls.stop
 	}, [isMobilePanelVisible, isMobileViewport, mobilePanelX])
 
 	useEffect(() => {
@@ -374,6 +384,13 @@ export function Workspace({ email }: { email: string }) {
 	function closeMobileProjects() {
 		setIsMobileProjectsOpen(false)
 		setAccountOpen(false)
+	}
+
+	function toggleMobileProjects() {
+		setIsMobileProjectsOpen((open) => {
+			if (!open) setIsMobileDrawerRevealed(true)
+			return !open
+		})
 	}
 
 	function getMobileDrawerWidth() {
@@ -432,6 +449,7 @@ export function Workspace({ email }: { email: string }) {
 
 			drag.axis = 'horizontal'
 			drag.isDragging = true
+			setIsMobileDrawerRevealed(true)
 			event.currentTarget.setPointerCapture(event.pointerId)
 		}
 
@@ -618,6 +636,12 @@ export function Workspace({ email }: { email: string }) {
 				onCloseAccount={() => setAccountOpen(false)}
 				onReportError={setError}
 			/>
+			{!isMobileDrawerRevealed && (
+				<div
+					aria-hidden="true"
+					className="workspace-mobile-drawer-cover fixed inset-0 z-[25] bg-background md:hidden"
+				/>
+			)}
 			<motion.main
 				style={isMobileViewport ? { x: mobilePanelX } : undefined}
 				onPointerDown={handleMobilePanelPointerDown}
@@ -639,7 +663,7 @@ export function Workspace({ email }: { email: string }) {
 								aria-label={isMobilePanelVisible ? 'Close projects' : 'Open projects'}
 								aria-controls="mobile-project-drawer"
 								aria-expanded={isMobileProjectsOpen}
-								onClick={() => setIsMobileProjectsOpen((open) => !open)}
+								onClick={toggleMobileProjects}
 								whileTap={{ scale: 0.9 }}
 								transition={mobileButtonTapTransition}
 							>
