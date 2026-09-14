@@ -373,6 +373,17 @@ export function ProjectView({
 			await Promise.all([loadTasks(), loadArchivedTasks()])
 		}, 'Task restored')
 	}
+	function handleProjectArchiveAction() {
+		if (!project.archived) {
+			setIsProjectArchiveConfirmOpen(true)
+			return
+		}
+
+		void action(async () => {
+			await api(`/projects/${project.id}`, json('PATCH', { archived: false }))
+			await refresh()
+		}, 'Project restored')
+	}
 	const matchingTags = tagSuggestions.filter((tag) =>
 		tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()),
 	)
@@ -843,44 +854,8 @@ export function ProjectView({
 							</div>
 						</div>
 					</div>
-					<div className="project-actions flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto">
-						<Tooltip label={project.archived ? 'Restore' : 'Archive'}>
-							<Button
-								variant="ghost"
-								size="icon"
-								aria-label={project.archived ? 'Restore project' : 'Archive project'}
-								disabled={busy}
-								onClick={() => {
-									if (!project.archived) {
-										setIsProjectArchiveConfirmOpen(true)
-										return
-									}
-
-									void action(async () => {
-										await api(
-											`/projects/${project.id}`,
-											json('PATCH', { archived: false }),
-										)
-										await refresh()
-									}, 'Project restored')
-								}}
-							>
-								{project.archived ? <ArrowLeft size={15} /> : <Archive size={15} />}
-							</Button>
-						</Tooltip>
-						{!project.archived && (
-							<Button
-								className="ml-auto sm:ml-3"
-								disabled={busy || loading}
-								onClick={() => setEditor({})}
-							>
-								<Plus size={15} />
-								New task
-							</Button>
-						)}
-					</div>
 				</header>
-				<div className="project-view-tabs mb-5 flex flex-wrap items-center border-b border-border pb-3">
+				<nav className="project-view-navigation mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
 					<div className="project-view-tab-list flex items-center gap-1">
 						<button
 							onClick={() => setView('board')}
@@ -905,7 +880,31 @@ export function ProjectView({
 							<span className="hidden md:inline">Archived tasks</span>
 						</button>
 					</div>
-				</div>
+					<div className="project-view-actions-section flex items-center gap-1">
+						<Tooltip label={project.archived ? 'Restore project' : 'Archive project'}>
+							<Button
+								className="project-view-project-archive hidden md:inline-flex"
+								variant="ghost"
+								size="icon"
+								aria-label={project.archived ? 'Restore project' : 'Archive project'}
+								disabled={busy}
+								onClick={handleProjectArchiveAction}
+							>
+								{project.archived ? <ArrowLeft size={14} /> : <Archive size={14} />}
+							</Button>
+						</Tooltip>
+						{!project.archived && (
+							<Button
+								className="project-view-new-task !h-auto px-4 py-1.5 active:scale-95"
+								disabled={busy || loading}
+								aria-label="New task"
+								onClick={() => setEditor({})}
+							>
+								<Plus size={14} />
+							</Button>
+						)}
+					</div>
+				</nav>
 				{view === 'archived' && (
 					<motion.section
 						initial={{ opacity: 0, y: 12 }}
@@ -983,6 +982,16 @@ export function ProjectView({
 							move={(...args) => void move(...args)}
 						/>
 					</motion.div>
+				)}
+				{view === 'board' && !project.archived && (
+					<Button
+						className="project-view-mobile-archive mt-5 w-full justify-center bg-accent text-foreground hover:bg-[#30363d] active:scale-[0.98] md:hidden"
+						variant="ghost"
+						onClick={handleProjectArchiveAction}
+					>
+						<Archive size={14} />
+						Archive project
+					</Button>
 				)}
 				{project.archived && (
 					<p className="project-archived-note pb-6 text-[11px] text-muted-foreground">
