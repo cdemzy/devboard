@@ -13,5 +13,5 @@ playwright-report/
 test-results/
 .next-test/
 next-env.d.ts
-/apps/web/AGENTS.md
 /apps/web/CLAUDE.md
+AGENTS.md
