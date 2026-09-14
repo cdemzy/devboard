@@ -30,6 +30,7 @@ import {
 	Archive,
 	ArrowLeft,
 	Database,
+	Ellipsis,
 	GripVertical,
 	Info,
 	LayoutDashboard,
@@ -140,7 +141,8 @@ function SortableProjectTag({
 					aria-label={`Platform options for ${tag.name}`}
 					className="project-tag-options-trigger ml-auto rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
 				>
-					<Info size={13} className="h-4 w-4 md:h-[13px] md:w-[13px]" />
+					<Ellipsis size={16} className="h-5 w-5 md:hidden" />
+					<Info size={13} className="hidden md:block md:h-[13px] md:w-[13px]" />
 				</button>
 				{children}
 			</div>
@@ -524,9 +526,6 @@ export function ProjectView({
 	const matchingTags = tagSuggestions.filter((tag) =>
 		tag.name.toLowerCase().includes(tagInput.trim().toLowerCase()),
 	)
-	const activeTag = tagMenuId
-		? (tagSuggestions.find((tag) => tag.id === tagMenuId) ?? null)
-		: null
 	const canReorderTags =
 		!tagInput.trim() && tagSuggestions.every((tag) => !tag.id.startsWith('pending-'))
 	function addTag() {
@@ -1045,21 +1044,40 @@ export function ProjectView({
 																	}}
 																	onOptions={() => toggleTagMenu(tag)}
 																>
-																	{!isMobileViewport && tagMenuId === tag.id && (
-																		<div className="project-tag-menu absolute left-0 top-full z-30 mt-1 w-40 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl">
+																	{tagMenuId === tag.id && (
+																		<motion.div
+																			initial={
+																				isMobileViewport ? { opacity: 0, x: 12 } : false
+																			}
+																			animate={{ opacity: 1, x: 0 }}
+																			transition={
+																				isMobileViewport
+																					? {
+																							type: 'spring',
+																							stiffness: 420,
+																							damping: 34,
+																							mass: 0.65,
+																						}
+																					: { duration: 0 }
+																			}
+																			className="project-tag-menu absolute right-8 top-0 z-40 w-44 rounded-md border border-border bg-[#161b22] p-1.5 text-foreground shadow-xl md:left-0 md:right-auto md:top-full md:z-30 md:mt-1 md:w-40"
+																		>
 																			<ProjectTagEditorForm
 																				tag={tag}
 																				tagNameDraft={tagNameDraft}
 																				tagNameInputRef={tagNameInputRef}
 																				onTagNameChange={updateTagNameDraft}
-																				onRename={(value) => void renameTag(tag, value)}
+																				onRename={(value, closeAfterSave) =>
+																					void renameTag(tag, value, closeAfterSave)
+																				}
+																				closeOnRename={!isMobileViewport}
 																				onDelete={() => void deleteTag(tag)}
 																				onCancel={() => closeTagMenu(tag)}
 																				onColorChange={(color) =>
 																					updateTagColor(tag, color)
 																				}
 																			/>
-																		</div>
+																		</motion.div>
 																	)}
 																</SortableProjectTag>
 															))}
@@ -1067,36 +1085,6 @@ export function ProjectView({
 													</SortableContext>
 												</DndContext>
 											)}
-											<AnimatePresence initial={false}>
-												{isMobileViewport && activeTag && (
-													<motion.div
-														initial={{ opacity: 0, y: 12 }}
-														animate={{ opacity: 1, y: 0 }}
-														exit={{ opacity: 0, y: 8 }}
-														transition={{
-															type: 'spring',
-															stiffness: 420,
-															damping: 34,
-															mass: 0.65,
-														}}
-														className="project-tag-mobile-editor mt-3 rounded-md border border-border bg-background p-3 md:hidden"
-													>
-														<ProjectTagEditorForm
-															tag={activeTag}
-															tagNameDraft={tagNameDraft}
-															tagNameInputRef={tagNameInputRef}
-															onTagNameChange={updateTagNameDraft}
-															onRename={(value, closeAfterSave) =>
-																void renameTag(activeTag, value, closeAfterSave)
-															}
-															closeOnRename={false}
-															onDelete={() => void deleteTag(activeTag)}
-															onCancel={() => closeTagMenu(activeTag)}
-															onColorChange={(color) => updateTagColor(activeTag, color)}
-														/>
-													</motion.div>
-												)}
-											</AnimatePresence>
 											{tagInput.trim() &&
 												!tagSuggestions.some(
 													(tag) =>

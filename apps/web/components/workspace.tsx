@@ -123,6 +123,13 @@ const mobileDrawerSpring = {
 	mass: 0.7,
 } as const
 
+const mobileButtonTapTransition = {
+	type: 'spring',
+	stiffness: 620,
+	damping: 24,
+	mass: 0.45,
+} as const
+
 function MobileProjectDrawer({
 	email,
 	projects,
@@ -152,13 +159,20 @@ function MobileProjectDrawer({
 				</div>
 				<div className="workspace-mobile-drawer-account relative ml-auto">
 					<Button
+						asChild
 						className="workspace-mobile-drawer-account-trigger !h-10 !w-10 rounded-full border border-border bg-[#21262d] shadow-sm hover:bg-accent"
 						variant="ghost"
 						size="icon"
-						aria-label="Account"
-						onClick={onToggleAccount}
 					>
-						<CircleUserRound size={18} />
+						<motion.button
+							type="button"
+							aria-label="Account"
+							onClick={onToggleAccount}
+							whileTap={{ scale: 0.9 }}
+							transition={mobileButtonTapTransition}
+						>
+							<CircleUserRound size={18} />
+						</motion.button>
 					</Button>
 					<AccountMenu
 						email={email}
@@ -193,13 +207,20 @@ function MobileProjectDrawer({
 						)}
 					</div>
 					<Button
+						asChild
 						className="workspace-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
 						size="sm"
-						disabled={isCreatingProject}
-						onClick={onCreateProject}
 					>
-						<Plus size={15} />
-						New Project
+						<motion.button
+							type="button"
+							disabled={isCreatingProject}
+							onClick={onCreateProject}
+							whileTap={{ scale: 0.96 }}
+							transition={mobileButtonTapTransition}
+						>
+							<Plus size={15} />
+							New Project
+						</motion.button>
 					</Button>
 				</nav>
 				<footer className="workspace-mobile-drawer-footer mt-auto border-t border-border pt-3">
@@ -573,15 +594,22 @@ export function Workspace({ email }: { email: string }) {
 				<header className="workspace-mobile-header relative z-20 md:hidden">
 					<div className="workspace-mobile-bar relative flex min-h-16 items-center justify-center px-4">
 						<Button
+							asChild
 							className="workspace-mobile-project-menu absolute left-4 !h-10 !w-10 rounded-full border border-border bg-[#21262d] shadow-sm hover:bg-accent"
 							variant="ghost"
 							size="icon"
-							aria-label={isMobilePanelVisible ? 'Close projects' : 'Open projects'}
-							aria-controls="mobile-project-drawer"
-							aria-expanded={isMobileProjectsOpen}
-							onClick={() => setIsMobileProjectsOpen((open) => !open)}
 						>
-							<Menu size={19} />
+							<motion.button
+								type="button"
+								aria-label={isMobilePanelVisible ? 'Close projects' : 'Open projects'}
+								aria-controls="mobile-project-drawer"
+								aria-expanded={isMobileProjectsOpen}
+								onClick={() => setIsMobileProjectsOpen((open) => !open)}
+								whileTap={{ scale: 0.9 }}
+								transition={mobileButtonTapTransition}
+							>
+								<Menu size={19} />
+							</motion.button>
 						</Button>
 						<div className="workspace-brand pointer-events-none flex items-center">
 							<Layers3 size={22} className="text-primary" aria-label="DevBoard" />
