@@ -11,6 +11,10 @@
 	--color-ring: #58a6ff;
 }
 @layer base {
+	:root {
+		color-scheme: light dark;
+	}
+
 	* {
 		box-sizing: border-box;
 	}
