@@ -161,7 +161,6 @@
 	.ui-section-loader-label {
 		@apply text-sm;
 	}
-
 }
 
 /* Keep project tag labels slightly larger and consistent in both states. */
