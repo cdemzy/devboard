@@ -1,6 +1,7 @@
 export const statuses = ["todo", "in_progress", "done"] as const;
 export type Status = (typeof statuses)[number];
 export type Priority = "low" | "medium" | "high";
+export type Complexity = "easy" | "standard" | "hard";
 export const statusLabels: Record<Status, string> = {
   todo: "Todo",
   in_progress: "In Progress",
@@ -30,6 +31,7 @@ export type Task = {
   description: string;
   status: Status;
   priority: Priority;
+  complexity: Complexity;
   position: number;
   ticket_number: number;
   ticket_id: string;
@@ -39,5 +41,5 @@ export type Task = {
 };
 export type TaskInput = Pick<
   Task,
-  "title" | "description" | "status" | "priority"
+  "title" | "description" | "status" | "priority" | "complexity"
 >;

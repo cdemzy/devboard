@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 Status = Literal["todo", "in_progress", "done"]
 Priority = Literal["low", "medium", "high"]
+Complexity = Literal["easy", "standard", "hard"]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=240)]
 Description = Annotated[str, StringConstraints(max_length=10000)]
@@ -71,6 +72,7 @@ class TaskCreate(Input):
     description: Description = ""
     status: Status = "todo"
     priority: Priority = "medium"
+    complexity: Complexity = "standard"
 
 
 class TaskUpdate(Patch):
@@ -78,6 +80,7 @@ class TaskUpdate(Patch):
     description: Description | None = None
     status: Status | None = None
     priority: Priority | None = None
+    complexity: Complexity | None = None
     position: int | None = Field(default=None, ge=0, le=2147483647)
 
 

@@ -151,6 +151,7 @@ function TaskCard({
           <PriorityIcon size={13} />
           {task.priority}
         </span>
+        <span className="task-card-complexity text-[11px] capitalize">{task.complexity}</span>
         <div className="task-card-actions relative">
           <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setActionsOpen((open) => !open); }} disabled={disabled} aria-label={`Actions for ${task.ticket_id}`} className="task-actions-trigger focus-visible:outline-primary"><MoreVertical size={14} /></button>
           <AnimatePresence>

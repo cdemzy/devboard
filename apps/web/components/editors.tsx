@@ -104,6 +104,7 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
     description: task?.description ?? "",
     status: task?.status ?? initialStatus,
     priority: task?.priority ?? "medium",
+    complexity: task?.complexity ?? "standard",
   });
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -168,6 +169,7 @@ export function TaskEditor({ task, initialStatus = "todo", close, save, remove }
           <div className="task-editor-selects grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label>Status<select name="status" value={draft.status} onChange={(event) => updateDraft({ status: event.target.value as Status })} onBlur={() => { if (dirty) void saveLatest(); }}>{statuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
             <label>Priority<select name="priority" value={draft.priority} onChange={(event) => updateDraft({ priority: event.target.value as Priority })} onBlur={() => { if (dirty) void saveLatest(); }}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+            <label>Complexity<select name="complexity" value={draft.complexity} onChange={(event) => updateDraft({ complexity: event.target.value as TaskInput["complexity"] })} onBlur={() => { if (dirty) void saveLatest(); }}><option value="easy">Easy</option><option value="standard">Standard</option><option value="hard">Hard</option></select></label>
           </div>
           {currentTask && <p className="task-editor-metadata text-xs text-muted-foreground">Created {new Date(currentTask.created_at).toLocaleDateString()} · Updated {new Date(currentTask.updated_at).toLocaleDateString()}</p>}
           {error && <p role="alert" className="task-editor-error text-rose-300">{error}</p>}

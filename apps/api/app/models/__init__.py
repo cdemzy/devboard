@@ -59,6 +59,7 @@ class Task(Base):
     __table_args__ = (
         CheckConstraint("status IN ('todo', 'in_progress', 'done')"),
         CheckConstraint("priority IN ('low', 'medium', 'high')"),
+        CheckConstraint("complexity IN ('easy', 'standard', 'hard')"),
         CheckConstraint("position >= 0"),
         CheckConstraint("ticket_number > 0"),
         UniqueConstraint("project_id", "ticket_number"),
@@ -70,6 +71,7 @@ class Task(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="todo")
     priority: Mapped[str] = mapped_column(String(10), default="medium")
+    complexity: Mapped[str] = mapped_column(String(10), default="standard")
     position: Mapped[int] = mapped_column(Integer, default=0)
     ticket_number: Mapped[int] = mapped_column(Integer)
     ticket_id: Mapped[str] = mapped_column(String(16))
