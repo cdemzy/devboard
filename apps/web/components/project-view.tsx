@@ -385,6 +385,7 @@ export function ProjectView({
 	const [tagsOpen, setTagsOpen] = useState(false)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const tagSheetDragControls = useDragControls()
+	const projectDescriptionRef = useRef<HTMLTextAreaElement>(null)
 	const tagSensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -521,6 +522,12 @@ export function ProjectView({
 		},
 		[],
 	)
+	useEffect(() => {
+		const description = projectDescriptionRef.current
+		if (!description) return
+		description.style.height = 'auto'
+		description.style.height = `${description.scrollHeight}px`
+	}, [projectDraft.description])
 	async function action(work: () => Promise<void>, successMessage?: string) {
 		setBusy(true)
 		try {
@@ -987,19 +994,26 @@ export function ProjectView({
 							placeholder="New Project"
 							className="project-title h-auto w-full !border-0 !bg-transparent px-0 py-0 !text-3xl !font-bold !leading-tight tracking-tight placeholder:text-muted-foreground !outline-none focus:!outline-none"
 						/>
-						<input
+						<textarea
+							ref={projectDescriptionRef}
 							value={projectDraft.description}
 							onChange={(event) =>
 								setProjectDraft((current) => ({
 									...current,
-									description: event.target.value,
+									description: event.target.value.replace(/[\r\n]+/g, ' '),
 								}))
 							}
+							onKeyDown={(event) => {
+								if (event.key === 'Enter') event.preventDefault()
+							}}
 							onBlur={() => void saveProjectDraft()}
 							aria-label="Project description"
 							maxLength={90}
+							rows={1}
+							wrap="soft"
+							spellCheck={false}
 							placeholder="Description"
-							className="project-description mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none"
+							className="project-description mt-2 block !min-h-0 w-full resize-none overflow-hidden !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none"
 						/>
 						<div className="project-platform-section mt-3 grid min-h-14 grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 md:min-h-12">
 							<div className="project-platform-label flex min-h-14 w-full items-center justify-center gap-2 text-sm leading-none text-muted-foreground md:min-h-12">
