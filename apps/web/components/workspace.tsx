@@ -465,7 +465,7 @@ export function Workspace({ email }: { email: string }) {
 					setIsSidebarCollapsed(true)
 					setAccountOpen(false)
 				}}
-				className={`workspace-sidebar fixed inset-y-0 left-0 z-20 hidden h-dvh flex-col border-r border-border bg-[#161b22] transition-[width] duration-200 md:flex ${sidebarCollapsed ? 'w-16' : 'w-64'}`}
+				className={`workspace-sidebar fixed inset-y-0 left-0 z-40 hidden h-dvh flex-col border-r border-border bg-[#161b22] transition-[width] duration-200 md:flex ${sidebarCollapsed ? 'w-16' : 'w-64'}`}
 			>
 				<div className="workspace-sidebar-brand flex h-16 items-center justify-start gap-5.5 border-b border-border pl-[21px] pr-5 text-base font-semibold tracking-tight">
 					<Layers3 size={22} className="shrink-0 text-primary" />

@@ -645,7 +645,7 @@ export function ProjectView({
 											setTagsOpen(true)
 										}
 									}}
-									className={`project-tag-trigger flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 border-0 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? 'rounded-t-md bg-accent px-2 py-3' : 'rounded-md px-2 py-3'}`}
+									className={`project-tag-trigger flex min-h-9 cursor-pointer flex-wrap items-center gap-1.5 !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none ${tagsOpen ? 'rounded-t-md bg-accent px-2 py-3 shadow-[inset_0_1px_0_var(--color-border),inset_1px_0_0_var(--color-border),inset_-1px_0_0_var(--color-border)]' : 'rounded-md px-2 py-3'}`}
 									aria-label="Edit project tags"
 									aria-expanded={tagsOpen}
 								>
@@ -690,28 +690,6 @@ export function ProjectView({
 												</span>
 											)
 										})
-									)}
-									{tagsOpen && (
-										<input
-											autoFocus
-											value={tagInput}
-											onChange={(event) => setTagInput(event.target.value)}
-											onKeyDown={(event) => {
-												if (event.key === 'Enter') {
-													event.preventDefault()
-													const exactMatch = tagSuggestions.find(
-														(tag) =>
-															tag.name.toLowerCase() === tagInput.trim().toLowerCase(),
-													)
-													if (exactMatch) toggleTag(exactMatch.name)
-													else addTag()
-												}
-											}}
-											aria-label="Search or create a project tag"
-											maxLength={40}
-											placeholder="Search for an option…"
-											className="project-tag-search -ml-1 h-7 min-w-36 flex-1 !border-0 !bg-transparent px-0 text-xs !outline-none focus:!outline-none"
-										/>
 									)}
 								</div>
 								{tagsOpen && (
