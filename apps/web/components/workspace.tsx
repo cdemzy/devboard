@@ -33,9 +33,10 @@ function AccountMenu({
 	open: boolean
 	close: () => void
 	reportError: (message: string) => void
-	variant?: 'popover' | 'sidebar'
+	variant?: 'popover' | 'sidebar' | 'drawer'
 }) {
 	const isSidebarPanel = variant === 'sidebar'
+	const isDrawerPanel = variant === 'drawer'
 	return (
 		<AnimatePresence>
 			{open && (
@@ -44,7 +45,7 @@ function AccountMenu({
 					animate={{ opacity: 1, y: 0 }}
 					exit={{ opacity: 0, y: isSidebarPanel ? 6 : -6 }}
 					transition={{ duration: 0.16 }}
-					className={`workspace-account-menu border border-border bg-[#161b22] p-2 ${isSidebarPanel ? 'mb-2 w-full rounded-md' : 'absolute right-0 top-full z-30 mt-1 w-56 rounded-lg shadow-xl'}`}
+					className={`workspace-account-menu border border-border bg-[#161b22] p-2 ${isSidebarPanel ? 'mb-2 w-full rounded-md' : isDrawerPanel ? 'absolute right-0 top-full z-30 mt-1 w-52 max-w-[calc(100vw-2rem)] rounded-lg shadow-xl' : 'absolute right-0 top-full z-30 mt-1 w-56 rounded-lg shadow-xl'}`}
 				>
 					<p className="workspace-account-email truncate px-2 py-2 text-xs text-muted-foreground">
 						{email}
@@ -134,6 +135,24 @@ function MobileProjectDrawer({
 					<Layers3 size={23} className="text-primary" />
 					DevBoard
 				</div>
+				<div className="workspace-mobile-drawer-account relative ml-auto">
+					<Button
+						className="workspace-mobile-drawer-account-trigger !h-10 !w-10 rounded-full border border-border bg-[#21262d] shadow-sm hover:bg-accent"
+						variant="ghost"
+						size="icon"
+						aria-label="Account"
+						onClick={onToggleAccount}
+					>
+						<CircleUserRound size={18} />
+					</Button>
+					<AccountMenu
+						email={email}
+						open={isAccountOpen}
+						close={onCloseAccount}
+						reportError={onReportError}
+						variant="drawer"
+					/>
+				</div>
 			</header>
 			<div className="workspace-mobile-drawer-content flex min-h-0 flex-1 flex-col p-3">
 				<nav
@@ -177,23 +196,6 @@ function MobileProjectDrawer({
 						<Archive size={18} />
 						Archived projects
 					</Button>
-					<div className="workspace-mobile-drawer-account mt-2">
-						<AccountMenu
-							email={email}
-							open={isAccountOpen}
-							close={onCloseAccount}
-							reportError={onReportError}
-							variant="sidebar"
-						/>
-						<Button
-							className="workspace-mobile-drawer-account-trigger w-full justify-start text-[15px]"
-							variant="ghost"
-							onClick={onToggleAccount}
-						>
-							<CircleUserRound size={18} />
-							Account
-						</Button>
-					</div>
 				</footer>
 			</div>
 		</aside>
