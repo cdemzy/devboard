@@ -816,14 +816,14 @@ export function ProjectView({
 							placeholder="Description"
 							className="project-description mt-2 h-auto w-full !border-0 !bg-transparent px-0 py-0 text-sm leading-6 text-muted-foreground !outline-none focus:!outline-none"
 						/>
-						<div className="project-platform-section mt-3 flex items-start gap-3 sm:items-center">
-							<div className="project-platform-label mt-3 flex shrink-0 items-center gap-2 text-sm text-muted-foreground sm:mt-0">
-								<Database size={15} />
-								Platform
+						<div className="project-platform-section mt-3 grid min-h-14 grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 md:min-h-12">
+							<div className="project-platform-label flex min-h-14 w-full items-center justify-center gap-2 text-sm leading-none text-muted-foreground md:min-h-12">
+								<Database size={15} className="project-platform-icon shrink-0" />
+								<span className="project-platform-label-text">Platform</span>
 							</div>
 							<div
 								ref={tagMenuRef}
-								className="project-platform-editor relative min-w-0 flex-1"
+								className="project-platform-editor relative min-w-0"
 							>
 								<div
 									role="button"
@@ -841,11 +841,11 @@ export function ProjectView({
 											setTagsOpen(true)
 										}
 									}}
-									className={`project-tag-trigger flex min-h-9 cursor-pointer flex-nowrap items-center gap-1.5 overflow-x-auto !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none md:flex-wrap md:overflow-visible ${tagsOpen ? 'rounded-md px-2 py-3 md:rounded-t-md md:rounded-b-none md:bg-accent md:shadow-[inset_0_1px_0_var(--color-border),inset_1px_0_0_var(--color-border),inset_-1px_0_0_var(--color-border)]' : 'rounded-md px-2 py-3'}`}
+									className={`project-tag-trigger flex min-h-14 cursor-pointer flex-nowrap items-center gap-1.5 overflow-x-auto !outline-none [-webkit-tap-highlight-color:transparent] focus:!outline-none md:min-h-12 md:flex-wrap md:overflow-visible ${tagsOpen ? 'rounded-md px-2 py-3 md:rounded-t-md md:rounded-b-none md:bg-accent md:shadow-[inset_0_1px_0_var(--color-border),inset_1px_0_0_var(--color-border),inset_-1px_0_0_var(--color-border)]' : 'rounded-md px-2 py-3'}`}
 									aria-label="Edit project tags"
 									aria-expanded={tagsOpen}
 								>
-									{projectDraft.tags.length === 0 && (!tagsOpen || isMobileViewport) ? (
+									{projectDraft.tags.length === 0 ? (
 										<span className="flex shrink-0 items-center rounded-sm px-1.5 py-1 text-xs leading-3 text-muted-foreground">
 											Add platform
 										</span>
