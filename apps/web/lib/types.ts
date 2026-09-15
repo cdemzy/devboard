@@ -12,6 +12,7 @@ export type Project = {
 	owner_id: string
 	name: string
 	ticket_prefix: string
+	next_ticket_number: number
 	description: string
 	tags: string[]
 	archived: boolean

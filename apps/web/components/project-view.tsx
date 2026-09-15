@@ -468,6 +468,7 @@ export function ProjectView({
 	const [archivedTasksLoading, setArchivedTasksLoading] = useState(false)
 	const [loading, setLoading] = useState(true)
 	const [busy, setBusy] = useState(false)
+	const nextOptimisticTicketNumber = useRef(project.next_ticket_number)
 	const moveQueue = useRef(Promise.resolve())
 	const pendingMoves = useRef(
 		new Map<string, { status: Status; position: number; revision: number }>(),
@@ -829,8 +830,27 @@ export function ProjectView({
 		})
 		toastTimer.start(deletionToastId)
 	}
-	async function createInlineTask(status: Status, title: string) {
-		const task = await api<Task>(
+	function createInlineTask(status: Status, title: string) {
+		const now = new Date().toISOString()
+		const ticketNumber = nextOptimisticTicketNumber.current
+		nextOptimisticTicketNumber.current += 1
+		const optimisticTask: Task = {
+			id: `pending-task-${crypto.randomUUID()}`,
+			project_id: project.id,
+			title,
+			description: '',
+			status,
+			priority: 'medium',
+			complexity: 'standard',
+			position: tasks.filter((task) => task.status === status).length,
+			ticket_number: ticketNumber,
+			ticket_id: `${project.ticket_prefix}-${ticketNumber}`,
+			archived: false,
+			created_at: now,
+			updated_at: now,
+		}
+		setTasks((current) => [...current, optimisticTask])
+		void api<Task>(
 			`/projects/${project.id}/tasks`,
 			json('POST', {
 				title,
@@ -840,7 +860,16 @@ export function ProjectView({
 				complexity: 'standard',
 			}),
 		)
-		setTasks((current) => [...current, task])
+			.then((task) => {
+				setTasks((current) =>
+					current.map((item) => (item.id === optimisticTask.id ? task : item)),
+				)
+			})
+			.catch((error) => {
+				setTasks((current) => current.filter((item) => item.id !== optimisticTask.id))
+				reportBoardError(error, 'Unable to create task.')
+			})
+		return Promise.resolve()
 	}
 	function restoreTask(task: Task) {
 		stageTaskArchiveChange(task, false)

@@ -46,6 +46,7 @@ class ProjectOut(ProjectCreate):
     id: UUID
     owner_id: UUID
     ticket_prefix: str
+    next_ticket_number: int
     archived: bool
     created_at: datetime
     updated_at: datetime

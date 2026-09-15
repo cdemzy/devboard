@@ -478,7 +478,7 @@ function Column({
 										edit={edit}
 										archive={archive}
 										remove={remove}
-										disabled={disabled}
+										disabled={disabled || task.id.startsWith('pending-task-')}
 										isBoardDragging={isBoardDragging}
 									/>
 								</motion.div>
