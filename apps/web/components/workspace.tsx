@@ -199,6 +199,7 @@ function SortableProjectLink({
 	dropTracePosition,
 	isProjectListDragging = false,
 }: SortableProjectLinkProps) {
+	const selectedOnPointerDown = useRef(false)
 	const {
 		attributes,
 		isDragging,
@@ -223,20 +224,36 @@ function SortableProjectLink({
 			: isProjectListDragging
 				? 'text-muted-foreground'
 				: 'text-muted-foreground hover:bg-accent hover:text-foreground'
+	function handleSelectPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+		if (event.button !== 0) return
+
+		selectedOnPointerDown.current = true
+		onSelect()
+	}
+
+	function handleSelectClick() {
+		if (selectedOnPointerDown.current) {
+			selectedOnPointerDown.current = false
+			return
+		}
+
+		onSelect()
+	}
 
 	return (
 		<div
 			ref={setNodeRef}
 			style={style}
 			data-project-id={project.id}
-			className={`workspace-${variant}-project-link workspace-project-sortable-link group flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors touch-none ${toneClass} ${traceClass}`}
+			className={`workspace-${variant}-project-link workspace-project-sortable-link group flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors ${toneClass} ${traceClass}`}
 		>
 			<button
 				type="button"
-				onClick={onSelect}
+				onClick={handleSelectClick}
+				onPointerDown={handleSelectPointerDown}
 				aria-label={isSidebar && !labelClass ? project.name : undefined}
 				aria-current={isActive ? 'page' : undefined}
-				className={`workspace-project-select-button flex min-w-0 flex-1 items-center ${isSidebar ? itemGapClass : 'gap-2.5'} text-left`}
+				className={`workspace-project-select-button flex min-w-0 flex-1 items-center touch-manipulation ${isSidebar ? itemGapClass : 'gap-2.5'} text-left`}
 			>
 				{isSidebar ? (
 					<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">

@@ -337,6 +337,14 @@ test('sidebar project drag trace preserves the original insertion slot', async (
 	await page.getByLabel('Email', { exact: true }).fill(user.email)
 	await page.getByLabel('Password', { exact: true }).fill('strong-password')
 	await page.getByRole('button', { name: 'Create account', exact: true }).click()
+	await page.getByRole('button', { name: 'Second project', exact: true }).click()
+	await expect(page.getByLabel('Project name', { exact: true })).toHaveValue(
+		'Second project',
+	)
+	await page.getByRole('button', { name: 'First project', exact: true }).click()
+	await expect(page.getByLabel('Project name', { exact: true })).toHaveValue(
+		'First project',
+	)
 
 	const dragHandle = page.getByRole('button', {
 		name: 'Drag First project to reorder',
