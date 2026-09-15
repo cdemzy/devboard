@@ -48,6 +48,7 @@ class ProjectOut(ProjectCreate):
     ticket_prefix: str
     next_ticket_number: int
     archived: bool
+    position: int
     created_at: datetime
     updated_at: datetime
 
@@ -67,6 +68,10 @@ class ProjectTagUpdate(Patch):
 
 class ProjectTagOrder(Input):
     tag_ids: list[UUID] = Field(max_length=20)
+
+
+class ProjectOrder(Input):
+    project_ids: list[UUID] = Field(max_length=200)
 
 
 class TaskCreate(Input):

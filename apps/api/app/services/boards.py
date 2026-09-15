@@ -3,13 +3,14 @@ from random import choice
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Project, ProjectTag, Task, utcnow
 from app.repositories.projects import owned_project, owned_task, project_tasks
 from app.schemas import (
     ProjectCreate,
+    ProjectOrder,
     ProjectTagOrder,
     ProjectTagUpdate,
     ProjectUpdate,
@@ -27,9 +28,39 @@ def list_projects(db: Session, user: UUID, archived: bool):
         db.scalars(
             select(Project)
             .where(Project.owner_id == user, Project.archived == archived)
-            .order_by(Project.created_at, Project.id)
+            .order_by(Project.position, Project.created_at, Project.id)
         )
     )
+
+
+def reorder_projects(db: Session, user: UUID, data: ProjectOrder):
+    projects = list(
+        db.scalars(
+            select(Project)
+            .where(Project.owner_id == user, Project.archived.is_(False))
+            .order_by(Project.position, Project.created_at, Project.id)
+            .with_for_update()
+        )
+    )
+    project_ids = data.project_ids
+    if len(project_ids) != len(set(project_ids)) or set(project_ids) != {
+        project.id for project in projects
+    }:
+        raise HTTPException(422, "Project order must include every active project exactly once")
+    projects_by_id = {project.id: project for project in projects}
+    for position, project_id in enumerate(project_ids):
+        projects_by_id[project_id].position = position
+    db.commit()
+
+
+def next_project_position(db: Session, user: UUID) -> int:
+    position = db.scalar(
+        select(func.coalesce(func.max(Project.position), -1)).where(
+            Project.owner_id == user,
+            Project.archived.is_(False),
+        )
+    )
+    return (position if position is not None else -1) + 1
 
 
 def list_project_tags(db: Session, user: UUID):
@@ -110,6 +141,7 @@ def create_project(db: Session, user: UUID, data: ProjectCreate):
     project = Project(
         owner_id=user,
         ticket_prefix=project_ticket_prefix(db, user, values["name"]),
+        position=next_project_position(db, user),
         **values,
     )
     sync_project_tags(db, user, data.tags)
@@ -121,7 +153,10 @@ def create_project(db: Session, user: UUID, data: ProjectCreate):
 
 def update_project(db: Session, user: UUID, project_id: UUID, data: ProjectUpdate):
     project = owned_project(db, project_id, user, lock=True)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    values = data.model_dump(exclude_unset=True)
+    if values.get("archived") is False and project.archived:
+        project.position = next_project_position(db, user)
+    for key, value in values.items():
         if key == "new_tag_colors":
             continue
         setattr(project, key, value)

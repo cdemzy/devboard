@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.repositories.projects import owned_project, owned_task, project_tasks
 from app.schemas import (
     ProjectCreate,
+    ProjectOrder,
     ProjectOut,
     ProjectTagOrder,
     ProjectTagOut,
@@ -34,6 +35,12 @@ def list_projects(db: DB, user: User, archived: bool = False):
 @router.get("/project-tags", response_model=list[ProjectTagOut])
 def list_project_tags(db: DB, user: User):
     return boards.list_project_tags(db, user)
+
+
+@router.put("/projects/order", status_code=204)
+def reorder_projects(data: ProjectOrder, db: DB, user: User):
+    boards.reorder_projects(db, user, data)
+    return Response(status_code=204)
 
 
 @router.put("/project-tags/order", response_model=list[ProjectTagOut])

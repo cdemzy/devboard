@@ -27,6 +27,19 @@ def test_new_project_names_increment_for_each_default_project(client):
     assert names == ["New Project", "New Project (1)", "New Project (2)"]
 
 
+def test_project_order_persists_for_active_projects(client):
+    projects = [
+        client.post("/projects", json={"name": name}).json() for name in ("One", "Two", "Three")
+    ]
+    reordered = [projects[2]["id"], projects[0]["id"], projects[1]["id"]]
+
+    response = client.put("/projects/order", json={"project_ids": reordered})
+
+    assert response.status_code == 204
+    assert [project["id"] for project in client.get("/projects").json()] == reordered
+    assert client.put("/projects/order", json={"project_ids": reordered[:2]}).status_code == 422
+
+
 def test_cors_allows_tag_order_reordering(client):
     response = client.options(
         "/project-tags/order",

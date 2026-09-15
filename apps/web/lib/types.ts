@@ -16,6 +16,7 @@ export type Project = {
 	description: string
 	tags: string[]
 	archived: boolean
+	position: number
 	created_at: string
 	updated_at: string
 }

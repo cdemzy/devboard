@@ -1,6 +1,30 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	type CSSProperties,
+	type RefObject,
+} from 'react'
+import {
+	closestCenter,
+	DndContext,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+	arrayMove,
+	SortableContext,
+	sortableKeyboardCoordinates,
+	useSortable,
+	verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { animate, AnimatePresence, motion, useMotionValue } from 'motion/react'
 import {
 	Archive,
@@ -125,10 +149,62 @@ interface MobileProjectDrawerProps {
 	isAccountOpen: boolean
 	onCreateProject: () => void
 	onSelectProject: (projectId: string) => void
+	onReorderProjects: (event: DragEndEvent) => void
 	onOpenArchive: () => void
 	onToggleAccount: () => void
 	onCloseAccount: () => void
 	onReportError: (message: string) => void
+}
+
+interface SortableProjectLinkProps {
+	project: Project
+	isActive: boolean
+	onSelect: () => void
+	variant: 'sidebar' | 'drawer'
+	labelClass?: string
+	itemGapClass?: string
+}
+
+function SortableProjectLink({
+	project,
+	isActive,
+	onSelect,
+	variant,
+	labelClass,
+	itemGapClass,
+}: SortableProjectLinkProps) {
+	const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+		id: project.id,
+	})
+	const style: CSSProperties = {
+		transform: CSS.Translate.toString(transform),
+		transition,
+		zIndex: isDragging ? 10 : undefined,
+	}
+	const isSidebar = variant === 'sidebar'
+
+	return (
+		<button
+			ref={setNodeRef}
+			type="button"
+			style={style}
+			onClick={onSelect}
+			aria-label={isSidebar && !labelClass ? project.name : undefined}
+			aria-current={isActive ? 'page' : undefined}
+			className={`workspace-${variant}-project-link workspace-project-sortable-link flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors touch-none ${isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'} ${isDragging ? 'opacity-50' : ''}`}
+			{...attributes}
+			{...listeners}
+		>
+			{isSidebar ? (
+				<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
+					<FolderKanban size={15} />
+				</span>
+			) : (
+				<FolderKanban size={17} className="shrink-0" />
+			)}
+			<span className={isSidebar ? `truncate ${labelClass}` : 'truncate'}>{project.name}</span>
+		</button>
+	)
 }
 
 interface MobileDrawerDragState {
@@ -165,12 +241,17 @@ function MobileProjectDrawer({
 	isAccountOpen,
 	onCreateProject,
 	onSelectProject,
+	onReorderProjects,
 	onOpenArchive,
 	onToggleAccount,
 	onCloseAccount,
 	onReportError,
 }: MobileProjectDrawerProps) {
 	const accountRef = useRef<HTMLDivElement>(null)
+	const projectSensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	)
 	return (
 		<aside
 			id="mobile-project-drawer"
@@ -222,18 +303,26 @@ function MobileProjectDrawer({
 						{isLoading ? (
 							<SidebarProjectSkeletons collapsed={false} />
 						) : (
-							projects.map((project) => (
-								<button
-									key={project.id}
-									type="button"
-									onClick={() => onSelectProject(project.id)}
-									aria-current={activeProjectId === project.id ? 'page' : undefined}
-									className={`workspace-mobile-drawer-project-link flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-[15px] transition-colors ${activeProjectId === project.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+							<DndContext
+								collisionDetection={closestCenter}
+								onDragEnd={onReorderProjects}
+								sensors={projectSensors}
+							>
+								<SortableContext
+									items={projects.map((project) => project.id)}
+									strategy={verticalListSortingStrategy}
 								>
-									<FolderKanban size={17} className="shrink-0" />
-									<span className="truncate">{project.name}</span>
-								</button>
-							))
+									{projects.map((project) => (
+										<SortableProjectLink
+											key={project.id}
+											project={project}
+											isActive={activeProjectId === project.id}
+											onSelect={() => onSelectProject(project.id)}
+											variant="drawer"
+										/>
+									))}
+								</SortableContext>
+							</DndContext>
 						)}
 					</div>
 					{canCreateProjects && (
@@ -292,6 +381,8 @@ export function Workspace({ email }: { email: string }) {
 	const [projectsLoadError, setProjectsLoadError] = useState<AppErrorInfo | null>(null)
 	const [archivedToDelete, setArchivedToDelete] = useState<Project | null>(null)
 	const request = useRef(0)
+	const projectOrderQueue = useRef(Promise.resolve())
+	const projectOrderRevision = useRef(0)
 	const mobileDrawerDrag = useRef<MobileDrawerDragState | null>(null)
 	const sidebarAccountRef = useRef<HTMLDivElement>(null)
 	const sidebarCollapsed = !isWideDesktop && isSidebarCollapsed && !isSidebarHoverExpanded
@@ -299,6 +390,10 @@ export function Workspace({ email }: { email: string }) {
 	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
 	const sidebarItemGapClass = sidebarCollapsed ? 'gap-0' : 'gap-1.5'
 	const isMobilePanelVisible = isMobileViewport && isMobileProjectsOpen
+	const projectSensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	)
 
 	const load = useCallback(async () => {
 		const current = ++request.current
@@ -514,6 +609,34 @@ export function Workspace({ email }: { email: string }) {
 		closeMobileProjects()
 	}
 
+	function handleProjectOrderEnd({ active, over }: DragEndEvent) {
+		if (!over || active.id === over.id) return
+
+		const previousProjects = projects
+		const oldIndex = previousProjects.findIndex((project) => project.id === active.id)
+		const newIndex = previousProjects.findIndex((project) => project.id === over.id)
+		if (oldIndex < 0 || newIndex < 0) return
+
+		const orderedProjects = arrayMove(previousProjects, oldIndex, newIndex)
+		const revision = projectOrderRevision.current + 1
+		projectOrderRevision.current = revision
+		setProjects(orderedProjects)
+		projectOrderQueue.current = projectOrderQueue.current
+			.catch(() => undefined)
+			.then(async () => {
+				try {
+					await api('/projects/order', json('PUT', {
+						project_ids: orderedProjects.map((project) => project.id),
+					}))
+				} catch (error) {
+					if (projectOrderRevision.current === revision) {
+						setProjects(previousProjects)
+						setError(error instanceof Error ? error.message : 'Unable to save project order.')
+					}
+				}
+			})
+	}
+
 	function openArchive() {
 		setWorkspaceView('archived')
 		closeMobileProjects()
@@ -609,22 +732,28 @@ export function Workspace({ email }: { email: string }) {
 						{loading ? (
 							<SidebarProjectSkeletons collapsed={sidebarCollapsed} />
 						) : (
-							projects.map((item) => (
-								<button
-									key={item.id}
-									onClick={() => selectProject(item.id)}
-									aria-label={sidebarCollapsed ? item.name : undefined}
-									aria-current={
-										workspaceView === 'board' && active === item.id ? 'page' : undefined
-									}
-									className={`workspace-project-link flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md py-2 px-1.5 text-left text-sm transition-colors ${workspaceView === 'board' && active === item.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+							<DndContext
+								collisionDetection={closestCenter}
+								onDragEnd={handleProjectOrderEnd}
+								sensors={projectSensors}
+							>
+								<SortableContext
+									items={projects.map((project) => project.id)}
+									strategy={verticalListSortingStrategy}
 								>
-									<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
-										<FolderKanban size={15} />
-									</span>
-									<span className={`truncate ${sidebarLabelClass}`}>{item.name}</span>
-								</button>
-							))
+									{projects.map((item) => (
+										<SortableProjectLink
+											key={item.id}
+											project={item}
+											isActive={workspaceView === 'board' && active === item.id}
+											onSelect={() => selectProject(item.id)}
+											variant="sidebar"
+											itemGapClass={sidebarItemGapClass}
+											labelClass={sidebarLabelClass}
+										/>
+									))}
+								</SortableContext>
+							</DndContext>
 						)}
 					</nav>
 					<div className="workspace-sidebar-footer mt-auto border-t border-border pt-3">
@@ -672,6 +801,7 @@ export function Workspace({ email }: { email: string }) {
 				isAccountOpen={accountOpen}
 				onCreateProject={() => void createEmptyProject()}
 				onSelectProject={selectProject}
+				onReorderProjects={handleProjectOrderEnd}
 				onOpenArchive={openArchive}
 				onToggleAccount={() => setAccountOpen((open) => !open)}
 				onCloseAccount={() => setAccountOpen(false)}
