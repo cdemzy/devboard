@@ -292,17 +292,20 @@ export function DesktopSidebar({
 							containerRef={sidebarAccountRef}
 							variant="sidebar"
 						/>
-						<button
+						<motion.button
 							type="button"
 							className={`sidebar-panel-account-trigger flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md py-2 px-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground`}
 							aria-label="Account"
+							aria-expanded={isAccountOpen}
+							whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+							transition={{ type: 'spring', stiffness: 500, damping: 25 }}
 							onClick={onToggleAccount}
 						>
 							<span className="sidebar-panel-icon flex w-8 shrink-0 items-center justify-center">
 								<CircleUserRound size={17} />
 							</span>
 							<span className={`truncate ${sidebarStaticLabelClass}`}>Account</span>
-						</button>
+						</motion.button>
 					</div>
 				</div>
 			</div>

@@ -24,7 +24,16 @@ export function AccountMenu({
 		if (!open) return
 
 		function closeWhenOutside(event: Event) {
-			if (!containerRef.current?.contains(event.target as Node)) close()
+			const container = containerRef.current
+			// Hidden sidebar variants must not dismiss the visible variant's menu.
+			if (
+				!container ||
+				container.closest('[inert]') ||
+				container.getClientRects().length === 0
+			) {
+				return
+			}
+			if (!container.contains(event.target as Node)) close()
 		}
 
 		document.addEventListener('pointerdown', closeWhenOutside)

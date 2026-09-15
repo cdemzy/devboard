@@ -169,8 +169,9 @@ export function MobileProjectDrawer({
 						<motion.button
 							type="button"
 							aria-label="Account"
+							aria-expanded={isAccountOpen}
 							onClick={onToggleAccount}
-							whileTap={{ scale: 0.9 }}
+							whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
 							transition={mobileButtonTapTransition}
 						>
 							<CircleUserRound size={18} />
