@@ -59,7 +59,7 @@ export function KanbanBoard({
 	edit: (task: Task) => void
 	archive: (task: Task) => void
 	remove: (task: Task) => void
-	createTask: (status: Status, title: string) => Promise<void>
+	createTask: (status: Status, title: string, shouldPrepend: boolean) => Promise<void>
 	newTaskRequest: number
 	move: (id: string, status: Status, position: number) => void
 	disabled: boolean
@@ -113,7 +113,7 @@ export function KanbanBoard({
 		})
 	}
 	async function handleCreateTask(status: Status, title: string) {
-		await createTask(status, title)
+		await createTask(status, title, isMobileViewport)
 		setNewTaskStatus(null)
 	}
 	function hideDropIndicators() {

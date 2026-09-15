@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useDndContext, useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ChevronsUpDown, Circle, CircleCheck, CircleDashed, Plus } from 'lucide-react'
+import {
+	ChevronsDownUp,
+	ChevronsUpDown,
+	Circle,
+	CircleCheck,
+	CircleDashed,
+	Plus,
+} from 'lucide-react'
 import { statusLabels, type Status, type Task } from '@/lib/types'
 import { Button } from '../ui/button'
 import { Tooltip } from '../ui/tooltip'
@@ -70,24 +77,16 @@ export function StatusSection({
 		onToggleExpanded()
 	}
 
-	useEffect(() => {
+	function handleTaskRevealComplete() {
 		if (!shouldScrollAfterExpand.current || !isMobile || !isExpanded) return
-		const frame = requestAnimationFrame(() => {
-			shouldScrollAfterExpand.current = false
-			const section = sectionRef.current
-			if (!section) return
-			// Use the final layout height rather than Motion's animated bounding-box height.
-			window.scrollTo({
-				top:
-					window.scrollY +
-					section.getBoundingClientRect().top +
-					section.offsetHeight -
-					window.innerHeight,
-				behavior: prefersReducedMotion ? 'instant' : 'smooth',
-			})
+		shouldScrollAfterExpand.current = false
+		const section = sectionRef.current
+		if (!section) return
+		window.scrollTo({
+			top: window.scrollY + section.getBoundingClientRect().bottom - window.innerHeight,
+			behavior: prefersReducedMotion ? 'instant' : 'smooth',
 		})
-		return () => cancelAnimationFrame(frame)
-	}, [isMobile, isExpanded, prefersReducedMotion])
+	}
 
 	function handleTaskExitComplete() {
 		if (!shouldScrollAfterCollapse.current) return
@@ -98,19 +97,38 @@ export function StatusSection({
 		})
 	}
 
+	function renderTask(task: Task) {
+		return (
+			<motion.div
+				key={task.optimistic_key ?? task.id}
+				layout={isMobile || isBoardDragging ? false : 'position'}
+				initial={false}
+				animate={{ opacity: 1 }}
+				transition={{
+					layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
+				}}
+			>
+				<TaskCard
+					task={task}
+					edit={edit}
+					archive={archive}
+					remove={remove}
+					disabled={disabled || task.id.startsWith('pending-task-')}
+					isBoardDragging={isBoardDragging}
+				/>
+			</motion.div>
+		)
+	}
+
 	return (
-		<motion.section
+		<section
 			ref={(node) => {
 				sectionRef.current = node
 				setNodeRef(node)
 			}}
-			layout={isMobile && !isBoardDragging}
-			transition={{
-				layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
-			}}
 			data-board-status-section={status}
 			aria-label={statusLabels[status]}
-			className={`board-status-section group/board-status-section min-h-0 min-w-0 rounded-lg border p-2 pb-4 shadow-sm transition-all duration-150 md:min-h-[max(22rem,calc(100dvh-17rem))] ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : 'hover:border-[#484f58]'}`}
+			className={`board-status-section group/board-status-section min-h-0 min-w-0 rounded-lg border p-2 pb-4 shadow-sm transition-colors duration-150 md:min-h-[max(22rem,calc(100dvh-17rem))] ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : 'hover:border-[#484f58]'}`}
 		>
 			<header
 				ref={headerRef}
@@ -118,11 +136,12 @@ export function StatusSection({
 			>
 				<Icon size={15} className={statusStyle.accent} />
 				<h2 className="text-xs font-semibold">{statusLabels[status]}</h2>
-				<Tooltip label="Add">
+				<span className="text-xs text-muted-foreground">{tasks.length}</span>
+				<Tooltip label="Add" className="ml-auto">
 					<Button
 						variant="ghost"
 						size="icon"
-						className="board-status-section-add !h-auto !w-auto !min-w-0 p-0 hover:bg-transparent"
+						className={`board-status-section-add !h-7 !w-7 rounded-full border border-current p-0 hover:bg-white/5 ${statusStyle.accent}`}
 						aria-label={`Add task to ${statusLabels[status]}`}
 						disabled={disabled || loading}
 						onClick={() => onStartTask(status)}
@@ -130,25 +149,25 @@ export function StatusSection({
 						<Plus size={15} />
 					</Button>
 				</Tooltip>
-				<span className="text-xs text-muted-foreground">{tasks.length}</span>
 			</header>
 			<SortableContext
 				items={visibleTasks.map((task) => task.id)}
 				strategy={verticalListSortingStrategy}
 			>
-				<motion.div
-					layout={isMobile && !isBoardDragging}
-					transition={{
-						layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
-					}}
-					className="board-status-section-task-list relative space-y-2"
-				>
+				<div className="board-status-section-task-list relative space-y-2">
 					<div
 						ref={setDropIndicatorNode}
 						aria-hidden="true"
 						className={`board-status-section-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full transition-none ${statusStyle.drop}`}
 						hidden
 					/>
+					{isMobile && newTaskStatus === status && (
+						<NewTaskCard
+							status={status}
+							save={(title) => onCreateTask(status, title)}
+							cancel={onCancelTask}
+						/>
+					)}
 					{loading ? (
 						Array.from({ length: 3 }, (_, index) => (
 							<div
@@ -162,41 +181,54 @@ export function StatusSection({
 							</div>
 						))
 					) : (
-						<AnimatePresence initial={false} onExitComplete={handleTaskExitComplete}>
-							{visibleTasks.map((task) => (
-								<motion.div
-									key={task.optimistic_key ?? task.id}
-									layout={isBoardDragging ? false : 'position'}
-									initial={isMobile ? { opacity: 0, y: -10 } : false}
-									animate={{ opacity: 1, y: 0 }}
-									exit={isMobile ? { opacity: 0, y: -8 } : undefined}
-									transition={{
-										layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
-										opacity: { duration: 0.16 },
-										y: { type: 'spring', stiffness: 420, damping: 32, mass: 0.65 },
-									}}
-								>
-									<TaskCard
-										task={task}
-										edit={edit}
-										archive={archive}
-										remove={remove}
-										disabled={disabled || task.id.startsWith('pending-task-')}
-										isBoardDragging={isBoardDragging}
-									/>
-								</motion.div>
-							))}
-						</AnimatePresence>
+						<>
+							<AnimatePresence initial={false}>
+								{(isMobile ? tasks.slice(0, 3) : tasks).map(renderTask)}
+							</AnimatePresence>
+							<AnimatePresence initial={false} onExitComplete={handleTaskExitComplete}>
+								{isMobile && isExpanded && tasks.length > 3 && (
+									<motion.div
+										key="remaining-tasks"
+										initial={{ height: 0, overflow: 'hidden' }}
+										animate={{
+											height: 'auto',
+											transitionEnd: { overflow: 'visible' },
+										}}
+										exit={{ height: 0, overflow: 'hidden' }}
+										transition={{
+											duration: prefersReducedMotion ? 0 : 0.25,
+											ease: 'easeInOut',
+										}}
+										onAnimationComplete={handleTaskRevealComplete}
+										className="board-status-section-expanded-tasks space-y-2"
+									>
+										{tasks.slice(3).map(renderTask)}
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</>
 					)}
-					{newTaskStatus === status && (
+					{!isMobile && newTaskStatus === status && (
 						<NewTaskCard
 							status={status}
 							save={(title) => onCreateTask(status, title)}
 							cancel={onCancelTask}
 						/>
 					)}
-				</motion.div>
+				</div>
 			</SortableContext>
+			{(!isMobile || isExpanded) && (
+				<Button
+					variant="ghost"
+					size="sm"
+					className="board-status-section-add-task mt-2 w-full justify-center bg-accent text-muted-foreground opacity-0 transition-[background-color,opacity,transform] duration-150 hover:bg-[#30363d] active:scale-95 group-hover/board-status-section:opacity-100 focus-visible:opacity-100"
+					disabled={disabled || loading}
+					onClick={() => onStartTask(status)}
+				>
+					<Plus size={14} />
+					<span className="hidden md:inline">Add task</span>
+				</Button>
+			)}
 			{canToggleTasks && (
 				<Button
 					className="board-status-section-expand mt-2 w-full"
@@ -210,7 +242,7 @@ export function StatusSection({
 					}
 					onClick={handleToggleExpanded}
 				>
-					<ChevronsUpDown size={15} />
+					{isExpanded ? <ChevronsDownUp size={15} /> : <ChevronsUpDown size={15} />}
 				</Button>
 			)}
 			{!loading && tasks.length === 0 && newTaskStatus !== status && (
@@ -221,17 +253,7 @@ export function StatusSection({
 					{isEmptyStatusSectionDropTarget ? 'Move here' : 'No tasks yet'}
 				</p>
 			)}
-			<Button
-				variant="ghost"
-				size="sm"
-				className="board-status-section-add-task mt-2 w-full justify-center bg-accent text-muted-foreground opacity-0 transition-[background-color,opacity,transform] duration-150 hover:bg-[#30363d] active:scale-95 group-hover/board-status-section:opacity-100 focus-visible:opacity-100"
-				disabled={disabled || loading}
-				onClick={() => onStartTask(status)}
-			>
-				<Plus size={14} />
-				<span className="hidden md:inline">Add task</span>
-			</Button>
-		</motion.section>
+		</section>
 	)
 }
 function NewTaskCard({

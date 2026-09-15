@@ -859,7 +859,7 @@ export function ProjectView({
 		})
 		toastTimer.start(deletionToastId)
 	}
-	function createInlineTask(status: Status, title: string) {
+	function createInlineTask(status: Status, title: string, shouldPrepend: boolean) {
 		const now = new Date().toISOString()
 		const ticketNumber = nextOptimisticTicketNumber.current
 		const optimisticKey = crypto.randomUUID()
@@ -872,7 +872,7 @@ export function ProjectView({
 			status,
 			priority: 'medium',
 			complexity: 'standard',
-			position: tasks.filter((task) => task.status === status).length,
+			position: shouldPrepend ? 0 : tasks.filter((task) => task.status === status).length,
 			ticket_number: ticketNumber,
 			ticket_id: `${project.ticket_prefix}-${ticketNumber}`,
 			archived: false,
@@ -880,7 +880,12 @@ export function ProjectView({
 			updated_at: now,
 			optimistic_key: optimisticKey,
 		}
-		setTasks((current) => [...current, optimisticTask])
+		// O(n log n): reuse board ordering to insert mobile tasks at the beginning.
+		setTasks((current) =>
+			shouldPrepend
+				? moveTask([...current, optimisticTask], optimisticTask.id, status, 0)
+				: [...current, optimisticTask],
+		)
 		void api<Task>(
 			`/projects/${project.id}/tasks`,
 			json('POST', {
@@ -895,10 +900,15 @@ export function ProjectView({
 				setTasks((current) =>
 					current.map((item) =>
 						item.id === optimisticTask.id
-							? { ...task, optimistic_key: optimisticTask.optimistic_key }
+							? {
+									...task,
+									position: shouldPrepend ? item.position : task.position,
+									optimistic_key: optimisticTask.optimistic_key,
+								}
 							: item,
 					),
 				)
+				if (shouldPrepend) move(task.id, status, 0)
 			})
 			.catch((error) => {
 				setTasks((current) => current.filter((item) => item.id !== optimisticTask.id))
