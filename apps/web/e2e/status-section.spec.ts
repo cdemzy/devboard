@@ -21,6 +21,7 @@ test('mobile status sections expand and collapse their own tasks and create task
 	const todo = page.getByRole('region', { name: 'Todo', exact: true })
 	const progress = page.getByRole('region', { name: 'In Progress', exact: true })
 	await expect(todo.locator('.task-card')).toHaveCount(3)
+	await expect(todo.locator('.board-status-section-header-collapse')).toHaveCount(0)
 	await expect(todo.locator('.board-status-section-add-task')).toHaveCount(0)
 	await expect(progress.locator('.board-status-section-add-task')).toHaveCount(0)
 	await todo.getByRole('button', { name: 'Show all Todo tasks', exact: true }).click()
@@ -35,7 +36,7 @@ test('mobile status sections expand and collapse their own tasks and create task
 		})
 		.toBe(844)
 	const bottomAdd = todo.locator('.board-status-section-add-task')
-	const collapse = todo.getByRole('button', { name: 'Collapse Todo tasks', exact: true })
+	const collapse = todo.locator('.board-status-section-expand')
 	await expect(bottomAdd).toBeVisible()
 	const addBounds = await bottomAdd.boundingBox()
 	const collapseBounds = await collapse.boundingBox()
@@ -52,6 +53,20 @@ test('mobile status sections expand and collapse their own tasks and create task
 			return header ? Math.round(header.y) : null
 		})
 		.toBe(16)
+	await todo.getByRole('button', { name: 'Show all Todo tasks', exact: true }).click()
+	const headerCollapse = todo.locator('.board-status-section-header-collapse')
+	await expect(headerCollapse).toBeVisible()
+	const headerBounds = await todo.locator('.board-status-section-header').boundingBox()
+	const headerCollapseBounds = await headerCollapse.boundingBox()
+	if (!headerBounds || !headerCollapseBounds)
+		throw new Error('Header collapse control is missing')
+	expect(headerCollapseBounds.x + headerCollapseBounds.width / 2).toBeCloseTo(
+		headerBounds.x + headerBounds.width / 2,
+		1,
+	)
+	await headerCollapse.press('Enter')
+	await expect(headerCollapse).toHaveCount(0)
+	await expect(todo.locator('.task-card')).toHaveCount(3)
 	await progress
 		.getByRole('button', { name: 'Add task to In Progress', exact: true })
 		.click()

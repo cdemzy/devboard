@@ -132,11 +132,23 @@ export function StatusSection({
 		>
 			<header
 				ref={headerRef}
-				className="board-status-section-header scroll-mt-4 mb-4 flex items-center gap-2 px-1 pt-1"
+				className="board-status-section-header relative scroll-mt-4 mb-4 flex items-center gap-2 px-1 pt-1"
 			>
 				<Icon size={15} className={statusStyle.accent} />
 				<h2 className="text-xs font-semibold">{statusLabels[status]}</h2>
 				<span className="text-xs text-muted-foreground">{tasks.length}</span>
+				{canToggleTasks && isExpanded && (
+					<Button
+						variant="ghost"
+						size="icon"
+						className="board-status-section-header-collapse absolute left-1/2 top-1/2 !h-7 !w-7 -translate-x-1/2 -translate-y-1/2"
+						aria-label={`Collapse ${statusLabels[status]} tasks`}
+						aria-expanded={isExpanded}
+						onClick={handleToggleExpanded}
+					>
+						<ChevronsDownUp size={15} />
+					</Button>
+				)}
 				<Tooltip label="Add" className="ml-auto">
 					<Button
 						variant="ghost"
