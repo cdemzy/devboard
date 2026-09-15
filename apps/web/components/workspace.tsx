@@ -548,10 +548,8 @@ export function Workspace({ email }: { email: string }) {
 	const [activeProjectWidth, setActiveProjectWidth] = useState<number | null>(null)
 	const [activeProjectHeight, setActiveProjectHeight] = useState<number | null>(null)
 	const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null)
-	const [dropProjectId, setDropProjectId] = useState<string | null>(null)
-	const [dropProjectPlacement, setDropProjectPlacement] = useState<'before' | 'after'>(
-		'before',
-	)
+	const [dropProjectIndex, setDropProjectIndex] = useState<number | null>(null)
+	const dropProjectIndexRef = useRef<number | null>(null)
 	const hasProjectDragMoved = useRef(false)
 	const sidebarCollapsed = !isWideDesktop && isSidebarCollapsed && !isSidebarHoverExpanded
 	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
@@ -671,6 +669,7 @@ export function Workspace({ email }: { email: string }) {
 		}
 	}, [isMobilePanelVisible])
 	const project = projects.find((project) => project.id === active)
+	const visibleProjects = projects.filter((project) => project.id !== draggedProjectId)
 	function closeMobileProjects() {
 		setIsMobileProjectsOpen(false)
 		setAccountOpen(false)
@@ -778,13 +777,19 @@ export function Workspace({ email }: { email: string }) {
 		closeMobileProjects()
 	}
 
-	function handleProjectOrderEnd({ active, over }: DragEndEvent) {
-		if (!over || active.id === over.id) return
+	function handleProjectOrderEnd(
+		{ active, over }: DragEndEvent,
+		insertionIndex?: number,
+	) {
+		if (!over && insertionIndex === undefined) return
+		if (insertionIndex === undefined && active.id === over?.id) return
 
 		const previousProjects = projects
 		const oldIndex = previousProjects.findIndex((project) => project.id === active.id)
-		const newIndex = previousProjects.findIndex((project) => project.id === over.id)
+		const newIndex =
+			insertionIndex ?? previousProjects.findIndex((project) => project.id === over?.id)
 		if (oldIndex < 0 || newIndex < 0) return
+		if (oldIndex === newIndex) return
 
 		const orderedProjects = arrayMove(previousProjects, oldIndex, newIndex)
 		const revision = projectOrderRevision.current + 1
@@ -814,20 +819,11 @@ export function Workspace({ email }: { email: string }) {
 	function handleProjectDragStart({ active }: DragStartEvent) {
 		const activeId = String(active.id)
 		const activeIndex = projects.findIndex((project) => project.id === activeId)
-		const nextProject = projects[activeIndex + 1]
-		const previousProject = projects[activeIndex - 1]
 
 		hasProjectDragMoved.current = false
 		setDraggedProjectId(activeId)
-		if (nextProject) {
-			setDropProjectId(nextProject.id)
-			setDropProjectPlacement('before')
-		} else if (previousProject) {
-			setDropProjectId(previousProject.id)
-			setDropProjectPlacement('after')
-		} else {
-			setDropProjectId(null)
-		}
+		dropProjectIndexRef.current = activeIndex >= 0 ? activeIndex : null
+		setDropProjectIndex(dropProjectIndexRef.current)
 		setActiveProject(projects[activeIndex] ?? null)
 		setActiveProjectWidth(
 			document.querySelector<HTMLElement>(`[data-project-id="${active.id}"]`)
@@ -842,8 +838,8 @@ export function Workspace({ email }: { email: string }) {
 	function clearProjectDropTrace() {
 		hasProjectDragMoved.current = false
 		setDraggedProjectId(null)
-		setDropProjectId(null)
-		setDropProjectPlacement('before')
+		dropProjectIndexRef.current = null
+		setDropProjectIndex(null)
 		setActiveProject(null)
 		setActiveProjectWidth(null)
 		setActiveProjectHeight(null)
@@ -851,27 +847,42 @@ export function Workspace({ email }: { email: string }) {
 
 	function handleProjectDragEnd(event: DragEndEvent) {
 		const didMove = hasProjectDragMoved.current
+		const insertionIndex = dropProjectIndexRef.current
 		clearProjectDropTrace()
-		if (didMove) handleProjectOrderEnd(event)
+		if (didMove && insertionIndex !== null) {
+			handleProjectOrderEnd(event, insertionIndex)
+		}
 	}
 
-	function handleProjectDragMove({ active, delta, over }: DragMoveEvent) {
-		if (Math.abs(delta.y) < 2) return
-
-		hasProjectDragMoved.current = true
-		if (!over || active.id === over.id) {
-			setDropProjectId(null)
-			return
+	function handleProjectDragMove({ active, delta }: DragMoveEvent) {
+		if (!hasProjectDragMoved.current) {
+			if (Math.abs(delta.y) < 2) return
+			hasProjectDragMoved.current = true
 		}
-
 		const draggedRect = active.rect.current.translated
-		setDropProjectId(String(over.id))
-		setDropProjectPlacement(
-			draggedRect &&
-				draggedRect.top + draggedRect.height / 2 > over.rect.top + over.rect.height / 2
-				? 'after'
-				: 'before',
+		if (!projectList || !draggedRect) return
+
+		const pointerY = draggedRect.top + draggedRect.height / 2
+		const traceRect = projectList
+			.querySelector<HTMLElement>('.workspace-project-drop-trace')
+			?.getBoundingClientRect()
+		if (traceRect && pointerY >= traceRect.top && pointerY <= traceRect.bottom) return
+
+		const projectItems = Array.from(
+			projectList.querySelectorAll<HTMLElement>('[data-project-id]'),
 		)
+		// O(n): find the first remaining project row after the dragged card's midpoint.
+		const nextItem = projectItems.find((item) => {
+			const itemRect = item.getBoundingClientRect()
+			return pointerY <= itemRect.top + itemRect.height / 2
+		})
+		const insertionIndex = nextItem
+			? visibleProjects.findIndex((project) => project.id === nextItem.dataset.projectId)
+			: visibleProjects.length
+		if (insertionIndex < 0) return
+
+		dropProjectIndexRef.current = insertionIndex
+		setDropProjectIndex(insertionIndex)
 	}
 
 	function openArchive() {
@@ -986,37 +997,31 @@ export function Workspace({ email }: { email: string }) {
 										items={projects.map((project) => project.id)}
 										strategy={verticalListSortingStrategy}
 									>
-										{projects
-											.filter((item) => item.id !== draggedProjectId)
-											.map((item) => {
-												const isDropTarget = dropProjectId === item.id
-
-												return (
-													<Fragment key={item.id}>
-														{isDropTarget && dropProjectPlacement === 'before' && (
-															<ProjectDropTrace
-																height={activeProjectHeight}
-																project={activeProject}
-															/>
-														)}
-														<SortableProjectLink
-															project={item}
-															isActive={workspaceView === 'board' && active === item.id}
-															isProjectListDragging={Boolean(draggedProjectId)}
-															onSelect={() => selectProject(item.id)}
-															variant="sidebar"
-															itemGapClass={sidebarItemGapClass}
-															labelClass={sidebarLabelClass}
-														/>
-														{isDropTarget && dropProjectPlacement === 'after' && (
-															<ProjectDropTrace
-																height={activeProjectHeight}
-																project={activeProject}
-															/>
-														)}
-													</Fragment>
-												)
-											})}
+										{visibleProjects.map((item, index) => (
+											<Fragment key={item.id}>
+												{dropProjectIndex === index && (
+													<ProjectDropTrace
+														height={activeProjectHeight}
+														project={activeProject}
+													/>
+												)}
+												<SortableProjectLink
+													project={item}
+													isActive={workspaceView === 'board' && active === item.id}
+													isProjectListDragging={Boolean(draggedProjectId)}
+													onSelect={() => selectProject(item.id)}
+													variant="sidebar"
+													itemGapClass={sidebarItemGapClass}
+													labelClass={sidebarLabelClass}
+												/>
+											</Fragment>
+										))}
+										{dropProjectIndex === visibleProjects.length && (
+											<ProjectDropTrace
+												height={activeProjectHeight}
+												project={activeProject}
+											/>
+										)}
 									</SortableContext>
 								</div>
 								<DragOverlay adjustScale={false} dropAnimation={null}>
