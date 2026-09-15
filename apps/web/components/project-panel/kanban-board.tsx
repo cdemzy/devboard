@@ -68,6 +68,7 @@ export function KanbanBoard({
 	const [activeTask, setActiveTask] = useState<Task | null>(null)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const [expandedStatuses, setExpandedStatuses] = useState<Set<Status>>(() => new Set())
+	const [shouldPrependNewTask, setShouldPrependNewTask] = useState(false)
 	const [newTaskStatus, setNewTaskStatus] = useState<Status | null>(null)
 	const dragStartPointerRef = useRef<{ x: number; y: number } | null>(null)
 	const dragPointerRef = useRef<{ x: number; y: number } | null>(null)
@@ -96,8 +97,9 @@ export function KanbanBoard({
 	useEffect(() => {
 		if (newTaskRequest === previousNewTaskRequest.current) return
 		previousNewTaskRequest.current = newTaskRequest
+		setShouldPrependNewTask(isMobileViewport)
 		setNewTaskStatus('todo')
-	}, [newTaskRequest])
+	}, [newTaskRequest, isMobileViewport])
 
 	function toggleStatusSectionExpansion(status: Status) {
 		setExpandedStatuses((current) => {
@@ -112,8 +114,12 @@ export function KanbanBoard({
 			return next
 		})
 	}
+	function handleStartTask(status: Status, shouldPrepend = false) {
+		setShouldPrependNewTask(isMobileViewport || shouldPrepend)
+		setNewTaskStatus(status)
+	}
 	async function handleCreateTask(status: Status, title: string) {
-		await createTask(status, title, isMobileViewport)
+		await createTask(status, title, isMobileViewport || shouldPrependNewTask)
 		setNewTaskStatus(null)
 	}
 	function hideDropIndicators() {
@@ -285,7 +291,8 @@ export function KanbanBoard({
 						archive={archive}
 						remove={remove}
 						newTaskStatus={newTaskStatus}
-						onStartTask={setNewTaskStatus}
+						shouldPrependNewTask={shouldPrependNewTask}
+						onStartTask={handleStartTask}
 						onCreateTask={handleCreateTask}
 						onCancelTask={() => setNewTaskStatus(null)}
 						disabled={disabled}

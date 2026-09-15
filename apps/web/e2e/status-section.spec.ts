@@ -154,3 +154,64 @@ test('opening a mobile task editor keeps tickets aligned within other status sec
 		await expect(section.locator('.kanban-new-task-card')).toHaveCount(0)
 	}
 })
+
+test('desktop empty status areas highlight and create tasks with pointer or keyboard', async ({
+	page,
+}) => {
+	await openDashboard(page, createProjects(['Project']))
+	for (const status of ['Todo', 'In Progress', 'Done']) {
+		const section = page.getByRole('region', { name: status, exact: true })
+		const target = section.getByRole('button', {
+			name: `New task in ${status}`,
+			exact: true,
+		})
+		await expect(section.locator('.board-status-section-add-task')).toHaveCount(0)
+		await target.hover()
+		await expect(target.locator('.board-status-section-empty-add-label')).toBeVisible()
+		await expect(target.locator('.board-status-section-empty-label')).toBeHidden()
+		if (status === 'Done') {
+			await target.focus()
+			await target.press('Enter')
+		} else {
+			await target.click()
+		}
+		const input = section.getByLabel(`New ${status} task title`, { exact: true })
+		await expect(input).toBeFocused()
+		await input.fill(`${status} created ticket`)
+		await input.press('Enter')
+		await expect(
+			section.getByRole('button', { name: `${status} created ticket`, exact: true }),
+		).toBeVisible()
+		await expect(target).toHaveCount(0)
+	}
+})
+
+test('desktop top add control prepends tickets and shows the New Task tooltip only above mobile', async ({
+	page,
+}) => {
+	await openDashboard(page, createProjects(['Project']))
+	const todo = page.getByRole('region', { name: 'Todo', exact: true })
+	const topAdd = todo.locator('.board-status-section-top-add')
+	const savedPosition = page.waitForResponse(
+		(response) => response.url().endsWith('/tasks/task-2/move') && response.ok(),
+	)
+	for (const title of ['Older top ticket', 'Newest top ticket']) {
+		await topAdd.hover()
+		await expect(
+			todo.getByRole('tooltip', { name: 'New Task', exact: true }),
+		).toBeVisible()
+		await topAdd.click()
+		const input = todo.getByLabel('New Todo task title', { exact: true })
+		await input.fill(title)
+		await input.press('Enter')
+		await expect(todo.locator('.task-card').first()).toContainText(title)
+	}
+	await savedPosition
+	await page.reload()
+	await expect(todo.locator('.task-card').first()).toContainText('Newest top ticket')
+	await page.setViewportSize({ width: 390, height: 844 })
+	await topAdd.hover()
+	await expect(
+		todo.locator('.board-status-section-top-add-tooltip [role="tooltip"]'),
+	).toBeHidden()
+})

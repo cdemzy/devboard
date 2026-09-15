@@ -28,7 +28,8 @@ interface StatusSectionProps {
 	archive: (task: Task) => void
 	remove: (task: Task) => void
 	newTaskStatus: Status | null
-	onStartTask: (status: Status) => void
+	shouldPrependNewTask: boolean
+	onStartTask: (status: Status, shouldPrepend?: boolean) => void
 	onCreateTask: (status: Status, title: string) => Promise<void>
 	onCancelTask: () => void
 	disabled: boolean
@@ -47,6 +48,7 @@ export function StatusSection({
 	archive,
 	remove,
 	newTaskStatus,
+	shouldPrependNewTask,
 	onStartTask,
 	onCreateTask,
 	onCancelTask,
@@ -150,14 +152,17 @@ export function StatusSection({
 						<ChevronsDownUp size={15} />
 					</Button>
 				)}
-				<Tooltip label="Add" className="ml-auto">
+				<Tooltip
+					label="New Task"
+					className="board-status-section-top-add-tooltip ml-auto [&_.ui-tooltip-content]:max-md:hidden"
+				>
 					<Button
 						variant="ghost"
 						size="icon"
-						className={`board-status-section-add !h-7 !w-7 rounded-full border border-current p-0 hover:bg-white/5 ${statusStyle.accent}`}
+						className={`board-status-section-top-add !h-7 !w-7 rounded-full border border-current p-0 hover:bg-white/5 ${statusStyle.accent}`}
 						aria-label={`Add task to ${statusLabels[status]}`}
 						disabled={disabled || loading}
-						onClick={() => onStartTask(status)}
+						onClick={() => onStartTask(status, true)}
 					>
 						<Plus size={15} />
 					</Button>
@@ -174,7 +179,7 @@ export function StatusSection({
 						className={`board-status-section-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full transition-none ${statusStyle.drop}`}
 						hidden
 					/>
-					{isMobile && newTaskStatus === status && (
+					{(isMobile || shouldPrependNewTask) && newTaskStatus === status && (
 						<NewTaskCard
 							status={status}
 							save={(title) => onCreateTask(status, title)}
@@ -221,7 +226,7 @@ export function StatusSection({
 							</AnimatePresence>
 						</>
 					)}
-					{!isMobile && newTaskStatus === status && (
+					{!isMobile && !shouldPrependNewTask && newTaskStatus === status && (
 						<NewTaskCard
 							status={status}
 							save={(title) => onCreateTask(status, title)}
@@ -230,7 +235,7 @@ export function StatusSection({
 					)}
 				</div>
 			</SortableContext>
-			{(!isMobile || isExpanded) && (
+			{((!isMobile && tasks.length > 0) || (isMobile && isExpanded)) && (
 				<Button
 					variant="ghost"
 					size="sm"
@@ -258,14 +263,33 @@ export function StatusSection({
 					{isExpanded ? <ChevronsDownUp size={15} /> : <ChevronsUpDown size={15} />}
 				</Button>
 			)}
-			{!loading && tasks.length === 0 && newTaskStatus !== status && (
-				<p
-					data-board-status-section-empty-state={status}
-					className={`board-status-section-empty-state relative flex min-h-[6.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyStatusSectionDropTarget ? statusStyle.emptyDrop : 'border-[#484f58] text-muted-foreground'}`}
-				>
-					{isEmptyStatusSectionDropTarget ? 'Move here' : 'No tasks yet'}
-				</p>
-			)}
+			{!loading &&
+				tasks.length === 0 &&
+				newTaskStatus !== status &&
+				(!isMobile && !isBoardDragging && !disabled ? (
+					<button
+						type="button"
+						data-board-status-section-empty-state={status}
+						aria-label={`New task in ${statusLabels[status]}`}
+						onClick={() => onStartTask(status)}
+						className={`board-status-section-empty-state board-status-section-empty-add group/empty-task relative flex min-h-[6.5rem] w-full cursor-pointer items-center justify-center rounded-lg border border-dashed border-[#484f58] px-3 py-3 text-center text-xs text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${statusStyle.emptyHover}`}
+					>
+						<span className="board-status-section-empty-label group-hover/empty-task:hidden group-focus-visible/empty-task:hidden">
+							No tasks yet
+						</span>
+						<span className="board-status-section-empty-add-label hidden items-center gap-1.5 group-hover/empty-task:flex group-focus-visible/empty-task:flex">
+							<Plus size={14} />
+							New Task
+						</span>
+					</button>
+				) : (
+					<p
+						data-board-status-section-empty-state={status}
+						className={`board-status-section-empty-state relative flex min-h-[6.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyStatusSectionDropTarget ? statusStyle.emptyDrop : 'border-[#484f58] text-muted-foreground'}`}
+					>
+						{isEmptyStatusSectionDropTarget ? 'Move here' : 'No tasks yet'}
+					</p>
+				))}
 		</section>
 	)
 }
