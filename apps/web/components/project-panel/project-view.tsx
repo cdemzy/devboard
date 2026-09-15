@@ -371,14 +371,14 @@ function ProjectTagEditorForm({
 }
 
 export function ProjectViewSkeleton() {
-	const skeletonColumns = [
-		{ id: 'todo', column: 'border-[#6C5082]/35 bg-[#221D25]', accent: 'bg-[#6C5082]/55' },
+	const skeletonStatusSections = [
+		{ id: 'todo', sectionStyle: 'border-[#6C5082]/35 bg-[#221D25]', accent: 'bg-[#6C5082]/55' },
 		{
 			id: 'in-progress',
-			column: 'border-[#886826]/35 bg-[#23221A]',
+			sectionStyle: 'border-[#886826]/35 bg-[#23221A]',
 			accent: 'bg-[#886826]/55',
 		},
-		{ id: 'done', column: 'border-[#386C4E]/35 bg-[#1B211D]', accent: 'bg-[#386C4E]/55' },
+		{ id: 'done', sectionStyle: 'border-[#386C4E]/35 bg-[#1B211D]', accent: 'bg-[#386C4E]/55' },
 	]
 
 	return (
@@ -424,16 +424,16 @@ export function ProjectViewSkeleton() {
 				</div>
 			</div>
 			<div className="kanban-board-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
-				{skeletonColumns.map(({ id, column, accent }) => (
+				{skeletonStatusSections.map(({ id, sectionStyle, accent }) => (
 					<section
 						key={id}
 						aria-hidden="true"
-						className={`kanban-column-skeleton min-h-[22rem] rounded-lg border p-2 pb-4 shadow-sm md:min-h-[max(22rem,calc(100dvh-17rem))] ${column}`}
+						className={`board-status-section-skeleton min-h-[22rem] rounded-lg border p-2 pb-4 shadow-sm md:min-h-[max(22rem,calc(100dvh-17rem))] ${sectionStyle}`}
 					>
 						<div className="flex items-center gap-2 px-1 pt-1">
-							<div className={`kanban-column-icon-skeleton h-4 w-4 animate-pulse rounded-sm ${accent}`} />
-							<div className="kanban-column-title-skeleton h-3 w-16 animate-pulse rounded-sm bg-muted-foreground/25" />
-							<div className="kanban-column-count-skeleton h-3 w-3 animate-pulse rounded-sm bg-muted-foreground/15" />
+							<div className={`board-status-section-icon-skeleton h-4 w-4 animate-pulse rounded-sm ${accent}`} />
+							<div className="board-status-section-title-skeleton h-3 w-16 animate-pulse rounded-sm bg-muted-foreground/25" />
+							<div className="board-status-section-count-skeleton h-3 w-3 animate-pulse rounded-sm bg-muted-foreground/15" />
 						</div>
 						<div className="mt-4 space-y-2">
 							{Array.from({ length: 3 }, (_, index) => (

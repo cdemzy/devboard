@@ -17,6 +17,9 @@ components/
     project-view.tsx
     archived-projects-panel.tsx
     kanban-board.tsx
+    status-section.tsx
+    task-card.tsx
+    board-status-styles.ts
     editors.tsx
   ui/
 hooks/
@@ -45,3 +48,9 @@ Names without `#` are classes. Classes inside the relocated project view, board,
 | [project-panel/archived-projects-panel.tsx](project-panel/archived-projects-panel.tsx) | `project-panel-archive-delete`, `project-panel-archive-panel`, `project-panel-archive-project`, `project-panel-archive-restore`, `project-panel-archive-skeleton` |
 
 The account-creation heading uses `auth-title` in [auth-screen.tsx](auth-screen.tsx). Initial project loading uses the existing `app-loading` class in [page.tsx](../app/page.tsx). Brand selectors in [globals.css](../app/globals.css) use `sidebar-panel-brand` and `project-panel-brand`.
+
+Status sections use `StatusSection` on all screen sizes. In `project-panel/status-section.tsx`, their hooks are `board-status-section`, `board-status-section-header`, `board-status-section-add`, `board-status-section-expand`, `board-status-section-task-list`, `board-status-section-drop-indicator`, `board-status-section-empty-state`, and `board-status-section-add-task`. Drag selectors use `data-board-status-section` and `data-board-status-section-empty-state`; Tailwind hover styling uses `group/board-status-section`. Loading hooks in `project-panel/project-view.tsx` are `board-status-section-skeleton`, `board-status-section-icon-skeleton`, `board-status-section-title-skeleton`, and `board-status-section-count-skeleton`.
+
+`KanbanBoard` owns drag coordination, insertion feedback, the active drag preview, and which status is creating a task. `StatusSection` owns the status header, task-list composition, loading and empty states, and mobile expansion controls. Its private `NewTaskCard` keeps draft, saving, and error state local. `task-card.tsx` contains `TaskCard` (including local action-menu state) and `TaskDragPreview`; `board-status-styles.ts` shares the existing status colors between cards and sections.
+
+Task hooks retained in `project-panel/task-card.tsx` are `task-card`, `task-card-header`, `task-card-title-link`, `task-card-ticket`, `task-card-title`, `task-card-drag-handle`, `task-card-footer`, `task-card-priority`, `task-card-complexity`, `task-card-actions`, `task-actions-trigger`, `task-actions-menu`, `task-actions-menu-button`, `task-actions-menu-button-danger`, and `task-drag-preview`. Task-creation hooks retained in `project-panel/status-section.tsx` are `kanban-new-task-card`, `kanban-new-task-title`, and `kanban-new-task-error`.
