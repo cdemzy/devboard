@@ -58,6 +58,10 @@ test('account flow, project and task CRUD, drag persistence, rollback, and logou
 				id: 'project-1',
 				owner_id: user.id,
 				ticket_prefix: 'DE',
+				next_ticket_number: 1,
+				description: '',
+				tags: [],
+				position: 0,
 				...body,
 				archived: false,
 				created_at: now,
@@ -255,4 +259,123 @@ test('account flow, project and task CRUD, drag persistence, rollback, and logou
 	await expect(
 		page.getByRole('button', { name: 'Create your first project' }),
 	).toBeVisible()
+})
+
+test('sidebar project drag trace preserves the original insertion slot', async ({
+	page,
+}) => {
+	const now = new Date().toISOString()
+	const user = {
+		id: '00000000-0000-4000-8000-000000000002',
+		aud: 'authenticated',
+		role: 'authenticated',
+		email: 'drag@example.com',
+		email_confirmed_at: now,
+		app_metadata: {},
+		user_metadata: {},
+		created_at: now,
+	}
+	const token = {
+		access_token: 'test-access-token',
+		refresh_token: 'test-refresh-token',
+		token_type: 'bearer',
+		expires_in: 3600,
+		user,
+	}
+	const projects: Project[] = ['First project', 'Second project', 'Third project'].map(
+		(name, position) => ({
+			id: `project-${position + 1}`,
+			owner_id: user.id,
+			name,
+			ticket_prefix: `P${position + 1}`,
+			next_ticket_number: 1,
+			description: '',
+			tags: [],
+			archived: false,
+			position,
+			created_at: now,
+			updated_at: now,
+		}),
+	)
+	let projectOrderRequests = 0
+
+	await page.route('https://devboard-test.supabase.co/auth/v1/**', async (route) => {
+		const path = new URL(route.request().url()).pathname
+		await route.fulfill({
+			json: path.endsWith('/user') ? user : token,
+		})
+	})
+	await page.route('http://127.0.0.1:8001/**', async (route) => {
+		const request = route.request()
+		const url = new URL(request.url())
+		if (request.method() === 'GET' && url.pathname === '/projects') {
+			await route.fulfill({
+				json: projects.filter(
+					(project) => project.archived === (url.searchParams.get('archived') === 'true'),
+				),
+			})
+			return
+		}
+		if (request.method() === 'GET' && url.pathname.endsWith('/tasks')) {
+			await route.fulfill({ json: [] })
+			return
+		}
+		if (request.method() === 'GET' && url.pathname === '/project-tags') {
+			await route.fulfill({ json: [] })
+			return
+		}
+		if (request.method() === 'PUT' && url.pathname === '/projects/order') {
+			projectOrderRequests += 1
+			await route.fulfill({ status: 204 })
+			return
+		}
+		await route.fulfill({ status: 404, json: { detail: 'Not found' } })
+	})
+
+	await page.goto('/')
+	await page.getByRole('button', { name: 'Create an account', exact: true }).click()
+	await page.getByLabel('Email', { exact: true }).fill(user.email)
+	await page.getByLabel('Password', { exact: true }).fill('strong-password')
+	await page.getByRole('button', { name: 'Create account', exact: true }).click()
+
+	const dragHandle = page.getByRole('button', {
+		name: 'Drag First project to reorder',
+		exact: true,
+	})
+	const trace = page.locator('.workspace-project-drop-trace')
+	const projectListEntries = () =>
+		page
+			.locator('.workspace-project-sort-list > *')
+			.evaluateAll((items) =>
+				items.map((item) => item.getAttribute('data-project-id') ?? 'trace'),
+			)
+
+	await expect(dragHandle).toBeVisible()
+	const dragHandleBox = await dragHandle.boundingBox()
+	const thirdProjectBox = await page
+		.locator('.workspace-project-sort-list [data-project-id="project-3"]')
+		.boundingBox()
+	if (!dragHandleBox || !thirdProjectBox)
+		throw new Error('Project drag target is missing')
+
+	const startX = dragHandleBox.x + dragHandleBox.width / 2
+	const startY = dragHandleBox.y + dragHandleBox.height / 2
+	await page.mouse.move(startX, startY)
+	await page.mouse.down()
+	await expect(trace).toBeVisible()
+	await expect.poll(projectListEntries).toEqual(['trace', 'project-2', 'project-3'])
+
+	await page.mouse.move(
+		thirdProjectBox.x + thirdProjectBox.width / 2,
+		thirdProjectBox.y + thirdProjectBox.height - 2,
+		{ steps: 12 },
+	)
+	await expect.poll(projectListEntries).toEqual(['project-2', 'project-3', 'trace'])
+
+	await page.mouse.move(startX, startY, { steps: 12 })
+	await expect.poll(projectListEntries).toEqual(['trace', 'project-2', 'project-3'])
+	await page.mouse.up()
+
+	await expect.poll(projectListEntries).toEqual(['project-1', 'project-2', 'project-3'])
+	expect(projectOrderRequests).toBe(0)
 })
