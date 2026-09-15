@@ -49,7 +49,8 @@ interface SortableProjectLinkProps {
 	variant: 'sidebar' | 'drawer'
 	labelClass?: string
 	itemGapClass?: string
-	dropTracePosition?: 'before' | 'after'
+	isDragSource?: boolean
+	dragSourceTop?: number
 	isProjectListDragging?: boolean
 }
 
@@ -60,7 +61,8 @@ export function SortableProjectLink({
 	variant,
 	labelClass,
 	itemGapClass,
-	dropTracePosition,
+	isDragSource = false,
+	dragSourceTop,
 	isProjectListDragging = false,
 }: SortableProjectLinkProps) {
 	const selectedOnPointerDown = useRef(false)
@@ -76,11 +78,10 @@ export function SortableProjectLink({
 	})
 	const style: CSSProperties = {
 		transition,
+		// Preserve the source geometry so drag measurements remain anchored to its origin.
+		top: isDragSource ? dragSourceTop : undefined,
 	}
 	const isSidebar = variant === 'sidebar'
-	const traceClass = dropTracePosition
-		? 'sidebar-panel-project-drop-trace bg-primary/5 ring-1 ring-inset ring-dashed ring-primary/55'
-		: ''
 	const toneClass = isDragging
 		? 'opacity-0'
 		: isActive
@@ -108,8 +109,9 @@ export function SortableProjectLink({
 		<div
 			ref={setNodeRef}
 			style={style}
-			data-project-id={project.id}
-			className={`sidebar-panel-${variant}-project-link sidebar-panel-project-sortable-link group flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors ${toneClass} ${traceClass}`}
+			data-project-id={isDragSource ? undefined : project.id}
+			aria-hidden={isDragSource || undefined}
+			className={`sidebar-panel-${variant}-project-link sidebar-panel-project-sortable-link group flex w-full items-center ${isDragSource ? 'sidebar-panel-project-drag-source absolute inset-x-0 pointer-events-none' : ''} ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors ${toneClass}`}
 		>
 			<button
 				type="button"
@@ -134,7 +136,7 @@ export function SortableProjectLink({
 				ref={setActivatorNodeRef}
 				type="button"
 				aria-label={`Drag ${project.name} to reorder`}
-				className={`sidebar-panel-project-drag-handle ml-auto flex shrink-0 items-center justify-center rounded-sm p-0 text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
+				className={`sidebar-panel-project-drag-handle flex shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isSidebar ? `ml-auto p-0 ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}` : 'order-first h-7 w-7 opacity-100'}`}
 				{...attributes}
 				{...listeners}
 			>
@@ -149,30 +151,36 @@ export function ProjectDragPreview({
 	width,
 	height,
 	isHidden = false,
+	variant = 'sidebar',
 }: {
 	project: Project
 	width: number | null
 	height: number | null
 	isHidden?: boolean
+	variant?: 'sidebar' | 'drawer'
 }) {
-	const previewInset = 3
+	const isDrawer = variant === 'drawer'
+	const previewInset = isDrawer ? 0 : 3
 	const previewStyle =
 		width && height
 			? {
 					width: Math.max(width - previewInset * 2, 0),
-					height: height * 0.82,
-					transform: `translate(${previewInset}px, ${height * 0.09}px)`,
+					height: isDrawer ? height : height * 0.82,
+					transform: `translate(${previewInset}px, ${isDrawer ? 0 : height * 0.09}px)`,
 				}
 			: undefined
 
 	return (
 		<div
 			style={previewStyle}
-			className={`sidebar-panel-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl ${isHidden ? 'opacity-0' : ''}`}
+			className={`sidebar-panel-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] ${isDrawer ? 'px-3 text-[15px]' : 'px-2.5 text-sm'} text-foreground shadow-xl ${isHidden ? 'opacity-0' : ''}`}
 		>
 			<FolderKanban size={15} className="shrink-0" />
 			<span className="truncate">{project.name}</span>
-			<GripVertical size={16} className="ml-auto shrink-0 text-muted-foreground" />
+			<GripVertical
+				size={16}
+				className={`shrink-0 text-muted-foreground ${isDrawer ? 'order-first w-7' : 'ml-auto'}`}
+			/>
 		</div>
 	)
 }

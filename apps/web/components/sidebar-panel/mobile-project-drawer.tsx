@@ -1,13 +1,14 @@
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import {
 	closestCenter,
 	DndContext,
+	DragOverlay,
 	KeyboardSensor,
 	PointerSensor,
 	useSensor,
 	useSensors,
 	type DragEndEvent,
-	type DragOverEvent,
+	type DragMoveEvent,
 	type DragStartEvent,
 } from '@dnd-kit/core'
 import {
@@ -24,6 +25,8 @@ import {
 	createProjectListDragConstraint,
 	SidebarProjectSkeletons,
 	SortableProjectLink,
+	ProjectDragPreview,
+	ProjectDropTrace,
 } from './project-navigation'
 import { mobileButtonTapTransition } from './use-mobile-sidebar'
 interface MobileProjectDrawerProps {
@@ -37,7 +40,7 @@ interface MobileProjectDrawerProps {
 	isAccountOpen: boolean
 	onCreateProject: () => void
 	onSelectProject: (projectId: string) => void
-	onReorderProjects: (event: DragEndEvent) => void
+	onReorderProjects: (event: DragEndEvent, insertionIndex?: number) => void
 	onOpenArchive: () => void
 	onToggleAccount: () => void
 	onCloseAccount: () => void
@@ -63,10 +66,20 @@ export function MobileProjectDrawer({
 }: MobileProjectDrawerProps) {
 	const accountRef = useRef<HTMLDivElement>(null)
 	const [projectList, setProjectList] = useState<HTMLDivElement | null>(null)
-	const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null)
-	const [dropProjectId, setDropProjectId] = useState<string | null>(null)
-	const [dropProjectPlacement, setDropProjectPlacement] = useState<'before' | 'after'>(
-		'before',
+	const [dragPreview, setDragPreview] = useState<{
+		project: Project
+		width: number
+		height: number
+		top: number
+	} | null>(null)
+	const [dropProjectIndex, setDropProjectIndex] = useState<number | null>(null)
+	const dropProjectIndexRef = useRef<number | null>(null)
+	const previousDragDeltaY = useRef(0)
+	const draggedProjectIndex = projects.findIndex(
+		(project) => project.id === dragPreview?.project.id,
+	)
+	const visibleProjects = projects.filter(
+		(project) => project.id !== dragPreview?.project.id,
 	)
 	const restrictProjectDragToList = createProjectListDragConstraint(projectList)
 	const projectSensors = useSensors(
@@ -74,27 +87,59 @@ export function MobileProjectDrawer({
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
 	)
 	function handleProjectDragStart({ active }: DragStartEvent) {
-		setDraggedProjectId(String(active.id))
+		previousDragDeltaY.current = 0
+		const index = projects.findIndex((project) => project.id === active.id)
+		const project = projects[index]
+		const source = projectList?.children[index] as HTMLElement | undefined
+		const rect = source?.getBoundingClientRect()
+		if (!project || !source || !rect) return
+		setDragPreview({
+			project,
+			width: rect.width,
+			height: rect.height,
+			top: source.offsetTop,
+		})
+		dropProjectIndexRef.current = index
+		setDropProjectIndex(index)
 	}
-	function handleProjectDragOver({ active, over }: DragOverEvent) {
-		setDropProjectId(over ? String(over.id) : null)
+	function handleProjectDragMove({ active, delta }: DragMoveEvent) {
+		const movementY = delta.y - previousDragDeltaY.current
+		previousDragDeltaY.current = delta.y
 		const draggedRect = active.rect.current.translated
-		setDropProjectPlacement(
-			draggedRect &&
-				over &&
-				draggedRect.top + draggedRect.height / 2 > over.rect.top + over.rect.height / 2
-				? 'after'
-				: 'before',
+		const currentIndex = dropProjectIndexRef.current
+		if (!projectList || !draggedRect || currentIndex === null || movementY === 0) return
+		const rows = Array.from(
+			projectList.querySelectorAll<HTMLElement>('[data-project-id]'),
 		)
+		let insertionIndex = currentIndex
+		// O(n): advance the gap when the leading card edge reaches a row in the movement direction.
+		// Ignore rows on the other side of the gap so shifting a row cannot reverse the collision.
+		if (movementY < 0) {
+			for (let index = 0; index < currentIndex; index += 1) {
+				if (draggedRect.top <= rows[index].getBoundingClientRect().bottom) {
+					insertionIndex = index
+					break
+				}
+			}
+		} else {
+			for (let index = currentIndex; index < rows.length; index += 1) {
+				if (draggedRect.bottom < rows[index].getBoundingClientRect().top) break
+				insertionIndex = index + 1
+			}
+		}
+		if (insertionIndex === currentIndex) return
+		dropProjectIndexRef.current = insertionIndex
+		setDropProjectIndex(insertionIndex)
 	}
 	function clearProjectDropTrace() {
-		setDraggedProjectId(null)
-		setDropProjectId(null)
-		setDropProjectPlacement('before')
+		setDragPreview(null)
+		dropProjectIndexRef.current = null
+		setDropProjectIndex(null)
 	}
 	function handleProjectDragEnd(event: DragEndEvent) {
+		const insertionIndex = dropProjectIndexRef.current
 		clearProjectDropTrace()
-		onReorderProjects(event)
+		if (insertionIndex !== null) onReorderProjects(event, insertionIndex)
 	}
 	return (
 		<aside
@@ -152,35 +197,62 @@ export function MobileProjectDrawer({
 								modifiers={[restrictProjectDragToList]}
 								onDragCancel={clearProjectDropTrace}
 								onDragEnd={handleProjectDragEnd}
-								onDragOver={handleProjectDragOver}
+								onDragMove={handleProjectDragMove}
 								onDragStart={handleProjectDragStart}
 								sensors={projectSensors}
 							>
 								<div
 									ref={setProjectList}
-									className="sidebar-panel-mobile-project-sort-list space-y-1"
+									className="sidebar-panel-mobile-project-sort-list relative flex flex-col gap-1"
 								>
 									<SortableContext
 										items={projects.map((project) => project.id)}
 										strategy={verticalListSortingStrategy}
 									>
-										{projects.map((project) => (
-											<SortableProjectLink
-												key={project.id}
-												project={project}
-												isActive={activeProjectId === project.id}
-												isProjectListDragging={Boolean(draggedProjectId)}
-												dropTracePosition={
-													draggedProjectId !== project.id && dropProjectId === project.id
-														? dropProjectPlacement
-														: undefined
-												}
-												onSelect={() => onSelectProject(project.id)}
-												variant="drawer"
+										{projects.map((project, index) => {
+											const isDragSource = dragPreview?.project.id === project.id
+											const visibleIndex =
+												draggedProjectIndex >= 0 && index > draggedProjectIndex
+													? index - 1
+													: index
+											return (
+												<Fragment key={project.id}>
+													{!isDragSource && dropProjectIndex === visibleIndex && (
+														<ProjectDropTrace
+															height={dragPreview?.height ?? null}
+															project={null}
+														/>
+													)}
+													<SortableProjectLink
+														project={project}
+														isActive={activeProjectId === project.id}
+														isDragSource={isDragSource}
+														dragSourceTop={dragPreview?.top}
+														isProjectListDragging={Boolean(dragPreview)}
+														onSelect={() => onSelectProject(project.id)}
+														variant="drawer"
+													/>
+												</Fragment>
+											)
+										})}
+										{dropProjectIndex === visibleProjects.length && (
+											<ProjectDropTrace
+												height={dragPreview?.height ?? null}
+												project={null}
 											/>
-										))}
+										)}
 									</SortableContext>
 								</div>
+								<DragOverlay adjustScale={false} dropAnimation={null}>
+									{dragPreview && (
+										<ProjectDragPreview
+											project={dragPreview.project}
+											width={dragPreview.width}
+											height={dragPreview.height}
+											variant="drawer"
+										/>
+									)}
+								</DragOverlay>
 							</DndContext>
 						)}
 					</div>
