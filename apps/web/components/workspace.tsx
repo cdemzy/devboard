@@ -344,10 +344,7 @@ export function Workspace({ email }: { email: string }) {
 	useEffect(() => {
 		let cancelled = false
 		queueMicrotask(() => {
-			if (!cancelled) {
-				void load()
-				void loadArchived()
-			}
+			if (!cancelled) void load()
 		})
 		return () => {
 			cancelled = true
