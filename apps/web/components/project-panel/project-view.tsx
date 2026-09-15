@@ -415,7 +415,9 @@ export function ProjectViewSkeleton() {
 					</div>
 				</div>
 				<div className="project-view-actions-section flex items-center gap-1">
-					<div className="project-view-project-archive-skeleton h-8 w-8" />
+					<div className="project-view-project-archive-skeleton-slot hidden h-8 w-8 place-items-center md:grid">
+						<div className="project-view-project-archive-skeleton h-3.5 w-3.5 animate-pulse rounded-sm bg-muted-foreground/20" />
+					</div>
 					<div className="project-view-new-task-skeleton grid h-8 w-11 place-items-center rounded-md border border-primary/60 bg-primary/10">
 						<div className="h-4 w-4 animate-pulse rounded-sm bg-primary/55" />
 					</div>
@@ -651,7 +653,7 @@ export function ProjectView({
 		const resizeObserver = new ResizeObserver(updateTabPill)
 		resizeObserver.observe(tabList)
 		return () => resizeObserver.disconnect()
-	}, [hoveredView, view])
+	}, [hoveredView, view, loading])
 	useEffect(() => {
 		const description = projectDescriptionRef.current
 		if (!description) return
