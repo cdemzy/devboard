@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useDndContext, useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ChevronsUpDown, Circle, CircleCheck, CircleDashed, Plus } from 'lucide-react'
@@ -51,6 +51,11 @@ export function StatusSection({
 	setDropIndicatorNode,
 	isBoardDragging,
 }: StatusSectionProps) {
+	const sectionRef = useRef<HTMLElement>(null)
+	const shouldScrollAfterExpand = useRef(false)
+	const headerRef = useRef<HTMLElement>(null)
+	const shouldScrollAfterCollapse = useRef(false)
+	const prefersReducedMotion = useReducedMotion()
 	const { setNodeRef, isOver } = useDroppable({ id: status, disabled })
 	const { over } = useDndContext()
 	const Icon = statusIcons[status]
@@ -59,9 +64,46 @@ export function StatusSection({
 	const canToggleTasks = !loading && isMobile && tasks.length > 3
 	const containsOverTask = tasks.some((task) => task.id === over?.id)
 	const isEmptyStatusSectionDropTarget = tasks.length === 0 && over?.id === status
+	function handleToggleExpanded() {
+		shouldScrollAfterCollapse.current = isMobile && isExpanded
+		shouldScrollAfterExpand.current = isMobile && !isExpanded
+		onToggleExpanded()
+	}
+
+	useEffect(() => {
+		if (!shouldScrollAfterExpand.current || !isMobile || !isExpanded) return
+		const frame = requestAnimationFrame(() => {
+			shouldScrollAfterExpand.current = false
+			const section = sectionRef.current
+			if (!section) return
+			// Use the final layout height rather than Motion's animated bounding-box height.
+			window.scrollTo({
+				top:
+					window.scrollY +
+					section.getBoundingClientRect().top +
+					section.offsetHeight -
+					window.innerHeight,
+				behavior: prefersReducedMotion ? 'instant' : 'smooth',
+			})
+		})
+		return () => cancelAnimationFrame(frame)
+	}, [isMobile, isExpanded, prefersReducedMotion])
+
+	function handleTaskExitComplete() {
+		if (!shouldScrollAfterCollapse.current) return
+		shouldScrollAfterCollapse.current = false
+		headerRef.current?.scrollIntoView({
+			block: 'start',
+			behavior: prefersReducedMotion ? 'instant' : 'smooth',
+		})
+	}
+
 	return (
 		<motion.section
-			ref={setNodeRef}
+			ref={(node) => {
+				sectionRef.current = node
+				setNodeRef(node)
+			}}
 			layout={isMobile && !isBoardDragging}
 			transition={{
 				layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
@@ -70,7 +112,10 @@ export function StatusSection({
 			aria-label={statusLabels[status]}
 			className={`board-status-section group/board-status-section min-h-0 min-w-0 rounded-lg border p-2 pb-4 shadow-sm transition-all duration-150 md:min-h-[max(22rem,calc(100dvh-17rem))] ${statusStyle.state} ${isOver || containsOverTask ? statusStyle.active : 'hover:border-[#484f58]'}`}
 		>
-			<header className="board-status-section-header mb-4 flex items-center gap-2 px-1 pt-1">
+			<header
+				ref={headerRef}
+				className="board-status-section-header scroll-mt-4 mb-4 flex items-center gap-2 px-1 pt-1"
+			>
 				<Icon size={15} className={statusStyle.accent} />
 				<h2 className="text-xs font-semibold">{statusLabels[status]}</h2>
 				<Tooltip label="Add">
@@ -117,7 +162,7 @@ export function StatusSection({
 							</div>
 						))
 					) : (
-						<AnimatePresence initial={false}>
+						<AnimatePresence initial={false} onExitComplete={handleTaskExitComplete}>
 							{visibleTasks.map((task) => (
 								<motion.div
 									key={task.optimistic_key ?? task.id}
@@ -163,7 +208,7 @@ export function StatusSection({
 							? `Collapse ${statusLabels[status]} tasks`
 							: `Show all ${statusLabels[status]} tasks`
 					}
-					onClick={onToggleExpanded}
+					onClick={handleToggleExpanded}
 				>
 					<ChevronsUpDown size={15} />
 				</Button>

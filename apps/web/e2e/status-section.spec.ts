@@ -26,8 +26,20 @@ test('mobile status sections expand and collapse their own tasks and create task
 	await expect(
 		todo.getByRole('button', { name: 'Fourth ticket', exact: true }),
 	).toBeVisible()
+	await expect
+		.poll(async () => {
+			const bounds = await todo.boundingBox()
+			return bounds ? Math.round(bounds.y + bounds.height) : null
+		})
+		.toBe(844)
 	await todo.getByRole('button', { name: 'Collapse Todo tasks', exact: true }).click()
 	await expect(todo.locator('.task-card')).toHaveCount(3)
+	await expect
+		.poll(async () => {
+			const header = await todo.locator('.board-status-section-header').boundingBox()
+			return header ? Math.round(header.y) : null
+		})
+		.toBe(16)
 	await progress
 		.getByRole('button', { name: 'Add task to In Progress', exact: true })
 		.click()
