@@ -460,10 +460,12 @@ export function ProjectView({
 	project,
 	update,
 	refresh,
+	onInitialLoadComplete,
 }: {
 	project: Project
 	update: (project: Project) => void
 	refresh: () => Promise<void>
+	onInitialLoadComplete: () => void
 }) {
 	const [tasks, setTasks] = useState<Task[]>([])
 	const [archivedTasks, setArchivedTasks] = useState<Task[]>([])
@@ -623,12 +625,15 @@ export function ProjectView({
 		loadTasks()
 			.catch(() => undefined)
 			.finally(() => {
-				if (alive) setLoading(false)
+				if (alive) {
+					setLoading(false)
+					onInitialLoadComplete()
+				}
 			})
 		return () => {
 			alive = false
 		}
-	}, [loadTasks])
+	}, [loadTasks, onInitialLoadComplete])
 	useEffect(
 		() => () => {
 			moveTimers.current.forEach((timer) => clearTimeout(timer))

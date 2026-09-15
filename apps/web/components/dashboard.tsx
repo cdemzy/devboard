@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useProjects } from '@/hooks/use-projects'
 import { SidebarPanel } from './sidebar-panel/sidebar-panel'
 import { useMobileSidebar } from './sidebar-panel/use-mobile-sidebar'
@@ -28,11 +28,17 @@ export function Dashboard({ email }: { email: string }) {
 	} = useProjects()
 	const [projectPanelView, setProjectPanelView] = useState<'board' | 'archived'>('board')
 	const [accountOpen, setAccountOpen] = useState(false)
+	const [hasInitialProjectLoadFinished, setHasInitialProjectLoadFinished] =
+		useState(false)
+	const handleInitialProjectLoadComplete = useCallback(() => {
+		setHasInitialProjectLoadFinished(true)
+	}, [])
 	const mobileSidebar = useMobileSidebar(() => setAccountOpen(false))
 	const { isMobilePanelVisible, isMobileDrawerRevealed, closeMobileProjects } =
 		mobileSidebar
 
 	const project = projects.find((project) => project.id === active)
+	const isSidebarLoading = loading || (Boolean(project) && !hasInitialProjectLoadFinished)
 	function selectProject(projectId: string) {
 		setActive(projectId)
 		setProjectPanelView('board')
@@ -62,7 +68,7 @@ export function Dashboard({ email }: { email: string }) {
 				isMobileOpen={isMobilePanelVisible}
 				isMobileDrawerRevealed={isMobileDrawerRevealed}
 				isArchiveActive={projectPanelView === 'archived'}
-				isLoading={loading}
+				isLoading={isSidebarLoading}
 				isCreatingProject={isCreatingProject}
 				canCreateProjects={!projectsLoadError}
 				isAccountOpen={accountOpen}
@@ -85,6 +91,7 @@ export function Dashboard({ email }: { email: string }) {
 				projectsLoadError={projectsLoadError}
 				mobileSidebar={mobileSidebar}
 				onReload={load}
+				onInitialProjectLoadComplete={handleInitialProjectLoadComplete}
 				onCreateProject={createEmptyProject}
 				onUpdateProject={updateProject}
 				onRefreshProjects={async () => {

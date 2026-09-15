@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { motion } from 'motion/react'
 import { CircleAlert, FolderKanban, Layers3, Menu, Plus } from 'lucide-react'
 import type { AppErrorInfo } from '@/lib/errors'
@@ -20,6 +21,7 @@ interface ProjectPanelProps {
 	error: string
 	projectsLoadError: AppErrorInfo | null
 	mobileSidebar: ReturnType<typeof useMobileSidebar>
+	onInitialProjectLoadComplete: () => void
 	onReload: () => Promise<void>
 	onCreateProject: () => Promise<void>
 	onUpdateProject: (project: Project) => void
@@ -38,6 +40,7 @@ export function ProjectPanel({
 	error,
 	projectsLoadError,
 	mobileSidebar,
+	onInitialProjectLoadComplete,
 	onReload,
 	onCreateProject,
 	onUpdateProject,
@@ -45,6 +48,9 @@ export function ProjectPanel({
 	onRestoreProject,
 	onDeleteArchivedProject,
 }: ProjectPanelProps) {
+	useEffect(() => {
+		if (!isLoading && (!project || projectsLoadError)) onInitialProjectLoadComplete()
+	}, [isLoading, project, projectsLoadError, onInitialProjectLoadComplete])
 	const {
 		isMobileViewport,
 		mobilePanelX,
@@ -139,6 +145,7 @@ export function ProjectPanel({
 							project={project}
 							update={onUpdateProject}
 							refresh={onRefreshProjects}
+							onInitialLoadComplete={onInitialProjectLoadComplete}
 						/>
 					) : (
 						<div className="project-panel-empty-projects flex min-h-[65vh] flex-col items-center justify-center p-8 text-center">

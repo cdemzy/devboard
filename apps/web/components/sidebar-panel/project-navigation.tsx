@@ -24,7 +24,7 @@ export function createProjectListDragConstraint(
 export function SidebarProjectSkeletons({ collapsed }: { collapsed: boolean }) {
 	return (
 		<div aria-label="Loading projects" className="space-y-1.5">
-			{Array.from({ length: 4 }, (_, index) => (
+			{Array.from({ length: 10 }, (_, index) => (
 				<div
 					key={index}
 					aria-hidden="true"
