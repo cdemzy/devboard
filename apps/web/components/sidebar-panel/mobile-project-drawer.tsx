@@ -16,7 +16,7 @@ import {
 	sortableKeyboardCoordinates,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { Archive, CircleUserRound, Layers3, Plus } from 'lucide-react'
 import type { Project } from '@/lib/types'
 import { Button } from '../ui/button'
@@ -29,6 +29,8 @@ import {
 	ProjectDropTrace,
 } from './project-navigation'
 import { mobileButtonTapTransition } from './use-mobile-sidebar'
+const MotionButton = motion.create(Button)
+
 interface MobileProjectDrawerProps {
 	email: string
 	projects: Project[]
@@ -64,6 +66,7 @@ export function MobileProjectDrawer({
 	onCloseAccount,
 	onReportError,
 }: MobileProjectDrawerProps) {
+	const prefersReducedMotion = useReducedMotion()
 	const accountRef = useRef<HTMLDivElement>(null)
 	const [projectList, setProjectList] = useState<HTMLDivElement | null>(null)
 	const [dragPreview, setDragPreview] = useState<{
@@ -266,7 +269,7 @@ export function MobileProjectDrawer({
 								type="button"
 								disabled={isCreatingProject || isLoading}
 								onClick={onCreateProject}
-								whileTap={{ scale: 0.96 }}
+								whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
 								transition={mobileButtonTapTransition}
 							>
 								<Plus size={15} />
@@ -276,14 +279,16 @@ export function MobileProjectDrawer({
 					)}
 				</nav>
 				<footer className="sidebar-panel-mobile-drawer-footer mt-auto border-t border-border pt-3">
-					<Button
+					<MotionButton
+						whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+						transition={mobileButtonTapTransition}
 						className="sidebar-panel-mobile-drawer-archive w-full justify-start text-[15px]"
 						variant="ghost"
 						onClick={onOpenArchive}
 					>
 						<Archive size={18} />
 						Archived projects
-					</Button>
+					</MotionButton>
 				</footer>
 			</div>
 		</aside>

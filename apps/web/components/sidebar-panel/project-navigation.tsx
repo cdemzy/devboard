@@ -1,4 +1,5 @@
 import { useRef, type CSSProperties } from 'react'
+import { motion, useAnimationControls, useReducedMotion } from 'motion/react'
 import { useSortable } from '@dnd-kit/sortable'
 import { FolderKanban, GripVertical } from 'lucide-react'
 import type { Modifier } from '@dnd-kit/core'
@@ -68,6 +69,17 @@ export function SortableProjectLink({
 	isProjectListDragging = false,
 }: SortableProjectLinkProps) {
 	const selectedOnPointerDown = useRef(false)
+	const clickAnimation = useAnimationControls()
+	const prefersReducedMotion = useReducedMotion()
+
+	function handleSelect() {
+		clickAnimation.stop()
+		void clickAnimation.start({
+			scale: prefersReducedMotion ? 1 : [1, 0.94, 1],
+			transition: { duration: prefersReducedMotion ? 0.15 : 0.3, ease: 'easeOut' },
+		})
+		onSelect()
+	}
 	const {
 		attributes,
 		isDragging,
@@ -95,7 +107,7 @@ export function SortableProjectLink({
 		if (event.button !== 0) return
 
 		selectedOnPointerDown.current = true
-		onSelect()
+		handleSelect()
 	}
 
 	function handleSelectClick() {
@@ -104,11 +116,12 @@ export function SortableProjectLink({
 			return
 		}
 
-		onSelect()
+		handleSelect()
 	}
 
 	return (
-		<div
+		<motion.div
+			animate={clickAnimation}
 			ref={setNodeRef}
 			style={style}
 			data-project-id={isDragSource ? undefined : project.id}
@@ -144,7 +157,7 @@ export function SortableProjectLink({
 			>
 				<GripVertical aria-hidden="true" size={16} />
 			</button>
-		</div>
+		</motion.div>
 	)
 }
 

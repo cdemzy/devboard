@@ -1,3 +1,4 @@
+import { motion, useReducedMotion } from 'motion/react'
 import { Fragment, useRef, useState } from 'react'
 import {
 	closestCenter,
@@ -27,6 +28,8 @@ import {
 	ProjectDropTrace,
 	ProjectDragPreview,
 } from './project-navigation'
+const MotionButton = motion.create(Button)
+
 export interface DesktopSidebarProps {
 	email: string
 	projects: Project[]
@@ -61,6 +64,7 @@ export function DesktopSidebar({
 	onOpenArchive,
 	onReorderProjects,
 }: DesktopSidebarProps) {
+	const prefersReducedMotion = useReducedMotion()
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
 	const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false)
 	const sidebarAccountRef = useRef<HTMLDivElement>(null)
@@ -173,7 +177,9 @@ export function DesktopSidebar({
 			<div className="sidebar-panel-content flex min-h-0 flex-1 flex-col p-2">
 				{canCreateProjects && (
 					<div className="sidebar-panel-projects-header mb-2 flex items-center justify-start">
-						<Button
+						<MotionButton
+							whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+							transition={{ type: 'spring', stiffness: 500, damping: 25 }}
 							className={`sidebar-panel-create flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md border border-primary/60 bg-primary/10 py-2 !px-1.5 text-left text-primary hover:bg-primary/20 hover:text-primary ${isLoading ? 'cursor-not-allowed' : ''}`}
 							variant="ghost"
 							aria-label={isLoading ? 'Loading projects' : 'New project'}
@@ -197,7 +203,7 @@ export function DesktopSidebar({
 									<span className={`truncate ${sidebarLabelClass}`}>New Project</span>
 								</>
 							)}
-						</Button>
+						</MotionButton>
 					</div>
 				)}
 				<nav
@@ -266,7 +272,9 @@ export function DesktopSidebar({
 					)}
 				</nav>
 				<div className="sidebar-panel-footer mt-auto border-t border-border pt-3">
-					<button
+					<motion.button
+						whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+						transition={{ type: 'spring', stiffness: 500, damping: 25 }}
 						onClick={onOpenArchive}
 						className={`sidebar-panel-archive-link flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md py-2 px-2 text-left text-sm transition-colors ${isArchiveActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
 					>
@@ -274,7 +282,7 @@ export function DesktopSidebar({
 							<Archive size={15} />
 						</span>
 						<span className={sidebarStaticLabelClass}>Archived projects</span>
-					</button>
+					</motion.button>
 					<div ref={sidebarAccountRef} className="sidebar-panel-account mt-2">
 						<AccountMenu
 							email={email}
