@@ -80,7 +80,29 @@ function reportBoardError(error: unknown, fallback: string, retry?: () => void) 
 	toast.error(error instanceof Error ? error.message : fallback, {
 		id: boardErrorToastId,
 		duration: Infinity,
-		...(retry ? { action: { label: 'Reload board', onClick: retry } } : {}),
+		...(retry
+			? {
+					action: {
+						label: (
+							<span className="board-error-retry-action relative grid h-4 w-4 place-items-center">
+								<RotateCcw size={14} />
+								<span className="sr-only">Reload board</span>
+							</span>
+						),
+						onClick: retry,
+					},
+					actionButtonStyle: {
+						width: 28,
+						height: 28,
+						padding: 0,
+						border: '1px solid #924943',
+						borderRadius: '9999px',
+						background: '#2A1818',
+						color: '#ff7b72',
+						justifyContent: 'center',
+					},
+				}
+			: {}),
 	})
 }
 
@@ -1351,7 +1373,8 @@ export function ProjectView({
 						</div>
 					</div>
 				</header>
-				<nav className="project-view-navigation mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
+				<div className="project-view-toolbar mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
+					<nav className="project-view-navigation" aria-label="Project task views">
 					<div className="project-view-tab-list flex items-center gap-1">
 						<button
 							onClick={() => setView('board')}
@@ -1375,8 +1398,12 @@ export function ProjectView({
 							<Archive size={14} />
 							<span className="hidden md:inline">Archived tasks</span>
 						</button>
-					</div>
-					<div className="project-view-actions-section flex items-center gap-1">
+						</div>
+					</nav>
+					<section
+						className="project-view-actions-section flex items-center gap-1"
+						aria-label="Project actions"
+					>
 						<Tooltip label={project.archived ? 'Restore project' : 'Archive project'}>
 							<Button
 								className="project-view-project-archive hidden md:inline-flex"
@@ -1402,8 +1429,8 @@ export function ProjectView({
 								<Plus size={14} />
 							</Button>
 						)}
-					</div>
-				</nav>
+					</section>
+				</div>
 				{view === 'archived' && (
 					<motion.section
 						initial={{ opacity: 0, y: 12 }}

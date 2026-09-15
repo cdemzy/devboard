@@ -1,8 +1,9 @@
 import { getSupabase } from './supabase'
+import { appErrorCatalog } from './errors'
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
 	const { data, error } = await getSupabase().auth.getSession()
 	if (error || !data.session)
-		throw new Error('Your session has expired. Please sign in again.')
+		throw new Error(appErrorCatalog.AUTH_SESSION_EXPIRED.message)
 	const response = await fetch(
 		`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${path}`,
 		{

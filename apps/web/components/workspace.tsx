@@ -5,6 +5,7 @@ import { animate, AnimatePresence, motion, useMotionValue } from 'motion/react'
 import {
 	Archive,
 	CircleUserRound,
+	CircleAlert,
 	FolderKanban,
 	Layers3,
 	LogOut,
@@ -15,12 +16,15 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, json } from '@/lib/api'
+import { getAppErrorInfo, type AppErrorInfo } from '@/lib/errors'
 import { getSupabase } from '@/lib/supabase'
 import type { Project } from '@/lib/types'
 import { ProjectView } from './project-view'
 import { Button } from './ui/button'
 import { ConfirmDialog } from './ui/confirm-dialog'
 import { SectionLoader } from './ui/section-loader'
+
+const projectsLoadErrorToastId = 'projects-load-error'
 
 function AccountMenu({
 	email,
@@ -100,9 +104,11 @@ function SidebarProjectSkeletons({ collapsed }: { collapsed: boolean }) {
 					className={`flex h-9 items-center justify-start rounded-md pl-2 pr-2 ${collapsed ? 'gap-0' : 'gap-1.5'}`}
 				>
 					<span className="flex w-8 shrink-0 items-center justify-center">
-						<span className="h-4 w-4 rounded bg-muted-foreground/20" />
+						<span className="h-4 w-4 animate-pulse rounded bg-muted-foreground/20" />
 					</span>
-					{!collapsed && <span className="h-3 flex-1 rounded bg-muted-foreground/20" />}
+					{!collapsed && (
+						<span className="h-3 flex-1 animate-pulse rounded bg-muted-foreground/20" />
+					)}
 				</div>
 			))}
 		</div>
@@ -116,6 +122,7 @@ interface MobileProjectDrawerProps {
 	isOpen: boolean
 	isLoading: boolean
 	isCreatingProject: boolean
+	canCreateProjects: boolean
 	isAccountOpen: boolean
 	onCreateProject: () => void
 	onSelectProject: (projectId: string) => void
@@ -155,6 +162,7 @@ function MobileProjectDrawer({
 	isOpen,
 	isLoading,
 	isCreatingProject,
+	canCreateProjects,
 	isAccountOpen,
 	onCreateProject,
 	onSelectProject,
@@ -229,22 +237,24 @@ function MobileProjectDrawer({
 							))
 						)}
 					</div>
-					<Button
-						asChild
-						className="workspace-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
-						size="sm"
-					>
-						<motion.button
-							type="button"
-							disabled={isCreatingProject}
-							onClick={onCreateProject}
-							whileTap={{ scale: 0.96 }}
-							transition={mobileButtonTapTransition}
+					{canCreateProjects && (
+						<Button
+							asChild
+								className="workspace-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
+							size="sm"
 						>
-							<Plus size={15} />
-							New Project
-						</motion.button>
-					</Button>
+							<motion.button
+								type="button"
+								disabled={isCreatingProject || isLoading}
+								onClick={onCreateProject}
+								whileTap={{ scale: 0.96 }}
+								transition={mobileButtonTapTransition}
+							>
+								<Plus size={15} />
+								New Project
+							</motion.button>
+						</Button>
+					)}
 				</nav>
 				<footer className="workspace-mobile-drawer-footer mt-auto border-t border-border pt-3">
 					<Button
@@ -280,6 +290,7 @@ export function Workspace({ email }: { email: string }) {
 	const [accountOpen, setAccountOpen] = useState(false)
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState('')
+	const [projectsLoadError, setProjectsLoadError] = useState<AppErrorInfo | null>(null)
 	const [archivedToDelete, setArchivedToDelete] = useState<Project | null>(null)
 	const request = useRef(0)
 	const mobileDrawerDrag = useRef<MobileDrawerDragState | null>(null)
@@ -296,6 +307,8 @@ export function Workspace({ email }: { email: string }) {
 			const result = await api<Project[]>('/projects?archived=false')
 			if (current !== request.current) return
 			setError('')
+			setProjectsLoadError(null)
+			toast.dismiss(projectsLoadErrorToastId)
 			setProjects(result)
 			setActive((previous) =>
 				result.some((project) => project.id === previous)
@@ -303,8 +316,14 @@ export function Workspace({ email }: { email: string }) {
 					: (result[0]?.id ?? null),
 			)
 		} catch (error) {
-			if (current === request.current)
-				setError(error instanceof Error ? error.message : 'Unable to load projects.')
+			if (current === request.current) {
+				const details = getAppErrorInfo(error, 'Unable to load projects.')
+				setProjectsLoadError(details)
+				toast.error(`${details.code}: ${details.message}`, {
+					id: projectsLoadErrorToastId,
+					duration: Infinity,
+				})
+			}
 		} finally {
 			if (current === request.current) setLoading(false)
 		}
@@ -506,7 +525,7 @@ export function Workspace({ email }: { email: string }) {
 	}
 
 	async function createEmptyProject() {
-		if (isCreatingProject) return
+		if (isCreatingProject || loading || projectsLoadError) return
 		setIsCreatingProject(true)
 		try {
 			const created = await api<Project>(
@@ -518,6 +537,7 @@ export function Workspace({ email }: { email: string }) {
 			setWorkspaceView('board')
 			closeMobileProjects()
 			setError('')
+			setProjectsLoadError(null)
 		} catch (error) {
 			setError(error instanceof Error ? error.message : 'Unable to create a new project.')
 		} finally {
@@ -557,20 +577,35 @@ export function Workspace({ email }: { email: string }) {
 					<span className={sidebarLabelClass}>DevBoard</span>
 				</div>
 				<div className="workspace-sidebar-content flex min-h-0 flex-1 flex-col p-2">
-					<div className="workspace-projects-header mb-2 flex items-center justify-start">
-						<Button
-							className={`workspace-sidebar-create flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md border border-primary/60 bg-primary/10 py-2 !px-1.5 text-left text-primary hover:bg-primary/20 hover:text-primary`}
-							variant="ghost"
-							aria-label="New project"
-							disabled={isCreatingProject}
-							onClick={() => void createEmptyProject()}
-						>
-							<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
-								<Plus size={17} />
-							</span>
-							<span className={`truncate ${sidebarLabelClass}`}>New Project</span>
-						</Button>
-					</div>
+					{!projectsLoadError && (
+						<div className="workspace-projects-header mb-2 flex items-center justify-start">
+							<Button
+								className={`workspace-sidebar-create flex w-full items-center justify-start ${sidebarItemGapClass} rounded-md border border-primary/60 bg-primary/10 py-2 !px-1.5 text-left text-primary hover:bg-primary/20 hover:text-primary ${loading ? 'cursor-not-allowed' : ''}`}
+								variant="ghost"
+								aria-label={loading ? 'Loading projects' : 'New project'}
+								disabled={isCreatingProject || loading}
+								onClick={() => void createEmptyProject()}
+							>
+								{loading ? (
+									<>
+										<span className="workspace-sidebar-create-icon-skeleton flex w-8 shrink-0 items-center justify-center">
+											<span className="h-4 w-4 animate-pulse rounded bg-primary/45" />
+										</span>
+										{!sidebarCollapsed && (
+											<span className="workspace-sidebar-create-label-skeleton h-3 flex-1 animate-pulse rounded bg-primary/45" />
+										)}
+									</>
+								) : (
+									<>
+										<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
+											<Plus size={17} />
+										</span>
+										<span className={`truncate ${sidebarLabelClass}`}>New Project</span>
+									</>
+								)}
+							</Button>
+						</div>
+					)}
 					<nav
 						aria-label="Projects"
 						className="workspace-project-list -mr-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-2"
@@ -637,6 +672,7 @@ export function Workspace({ email }: { email: string }) {
 				isOpen={isMobilePanelVisible}
 				isLoading={loading}
 				isCreatingProject={isCreatingProject}
+				canCreateProjects={!projectsLoadError}
 				isAccountOpen={accountOpen}
 				onCreateProject={() => void createEmptyProject()}
 				onSelectProject={selectProject}
@@ -657,7 +693,7 @@ export function Workspace({ email }: { email: string }) {
 				onPointerMove={handleMobilePanelPointerMove}
 				onPointerUp={handleMobilePanelPointerEnd}
 				onPointerCancel={handleMobilePanelPointerEnd}
-				className={`workspace-main flex min-h-screen min-w-0 flex-1 flex-col max-md:touch-pan-y max-md:relative max-md:z-30 max-md:bg-background md:h-dvh md:min-h-0 md:overflow-x-hidden md:overflow-y-auto ${sidebarCollapsed ? 'md:ml-16 md:w-[calc(100%-4rem)]' : 'md:ml-64 md:w-[calc(100%-16rem)]'} ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
+				className={`workspace-main flex min-h-screen min-w-0 flex-1 flex-col max-md:touch-pan-y max-md:relative max-md:z-30 max-md:bg-background md:h-dvh md:min-h-0 md:overflow-x-hidden md:overflow-y-auto ${isWideDesktop ? 'md:ml-64 md:w-[calc(100%-16rem)]' : 'md:ml-16 md:w-[calc(100%-4rem)]'} ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
 			>
 				<header className="workspace-mobile-header relative z-20 md:hidden">
 					<div className="workspace-mobile-bar relative flex min-h-16 items-center justify-center px-4">
@@ -690,7 +726,7 @@ export function Workspace({ email }: { email: string }) {
 						className="workspace-mobile-panel-scrim absolute inset-0 z-10 bg-black/55 md:hidden"
 					/>
 				)}
-				{error && (
+				{error && !projectsLoadError && (
 					<div
 						role="alert"
 						className="workspace-error m-6 flex items-center gap-4 rounded-lg border border-rose-900 bg-rose-950/20 p-4 text-rose-200"
@@ -711,6 +747,20 @@ export function Workspace({ email }: { email: string }) {
 						label="Loading projects..."
 						className="min-h-0 flex-1"
 					/>
+				) : projectsLoadError ? (
+					<div className="workspace-project-load-error flex min-h-[65vh] flex-col items-center justify-center p-8 text-center">
+						<CircleAlert size={32} className="mb-5 text-rose-300" />
+						<h1 className="text-xl font-semibold">Unable to load projects</h1>
+						<p className="mb-1 mt-2 max-w-sm text-sm text-muted-foreground">
+							{projectsLoadError.message}
+						</p>
+						<p className="workspace-project-load-error-code mb-6 text-xs font-medium tracking-wide text-muted-foreground">
+							Error code: {projectsLoadError.code}
+						</p>
+						<Button onClick={() => void load()}>
+							Retry
+						</Button>
+					</div>
 				) : workspaceView === 'archived' ? (
 					<motion.div
 						key="archive"
