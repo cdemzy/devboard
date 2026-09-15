@@ -267,10 +267,12 @@ function ProjectDragPreview({
 	project,
 	width,
 	height,
+	isHidden = false,
 }: {
 	project: Project
 	width: number | null
 	height: number | null
+	isHidden?: boolean
 }) {
 	const previewInset = 3
 	const previewStyle =
@@ -285,7 +287,7 @@ function ProjectDragPreview({
 	return (
 		<div
 			style={previewStyle}
-			className="workspace-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl"
+			className={`workspace-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl ${isHidden ? 'opacity-0' : ''}`}
 		>
 			<FolderKanban size={15} className="shrink-0" />
 			<span className="truncate">{project.name}</span>
@@ -294,13 +296,27 @@ function ProjectDragPreview({
 	)
 }
 
-function ProjectDropTrace({ height }: { height: number | null }) {
+function ProjectDropTrace({
+	height,
+	project,
+}: {
+	height: number | null
+	project: Project | null
+}) {
 	return (
 		<div
 			aria-hidden="true"
 			style={height ? { height } : undefined}
-			className="workspace-project-drop-trace h-9 w-full rounded-md border border-dashed border-primary/55 bg-primary/5"
-		/>
+			className="workspace-project-drop-trace box-border h-9 w-full rounded-md border border-dashed border-primary/55 bg-primary/5 p-[3px]"
+		>
+			{project && (
+				<div className="workspace-project-drop-preview flex h-full items-center gap-2.5 rounded-sm bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl">
+					<FolderKanban size={15} className="shrink-0" />
+					<span className="truncate">{project.name}</span>
+					<GripVertical size={16} className="ml-auto shrink-0 text-muted-foreground" />
+				</div>
+			)}
+		</div>
 	)
 }
 
@@ -978,7 +994,10 @@ export function Workspace({ email }: { email: string }) {
 												return (
 													<Fragment key={item.id}>
 														{isDropTarget && dropProjectPlacement === 'before' && (
-															<ProjectDropTrace height={activeProjectHeight} />
+															<ProjectDropTrace
+																height={activeProjectHeight}
+																project={activeProject}
+															/>
 														)}
 														<SortableProjectLink
 															project={item}
@@ -990,7 +1009,10 @@ export function Workspace({ email }: { email: string }) {
 															labelClass={sidebarLabelClass}
 														/>
 														{isDropTarget && dropProjectPlacement === 'after' && (
-															<ProjectDropTrace height={activeProjectHeight} />
+															<ProjectDropTrace
+																height={activeProjectHeight}
+																project={activeProject}
+															/>
 														)}
 													</Fragment>
 												)
@@ -1003,6 +1025,7 @@ export function Workspace({ email }: { email: string }) {
 											project={activeProject}
 											width={activeProjectWidth}
 											height={activeProjectHeight}
+											isHidden
 										/>
 									) : null}
 								</DragOverlay>
