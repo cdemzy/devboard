@@ -167,17 +167,19 @@ export function ProjectDragPreview({
 	height,
 	isHidden = false,
 	variant = 'sidebar',
+	isInTrace = false,
 }: {
 	project: Project
 	width: number | null
 	height: number | null
 	isHidden?: boolean
 	variant?: 'sidebar' | 'drawer'
+	isInTrace?: boolean
 }) {
 	const isDrawer = variant === 'drawer'
 	const previewInset = isDrawer ? 0 : 3
 	const previewStyle =
-		width && height
+		!isInTrace && width && height
 			? {
 					width: Math.max(width - previewInset * 2, 0),
 					height: isDrawer ? height : height * 0.82,
@@ -188,7 +190,7 @@ export function ProjectDragPreview({
 	return (
 		<div
 			style={previewStyle}
-			className={`sidebar-panel-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] ${isDrawer ? 'px-3 text-[15px]' : 'px-2.5 text-sm'} text-foreground shadow-xl ${isHidden ? 'opacity-0' : ''}`}
+			className={`sidebar-panel-project-drag-preview ${isInTrace ? 'h-full w-full' : ''} flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] ${isDrawer ? 'px-3 text-[15px]' : 'px-2.5 text-sm'} text-foreground shadow-xl ${isHidden ? 'opacity-0' : ''}`}
 		>
 			<FolderKanban size={15} className="shrink-0" />
 			<span className="truncate">{project.name}</span>
@@ -203,9 +205,11 @@ export function ProjectDragPreview({
 export function ProjectDropTrace({
 	height,
 	project,
+	variant = 'sidebar',
 }: {
 	height: number | null
 	project: Project | null
+	variant?: 'sidebar' | 'drawer'
 }) {
 	return (
 		<div
@@ -213,7 +217,16 @@ export function ProjectDropTrace({
 			style={height ? { height } : undefined}
 			className="sidebar-panel-project-drop-trace box-border h-9 w-full rounded-md border border-dashed border-primary/55 bg-primary/5 p-[3px]"
 		>
-			{project && (
+			{project && variant === 'drawer' && (
+				<ProjectDragPreview
+					project={project}
+					width={null}
+					height={null}
+					variant="drawer"
+					isInTrace
+				/>
+			)}
+			{project && variant === 'sidebar' && (
 				<div className="sidebar-panel-project-drop-preview flex h-full items-center gap-2.5 rounded-sm bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl">
 					<FolderKanban size={15} className="shrink-0" />
 					<span className="truncate">{project.name}</span>

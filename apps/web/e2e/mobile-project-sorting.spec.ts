@@ -87,7 +87,13 @@ test('mobile handles stay visible on the left and touch dragging reserves a visi
 	await expect
 		.poll(entries)
 		.toEqual(['project-2', 'project-3', 'project-4', 'trace', 'project-5'])
+	const previewBox = await preview.boundingBox()
 	const gapBox = await trace.boundingBox()
+	if (!previewBox || !gapBox) throw new Error('Snapped drag preview is missing')
+	expect(previewBox.x).toBeGreaterThan(gapBox.x)
+	expect(previewBox.y).toBeGreaterThan(gapBox.y)
+	expect(previewBox.x + previewBox.width).toBeLessThan(gapBox.x + gapBox.width)
+	expect(previewBox.y + previewBox.height).toBeLessThan(gapBox.y + gapBox.height)
 	const nextRowBox = await list.locator('[data-project-id="project-5"]').boundingBox()
 	if (!gapBox || !nextRowBox) throw new Error('Insertion gap is missing')
 	expect(gapBox.y + gapBox.height).toBeLessThanOrEqual(nextRowBox.y - 3)
@@ -226,9 +232,10 @@ for (const isScrolled of [false, true]) {
 			await expect
 				.poll(async () => {
 					const box = await preview.boundingBox()
-					return box ? Math.round(box.y - rowBox.y) : null
+					const traceBox = await trace.boundingBox()
+					return box && traceBox ? Math.round(box.y - traceBox.y) : null
 				})
-				.toBe(delta === 12 ? 0 : delta)
+				.toBe(4)
 			await expect
 				.poll(async () => {
 					const box = await trace.boundingBox()

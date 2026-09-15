@@ -2,7 +2,6 @@ import { Fragment, useRef, useState } from 'react'
 import {
 	closestCenter,
 	DndContext,
-	DragOverlay,
 	KeyboardSensor,
 	PointerSensor,
 	useSensor,
@@ -25,7 +24,6 @@ import {
 	createProjectListDragConstraint,
 	SidebarProjectSkeletons,
 	SortableProjectLink,
-	ProjectDragPreview,
 	ProjectDropTrace,
 } from './project-navigation'
 import { mobileButtonTapTransition } from './use-mobile-sidebar'
@@ -71,7 +69,6 @@ export function MobileProjectDrawer({
 	const [projectList, setProjectList] = useState<HTMLDivElement | null>(null)
 	const [dragPreview, setDragPreview] = useState<{
 		project: Project
-		width: number
 		height: number
 		top: number
 	} | null>(null)
@@ -98,7 +95,6 @@ export function MobileProjectDrawer({
 		if (!project || !source || !rect) return
 		setDragPreview({
 			project,
-			width: rect.width,
 			height: rect.height,
 			top: source.offsetTop,
 		})
@@ -224,7 +220,8 @@ export function MobileProjectDrawer({
 													{!isDragSource && dropProjectIndex === visibleIndex && (
 														<ProjectDropTrace
 															height={dragPreview?.height ?? null}
-															project={null}
+															project={dragPreview?.project ?? null}
+															variant="drawer"
 														/>
 													)}
 													<SortableProjectLink
@@ -242,21 +239,12 @@ export function MobileProjectDrawer({
 										{dropProjectIndex === visibleProjects.length && (
 											<ProjectDropTrace
 												height={dragPreview?.height ?? null}
-												project={null}
+												project={dragPreview?.project ?? null}
+												variant="drawer"
 											/>
 										)}
 									</SortableContext>
 								</div>
-								<DragOverlay adjustScale={false} dropAnimation={null}>
-									{dragPreview && (
-										<ProjectDragPreview
-											project={dragPreview.project}
-											width={dragPreview.width}
-											height={dragPreview.height}
-											variant="drawer"
-										/>
-									)}
-								</DragOverlay>
 							</DndContext>
 						)}
 					</div>
