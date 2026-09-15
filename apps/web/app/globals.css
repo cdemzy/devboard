@@ -146,21 +146,6 @@
 		@apply left-full top-1/2 mt-0 translate-x-0 -translate-y-1/2;
 	}
 
-	.ui-section-loader {
-		@apply flex min-h-[65vh] flex-col items-center justify-center gap-4 text-muted-foreground;
-	}
-
-	.ui-section-loader-icon {
-		@apply relative grid h-20 w-20 place-items-center;
-	}
-
-	.ui-section-loader-spinner {
-		@apply absolute inset-0 animate-spin rounded-full border-2 border-primary/20 border-t-primary;
-	}
-
-	.ui-section-loader-label {
-		@apply text-sm;
-	}
 }
 
 /* Keep project tag labels slightly larger and consistent in both states. */

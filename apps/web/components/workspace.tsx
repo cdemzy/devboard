@@ -19,10 +19,9 @@ import { api, json } from '@/lib/api'
 import { getAppErrorInfo, type AppErrorInfo } from '@/lib/errors'
 import { getSupabase } from '@/lib/supabase'
 import type { Project } from '@/lib/types'
-import { ProjectView } from './project-view'
+import { ProjectView, ProjectViewSkeleton } from './project-view'
 import { Button } from './ui/button'
 import { ConfirmDialog } from './ui/confirm-dialog'
-import { SectionLoader } from './ui/section-loader'
 
 const projectsLoadErrorToastId = 'projects-load-error'
 
@@ -742,11 +741,7 @@ export function Workspace({ email }: { email: string }) {
 					</div>
 				)}
 				{loading ? (
-					<SectionLoader
-						icon={FolderKanban}
-						label="Loading projects..."
-						className="min-h-0 flex-1"
-					/>
+					<ProjectViewSkeleton />
 				) : projectsLoadError ? (
 					<div className="workspace-project-load-error flex min-h-[65vh] flex-col items-center justify-center p-8 text-center">
 						<CircleAlert size={32} className="mb-5 text-rose-300" />
@@ -773,11 +768,23 @@ export function Workspace({ email }: { email: string }) {
 							Archived projects
 						</h1>
 						{archiveLoading ? (
-							<SectionLoader
-								icon={Archive}
-								label="Loading archived projects..."
-								className="min-h-[calc(100dvh-14rem)]"
-							/>
+							<div
+								className="workspace-archive-skeleton grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+								role="status"
+								aria-label="Loading archived projects"
+							>
+								{Array.from({ length: 3 }, (_, index) => (
+									<div
+										key={index}
+										aria-hidden="true"
+										className="h-32 animate-pulse rounded-lg border border-border bg-muted/10 p-5"
+									>
+										<div className="h-4 w-3/5 rounded bg-muted-foreground/20" />
+										<div className="mt-3 h-3 w-4/5 rounded bg-muted-foreground/15" />
+									</div>
+								))}
+								<span className="sr-only">Loading archived projects</span>
+							</div>
 						) : archivedProjects.length === 0 ? (
 							<div className="flex min-h-[calc(100dvh-14rem)] items-center justify-center text-sm text-muted-foreground">
 								No archived projects.
@@ -815,12 +822,7 @@ export function Workspace({ email }: { email: string }) {
 						)}
 					</motion.div>
 				) : (
-					<motion.div
-						key="board"
-						initial={{ opacity: 0, y: 12 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.2, ease: 'easeOut' }}
-					>
+					<div className="workspace-board-panel">
 						{project ? (
 							<ProjectView
 								key={project.id}
@@ -852,7 +854,7 @@ export function Workspace({ email }: { email: string }) {
 								</Button>
 							</div>
 						)}
-					</motion.div>
+					</div>
 				)}
 			</motion.main>
 			<ConfirmDialog

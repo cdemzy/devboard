@@ -432,12 +432,11 @@ function Column({
 			<header className="kanban-column-header mb-4 flex items-center gap-2 px-1 pt-1">
 				<Icon size={15} className={statusStyle.accent} />
 				<h2 className="text-xs font-semibold">{statusLabels[status]}</h2>
-				<span className="text-xs text-muted-foreground">{tasks.length}</span>
 				<Tooltip label="Add">
 					<Button
 						variant="ghost"
 						size="icon"
-						className="ml-auto"
+						className="kanban-column-add !h-auto !w-auto !min-w-0 p-0 hover:bg-transparent"
 						aria-label={`Add task to ${statusLabels[status]}`}
 						disabled={disabled || loading}
 						onClick={() => onStartTask(status)}
@@ -445,6 +444,7 @@ function Column({
 						<Plus size={15} />
 					</Button>
 				</Tooltip>
+				<span className="text-xs text-muted-foreground">{tasks.length}</span>
 			</header>
 			<SortableContext
 				items={visibleTasks.map((task) => task.id)}

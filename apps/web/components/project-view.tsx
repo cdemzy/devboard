@@ -368,6 +368,90 @@ function ProjectTagEditorForm({
 	)
 }
 
+export function ProjectViewSkeleton() {
+	const skeletonColumns = [
+		{ id: 'todo', column: 'border-[#6C5082]/35 bg-[#221D25]', accent: 'bg-[#6C5082]/55' },
+		{
+			id: 'in-progress',
+			column: 'border-[#886826]/35 bg-[#23221A]',
+			accent: 'bg-[#886826]/55',
+		},
+		{ id: 'done', column: 'border-[#386C4E]/35 bg-[#1B211D]', accent: 'bg-[#386C4E]/55' },
+	]
+
+	return (
+		<div
+			className="project-view project-view-skeleton mx-auto w-4/5 px-0 pt-5 pb-5 sm:w-full sm:px-5 sm:pt-8 sm:pb-6 md:px-8"
+			role="status"
+			aria-label="Loading project"
+		>
+			<header className="project-header mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
+				<div className="min-w-0 w-full max-w-3xl flex-1">
+					<div className="project-title-skeleton h-9 w-48 animate-pulse rounded-sm bg-muted-foreground/20" />
+					<div className="project-description-skeleton mt-3 h-4 w-80 max-w-full animate-pulse rounded-sm bg-muted-foreground/15" />
+					<div className="project-platform-skeleton mt-4 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-3">
+						<div className="flex items-center gap-2">
+							<div className="project-platform-icon-skeleton h-4 w-4 animate-pulse rounded-sm bg-muted-foreground/20" />
+							<div className="project-platform-title-skeleton h-3 w-14 animate-pulse rounded-sm bg-muted-foreground/15" />
+						</div>
+						<div className="project-tag-trigger-skeleton flex h-12 items-center gap-1.5 px-2">
+							<div className="h-5 w-16 animate-pulse rounded-sm bg-muted-foreground/20" />
+							<div className="h-5 w-12 animate-pulse rounded-sm bg-muted-foreground/15" />
+						</div>
+					</div>
+				</div>
+			</header>
+			<div className="project-view-toolbar mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
+				<div className="project-view-tab-list flex items-center gap-3">
+					<div className="flex items-center gap-2 rounded-full bg-[#30363d] px-3 py-1.5">
+						<div className="project-view-tab-icon-skeleton h-4 w-4 animate-pulse rounded-sm bg-primary/55" />
+						<div className="view-title-skeleton h-3 w-10 animate-pulse rounded-sm bg-muted-foreground/20" />
+					</div>
+					<div className="flex items-center gap-2">
+						<div className="project-view-tab-icon-skeleton h-4 w-4 animate-pulse rounded-sm bg-muted-foreground/20" />
+						<div className="view-title-skeleton h-3 w-20 animate-pulse rounded-sm bg-muted-foreground/15" />
+					</div>
+				</div>
+				<div className="project-view-actions-section flex items-center gap-1">
+					<div className="project-view-project-archive-skeleton h-8 w-8" />
+					<div className="project-view-new-task-skeleton grid h-8 w-11 place-items-center rounded-md border border-primary/60 bg-primary/10">
+						<div className="h-4 w-4 animate-pulse rounded-sm bg-primary/55" />
+					</div>
+				</div>
+			</div>
+			<div className="kanban-board-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
+				{skeletonColumns.map(({ id, column, accent }) => (
+					<section
+						key={id}
+						aria-hidden="true"
+						className={`kanban-column-skeleton min-h-[22rem] rounded-lg border p-2 pb-4 shadow-sm md:min-h-[max(22rem,calc(100dvh-17rem))] ${column}`}
+					>
+						<div className="flex items-center gap-2 px-1 pt-1">
+							<div className={`kanban-column-icon-skeleton h-4 w-4 animate-pulse rounded-sm ${accent}`} />
+							<div className="kanban-column-title-skeleton h-3 w-16 animate-pulse rounded-sm bg-muted-foreground/25" />
+							<div className="kanban-column-count-skeleton h-3 w-3 animate-pulse rounded-sm bg-muted-foreground/15" />
+						</div>
+						<div className="mt-4 space-y-2">
+							{Array.from({ length: 3 }, (_, index) => (
+								<div
+									key={index}
+									className="kanban-task-skeleton min-h-[6.5rem] animate-pulse rounded-lg border border-border/60 bg-background/30 p-3"
+								>
+									<div className="h-2 w-12 rounded bg-muted-foreground/20" />
+									<div className="mt-4 h-3 w-4/5 rounded bg-muted-foreground/20" />
+									<div className="mt-4 h-2 w-16 rounded bg-muted-foreground/20" />
+								</div>
+							))}
+						</div>
+						<div className="mt-2 h-8 w-full animate-pulse rounded bg-muted-foreground/10" />
+					</section>
+				))}
+			</div>
+			<span className="sr-only">Loading project</span>
+		</div>
+	)
+}
+
 export function ProjectView({
 	project,
 	update,
@@ -1000,6 +1084,8 @@ export function ProjectView({
 			reportBoardError(error, 'Unable to refresh project after deleting tag.')
 		}
 	}
+	if (loading) return <ProjectViewSkeleton />
+
 	return (
 		<>
 			<div className="project-view mx-auto w-4/5 px-0 pt-5 pb-5 sm:w-full sm:px-5 sm:pt-8 sm:pb-6 md:px-8">
@@ -1451,7 +1537,7 @@ export function ProjectView({
 						</Tooltip>
 						{!project.archived && (
 							<Button
-								className="project-view-new-task !h-auto px-4 py-1.5 active:scale-95"
+								className="project-view-new-task !h-auto border border-primary/60 !bg-primary/10 px-4 py-1.5 text-primary hover:!bg-primary/20 hover:text-primary active:scale-95"
 								disabled={busy || loading}
 								aria-label="New task"
 								onClick={() => {
@@ -1524,12 +1610,7 @@ export function ProjectView({
 					</motion.section>
 				)}
 				{view === 'board' && (
-					<motion.div
-						key="board"
-						initial={{ opacity: 0, y: 12 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.2 }}
-					>
+					<div className="project-view-board">
 						<KanbanBoard
 							tasks={tasks}
 							disabled={project.archived}
@@ -1541,7 +1622,7 @@ export function ProjectView({
 							newTaskRequest={newTaskRequest}
 							move={(...args) => void move(...args)}
 						/>
-					</motion.div>
+					</div>
 				)}
 				{view === 'board' && !project.archived && (
 					<Button
