@@ -1,7 +1,10 @@
 from uuid import uuid4
 
+from fastapi.testclient import TestClient
+
 from app.core.auth import get_user_id
-from app.main import app
+from app.core.config import Settings
+from app.main import app, create_app
 
 
 def project(client):
@@ -57,9 +60,42 @@ def test_requires_authentication(client):
     assert client.get("/projects").status_code == 401
 
 
+def test_docs_and_openapi_are_disabled_by_default():
+    api = create_app(Settings(enable_docs=False, cors_origins=["http://localhost:3000"]))
+    with TestClient(api) as docs_client:
+        assert docs_client.get("/docs").status_code == 404
+        assert docs_client.get("/redoc").status_code == 404
+        assert docs_client.get("/openapi.json").status_code == 404
+
+
+def test_docs_can_be_enabled_explicitly():
+    api = create_app(Settings(enable_docs=True, cors_origins=["http://localhost:3000"]))
+    with TestClient(api) as docs_client:
+        assert docs_client.get("/docs").status_code == 200
+        assert docs_client.get("/openapi.json").status_code == 200
+
+
+def test_unhandled_errors_do_not_leak_details():
+    api = create_app(Settings(enable_docs=False, cors_origins=["http://localhost:3000"]))
+
+    @api.get("/boom")
+    def boom():
+        raise RuntimeError("secret database url should not leak")
+
+    with TestClient(api, raise_server_exceptions=False) as error_client:
+        response = error_client.get("/boom")
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal server error"}
+    assert "secret database url" not in response.text
+
+
 def test_project_and_task_authorization(client):
-    project_id = project(client)
+    project_id = client.post("/projects", json={"name": "DevBoard", "tags": ["Frontend"]}).json()[
+        "id"
+    ]
     task_id = task(client, project_id)["id"]
+    tag_id = client.get("/project-tags").json()[0]["id"]
     other_user = uuid4()
     app.dependency_overrides[get_user_id] = lambda: other_user
     assert client.get("/projects").json() == []
@@ -71,8 +107,12 @@ def test_project_and_task_authorization(client):
         ("POST", f"/projects/{project_id}/tasks", {"title": "Stolen"}),
         ("GET", f"/tasks/{task_id}", None),
         ("PATCH", f"/tasks/{task_id}", {"title": "Stolen"}),
+        ("POST", f"/tasks/{task_id}/archive", None),
+        ("POST", f"/tasks/{task_id}/restore", None),
         ("POST", f"/tasks/{task_id}/move", {"status": "done", "position": 0}),
         ("DELETE", f"/tasks/{task_id}", None),
+        ("PATCH", f"/project-tags/{tag_id}", {"name": "Stolen"}),
+        ("DELETE", f"/project-tags/{tag_id}", None),
     ]:
         assert client.request(method, path, json=payload).status_code == 404
 
