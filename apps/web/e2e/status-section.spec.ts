@@ -104,3 +104,53 @@ test('mobile new tasks appear first and keep their position after reloading', as
 	await page.reload()
 	await expect(todo.locator('.task-card').first()).toContainText('Newest ticket')
 })
+
+test('opening a mobile task editor keeps tickets aligned within other status sections', async ({
+	page,
+}) => {
+	await openDashboard(page, createProjects(['Project']))
+	for (const status of ['Todo', 'In Progress', 'Done']) {
+		await page.getByRole('button', { name: `Add task to ${status}`, exact: true }).click()
+		const input = page.getByLabel(`New ${status} task title`, { exact: true })
+		await input.fill(`${status} ticket`)
+		await input.press('Enter')
+		await expect(
+			page.getByRole('button', { name: `${status} ticket`, exact: true }),
+		).toBeVisible()
+	}
+	await page.setViewportSize({ width: 390, height: 844 })
+	const [offsets] = await Promise.all([
+		page.evaluate(async () => {
+			const sections = ['in_progress', 'done'].map((status) => {
+				const section = document.querySelector<HTMLElement>(
+					`[data-board-status-section="${status}"]`,
+				)
+				const card = section?.querySelector<HTMLElement>('.task-card')
+				if (!section || !card) throw new Error('Unaffected status ticket is missing')
+				return { section, card }
+			})
+			const samples: number[][] = []
+			for (let frame = 0; frame < 30; frame += 1) {
+				await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+				samples.push(
+					sections.map(
+						({ section, card }) =>
+							card.getBoundingClientRect().top - section.getBoundingClientRect().top,
+					),
+				)
+			}
+			return samples
+		}),
+		page.getByRole('button', { name: 'Add task to Todo', exact: true }).click(),
+	])
+	for (let sectionIndex = 0; sectionIndex < 2; sectionIndex += 1) {
+		const values = offsets.map((sample) => sample[sectionIndex])
+		expect(Math.max(...values) - Math.min(...values)).toBeLessThan(1)
+	}
+	await expect(page.getByLabel('New Todo task title', { exact: true })).toBeVisible()
+	for (const status of ['In Progress', 'Done']) {
+		const section = page.getByRole('region', { name: status, exact: true })
+		await expect(section.locator('.task-card')).toHaveCount(1)
+		await expect(section.locator('.kanban-new-task-card')).toHaveCount(0)
+	}
+})

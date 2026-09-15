@@ -115,6 +115,7 @@ export function StatusSection({
 					remove={remove}
 					disabled={disabled || task.id.startsWith('pending-task-')}
 					isBoardDragging={isBoardDragging}
+					isMobile={isMobile}
 				/>
 			</motion.div>
 		)

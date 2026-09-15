@@ -21,6 +21,7 @@ export function TaskCard({
 	remove,
 	disabled,
 	isBoardDragging,
+	isMobile,
 }: {
 	task: Task
 	edit: (task: Task) => void
@@ -28,6 +29,7 @@ export function TaskCard({
 	remove: (task: Task) => void
 	disabled: boolean
 	isBoardDragging: boolean
+	isMobile: boolean
 }) {
 	const [actionsOpen, setActionsOpen] = useState(false)
 	const { attributes, listeners, setNodeRef, isDragging } = useSortable({
@@ -38,7 +40,7 @@ export function TaskCard({
 	return (
 		<motion.article
 			ref={setNodeRef}
-			layout={isBoardDragging ? false : 'position'}
+			layout={isMobile || isBoardDragging ? false : 'position'}
 			transition={{ layout: { duration: 0.22, ease: 'easeOut' } }}
 			onClick={() => edit(task)}
 			onMouseLeave={() => setActionsOpen(false)}
