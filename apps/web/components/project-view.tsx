@@ -2,6 +2,7 @@
 import {
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 	type CSSProperties,
@@ -34,6 +35,7 @@ import {
 	Database,
 	Ellipsis,
 	GripVertical,
+	History,
 	Info,
 	LayoutDashboard,
 	Plus,
@@ -465,6 +467,7 @@ export function ProjectView({
 	const [archivedTasks, setArchivedTasks] = useState<Task[]>([])
 	const [view, setView] = useState<'board' | 'archived'>('board')
 	const [hoveredView, setHoveredView] = useState<'board' | 'archived' | null>(null)
+	const [tabPill, setTabPill] = useState<{ width: number; x: number } | null>(null)
 	const [archivedTasksLoading, setArchivedTasksLoading] = useState(false)
 	const [loading, setLoading] = useState(true)
 	const [busy, setBusy] = useState(false)
@@ -494,6 +497,9 @@ export function ProjectView({
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const tagSheetDragControls = useDragControls()
 	const projectDescriptionRef = useRef<HTMLTextAreaElement>(null)
+	const tabListRef = useRef<HTMLDivElement>(null)
+	const boardTabRef = useRef<HTMLButtonElement>(null)
+	const archivedTabRef = useRef<HTMLButtonElement>(null)
 	const tagSensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -630,6 +636,22 @@ export function ProjectView({
 		},
 		[],
 	)
+	useLayoutEffect(() => {
+		const tabList = tabListRef.current
+		if (!tabList) return
+
+		function updateTabPill() {
+			const target =
+				(hoveredView ?? view) === 'board' ? boardTabRef.current : archivedTabRef.current
+			if (!target) return
+			setTabPill({ width: target.offsetWidth, x: target.offsetLeft })
+		}
+
+		updateTabPill()
+		const resizeObserver = new ResizeObserver(updateTabPill)
+		resizeObserver.observe(tabList)
+		return () => resizeObserver.disconnect()
+	}, [hoveredView, view])
 	useEffect(() => {
 		const description = projectDescriptionRef.current
 		if (!description) return
@@ -1498,25 +1520,28 @@ export function ProjectView({
 				<div className="project-view-toolbar mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
 					<nav className="project-view-navigation" aria-label="Project task views">
 						<div
-							className="project-view-tab-list flex items-center gap-1"
+							ref={tabListRef}
+							className="project-view-tab-list relative isolate flex items-center gap-0"
 							onPointerLeave={() => setHoveredView(null)}
 						>
+							{tabPill && (
+								<motion.span
+									aria-hidden="true"
+									initial={false}
+									animate={{ width: tabPill.width, x: tabPill.x }}
+									transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+									className={`project-view-tab-pill pointer-events-none absolute inset-y-0 left-0 z-0 rounded-full ${view === (hoveredView ?? view) ? 'bg-[#30363d] shadow-sm' : 'bg-[#30363d]/70'}`}
+								/>
+							)}
 							<button
+								ref={boardTabRef}
 								type="button"
 								onClick={() => setView('board')}
 								onPointerEnter={() => setHoveredView('board')}
 								aria-label="Board"
 								aria-pressed={view === 'board'}
-								className={`project-view-tab relative isolate flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${view === 'board' || hoveredView === 'board' ? 'text-foreground' : 'text-muted-foreground'}`}
+								className={`project-view-tab relative z-10 flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${view === 'board' || hoveredView === 'board' ? 'text-foreground' : 'text-muted-foreground'}`}
 							>
-								{(hoveredView ?? view) === 'board' && (
-									<motion.span
-										aria-hidden="true"
-										layoutId="project-view-tab-pill"
-										transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-										className={`project-view-tab-pill pointer-events-none absolute inset-0 -z-10 rounded-full ${view === 'board' ? 'bg-[#30363d] shadow-sm' : 'bg-[#30363d]/70'}`}
-									/>
-								)}
 								<span className="relative z-10 flex items-center gap-2">
 									<LayoutDashboard
 										size={14}
@@ -1526,6 +1551,7 @@ export function ProjectView({
 								</span>
 							</button>
 							<button
+								ref={archivedTabRef}
 								type="button"
 								onClick={() => {
 									setView('archived')
@@ -1534,18 +1560,10 @@ export function ProjectView({
 								onPointerEnter={() => setHoveredView('archived')}
 								aria-label="Archived tasks"
 								aria-pressed={view === 'archived'}
-								className={`project-view-tab relative isolate flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${view === 'archived' || hoveredView === 'archived' ? 'text-foreground' : 'text-muted-foreground'}`}
+								className={`project-view-tab relative z-10 flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${view === 'archived' || hoveredView === 'archived' ? 'text-foreground' : 'text-muted-foreground'}`}
 							>
-								{(hoveredView ?? view) === 'archived' && (
-									<motion.span
-										aria-hidden="true"
-										layoutId="project-view-tab-pill"
-										transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-										className={`project-view-tab-pill pointer-events-none absolute inset-0 -z-10 rounded-full ${view === 'archived' ? 'bg-[#30363d] shadow-sm' : 'bg-[#30363d]/70'}`}
-									/>
-								)}
 								<span className="relative z-10 flex items-center gap-2">
-									<Archive
+									<History
 										size={14}
 										className={`project-view-tab-icon ${view === 'archived' ? 'text-primary' : ''}`}
 									/>
