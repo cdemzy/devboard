@@ -1,12 +1,26 @@
+from collections.abc import Mapping
+from random import choice
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Project, Task, utcnow
+from app.models import Project, ProjectTag, Task, utcnow
 from app.repositories.projects import owned_project, owned_task, project_tasks
-from app.schemas import ProjectCreate, ProjectUpdate, TaskCreate, TaskUpdate
+from app.schemas import (
+    ProjectCreate,
+    ProjectOrder,
+    ProjectTagOrder,
+    ProjectTagUpdate,
+    ProjectUpdate,
+    TaskCreate,
+    TaskUpdate,
+)
+from app.services.tickets import project_ticket_prefix
+
+NEW_PROJECT_NAME = "New Project"
+TAG_COLORS = ("green", "yellow", "purple", "orange", "blue", "pink", "red", "brown")
 
 
 def list_projects(db: Session, user: UUID, archived: bool):
@@ -14,13 +28,123 @@ def list_projects(db: Session, user: UUID, archived: bool):
         db.scalars(
             select(Project)
             .where(Project.owner_id == user, Project.archived == archived)
-            .order_by(Project.created_at, Project.id)
+            .order_by(Project.position, Project.created_at, Project.id)
         )
     )
 
 
+def reorder_projects(db: Session, user: UUID, data: ProjectOrder):
+    projects = list(
+        db.scalars(
+            select(Project)
+            .where(Project.owner_id == user, Project.archived.is_(False))
+            .order_by(Project.position, Project.created_at, Project.id)
+            .with_for_update()
+        )
+    )
+    project_ids = data.project_ids
+    if len(project_ids) != len(set(project_ids)) or set(project_ids) != {
+        project.id for project in projects
+    }:
+        raise HTTPException(422, "Project order must include every active project exactly once")
+    projects_by_id = {project.id: project for project in projects}
+    for position, project_id in enumerate(project_ids):
+        projects_by_id[project_id].position = position
+    db.commit()
+
+
+def next_project_position(db: Session, user: UUID) -> int:
+    position = db.scalar(
+        select(func.coalesce(func.max(Project.position), -1)).where(
+            Project.owner_id == user,
+            Project.archived.is_(False),
+        )
+    )
+    return (position if position is not None else -1) + 1
+
+
+def list_project_tags(db: Session, user: UUID):
+    return list(
+        db.scalars(
+            select(ProjectTag)
+            .where(ProjectTag.owner_id == user)
+            .order_by(ProjectTag.position, ProjectTag.id)
+        )
+    )
+
+
+def sync_project_tags(
+    db: Session,
+    user: UUID,
+    tags: list[str],
+    new_tag_colors: Mapping[str, str] | None = None,
+):
+    # O(n + k * c): scan existing tags once, then inspect the fixed color palette per new tag.
+    existing_tags = list(db.scalars(select(ProjectTag).where(ProjectTag.owner_id == user)))
+    existing = {tag.normalized_name for tag in existing_tags}
+    used_colors = {tag.color for tag in existing_tags}
+    colors_by_name = {name.casefold(): color for name, color in (new_tag_colors or {}).items()}
+    next_position = len(existing_tags)
+    for name in tags:
+        normalized = name.casefold()
+        if normalized not in existing:
+            available_colors = tuple(color for color in TAG_COLORS if color not in used_colors)
+            selected_color = colors_by_name.get(normalized)
+            color = (
+                selected_color
+                if selected_color in (available_colors or TAG_COLORS)
+                else choice(available_colors or TAG_COLORS)
+            )
+            db.add(
+                ProjectTag(
+                    owner_id=user,
+                    name=name,
+                    normalized_name=normalized,
+                    color=color,
+                    position=next_position,
+                )
+            )
+            existing.add(normalized)
+            used_colors.add(color)
+            next_position += 1
+
+
+def reorder_project_tags(db: Session, user: UUID, data: ProjectTagOrder):
+    tags = list(
+        db.scalars(
+            select(ProjectTag)
+            .where(ProjectTag.owner_id == user)
+            .order_by(ProjectTag.position, ProjectTag.id)
+            .with_for_update()
+        )
+    )
+    tag_ids = data.tag_ids
+    if len(tag_ids) != len(set(tag_ids)) or set(tag_ids) != {tag.id for tag in tags}:
+        raise HTTPException(422, "Tag order must include every platform exactly once")
+    tags_by_id = {tag.id: tag for tag in tags}
+    ordered_tags = [tags_by_id[tag_id] for tag_id in tag_ids]
+    for position, tag in enumerate(ordered_tags):
+        tag.position = position
+    db.commit()
+    return ordered_tags
+
+
 def create_project(db: Session, user: UUID, data: ProjectCreate):
-    project = Project(owner_id=user, **data.model_dump())
+    values = data.model_dump()
+    if values["name"] == NEW_PROJECT_NAME:
+        # O(n + k): scan existing names once, then find the first available suffix.
+        existing_names = set(db.scalars(select(Project.name).where(Project.owner_id == user)))
+        suffix = 0
+        while values["name"] in existing_names:
+            suffix += 1
+            values["name"] = f"{NEW_PROJECT_NAME} ({suffix})"
+    project = Project(
+        owner_id=user,
+        ticket_prefix=project_ticket_prefix(db, user, values["name"]),
+        position=next_project_position(db, user),
+        **values,
+    )
+    sync_project_tags(db, user, data.tags)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -29,11 +153,72 @@ def create_project(db: Session, user: UUID, data: ProjectCreate):
 
 def update_project(db: Session, user: UUID, project_id: UUID, data: ProjectUpdate):
     project = owned_project(db, project_id, user, lock=True)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    values = data.model_dump(exclude_unset=True)
+    if values.get("archived") is False and project.archived:
+        project.position = next_project_position(db, user)
+    for key, value in values.items():
+        if key == "new_tag_colors":
+            continue
         setattr(project, key, value)
+    if data.tags is not None:
+        sync_project_tags(db, user, data.tags, data.new_tag_colors)
     db.commit()
     db.refresh(project)
     return project
+
+
+def update_project_tag(db: Session, user: UUID, tag_id: UUID, data: ProjectTagUpdate):
+    tag = db.scalar(select(ProjectTag).where(ProjectTag.id == tag_id, ProjectTag.owner_id == user))
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    if data.name is not None:
+        normalized_name = data.name.casefold()
+        duplicate = db.scalar(
+            select(ProjectTag).where(
+                ProjectTag.owner_id == user,
+                ProjectTag.normalized_name == normalized_name,
+                ProjectTag.id != tag.id,
+            )
+        )
+        if duplicate:
+            raise HTTPException(409, "A platform with this name already exists")
+        for project in db.scalars(select(Project).where(Project.owner_id == user)):
+            renamed = [
+                data.name if name.casefold() == tag.normalized_name else name
+                for name in project.tags
+            ]
+            if renamed != project.tags:
+                project.tags = renamed
+                project.updated_at = utcnow()
+        tag.name = data.name
+        tag.normalized_name = normalized_name
+    if data.color is not None:
+        tag.color = data.color
+    db.commit()
+    db.refresh(tag)
+    return tag
+
+
+def delete_project_tag(db: Session, user: UUID, tag_id: UUID):
+    tag = db.scalar(select(ProjectTag).where(ProjectTag.id == tag_id, ProjectTag.owner_id == user))
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    for project in db.scalars(select(Project).where(Project.owner_id == user)):
+        filtered = [name for name in project.tags if name.casefold() != tag.normalized_name]
+        if len(filtered) != len(project.tags):
+            project.tags = filtered
+            project.updated_at = utcnow()
+    db.delete(tag)
+    remaining_tags = list(
+        db.scalars(
+            select(ProjectTag)
+            .where(ProjectTag.owner_id == user, ProjectTag.id != tag_id)
+            .order_by(ProjectTag.position, ProjectTag.id)
+        )
+    )
+    for position, remaining_tag in enumerate(remaining_tags):
+        remaining_tag.position = position
+    db.commit()
 
 
 def delete_project(db: Session, user: UUID, project_id: UUID):
@@ -60,8 +245,11 @@ def create_task(db: Session, user: UUID, project_id: UUID, data: TaskCreate):
     task = Task(
         project_id=project_id,
         position=sum(t.status == data.status for t in tasks),
+        ticket_number=project.next_ticket_number,
+        ticket_id=f"{project.ticket_prefix}-{project.next_ticket_number}",
         **data.model_dump(),
     )
+    project.next_ticket_number += 1
     db.add(task)
     project.updated_at = utcnow()
     db.commit()
@@ -87,6 +275,30 @@ def update_task(db: Session, user: UUID, task_id: UUID, data: TaskUpdate):
         normalize([t for t in remaining if t.status != status] + target)
     for key, value in values.items():
         setattr(task, key, value)
+    project.updated_at = utcnow()
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def archive_task(db: Session, user: UUID, task_id: UUID):
+    task = owned_task(db, task_id, user)
+    project = writable_project(db, task.project_id, user)
+    tasks = project_tasks(db, task.project_id)
+    task.archived = True
+    normalize([item for item in tasks if item.id != task.id])
+    project.updated_at = utcnow()
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def restore_task(db: Session, user: UUID, task_id: UUID):
+    task = owned_task(db, task_id, user)
+    project = writable_project(db, task.project_id, user)
+    tasks = project_tasks(db, task.project_id)
+    task.archived = False
+    task.position = sum(item.status == task.status for item in tasks)
     project.updated_at = utcnow()
     db.commit()
     db.refresh(task)

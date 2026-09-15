@@ -1,5 +1,12 @@
 # DevBoard
 
+## Tech stack
+
+- **Web:** Next.js 16, React 19, TypeScript, Tailwind CSS 4, dnd-kit, Radix UI
+- **API:** Python 3.12+, FastAPI, SQLAlchemy, Pydantic
+- **Data and authentication:** Supabase PostgreSQL and Supabase Auth
+- **Testing:** Vitest, Playwright, and pytest
+
 ## Architecture
 
 ```text
@@ -29,9 +36,9 @@ no private data is rendered into the public HTML shell.
 ## Supabase setup
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/202609120001_initial.sql` once in its SQL editor.
-   The migration creates projects and tasks, UUID primary keys, ownership and project
-   foreign keys, indexes, checks, timestamps, and API-only table access.
+2. Run the files in `supabase/migrations/` in filename order in its SQL editor.
+   They create projects and tasks, UUID primary keys, ownership and project foreign
+   keys, indexes, checks, timestamps, API-only table access, and generated ticket IDs.
    Do not use SQLAlchemy `create_all` for a deployed database: it intentionally does
    not manage Supabase's `auth.users` table or install the migration's RLS/grants.
 3. Enable the Email provider in Authentication. Configure the minimum password length
@@ -58,12 +65,7 @@ From the repository root:
 
 ```powershell
 npm install
-Copy-Item apps/web/.env.example apps/web/.env.local
-Copy-Item apps/api/.env.example apps/api/.env
 ```
-
-Fill in both environment files. On Windows where PowerShell blocks npm.ps1, use
-`npm.cmd` instead of `npm`.
 
 Start the backend in one terminal:
 
@@ -93,6 +95,7 @@ over HTTPS in production and restrict `CORS_ORIGINS` to the actual frontend orig
 | apps/web/.env.local | NEXT_PUBLIC_API_URL                  | FastAPI base URL, default http://localhost:8000                          |
 | apps/web/.env.local | NEXT_PUBLIC_SUPABASE_URL             | Supabase project URL                                                     |
 | apps/web/.env.local | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | Browser-safe publishable or legacy anon key                              |
+| apps/web/.env.local | APP_ACCESS_PASSWORD                  | Server-only global password required before the app loads                |
 | apps/api/.env       | DATABASE_URL                         | Server-only SQLAlchemy psycopg PostgreSQL URL                            |
 | apps/api/.env       | SUPABASE_URL                         | Same Supabase project URL                                                |
 | apps/api/.env       | SUPABASE_PUBLISHABLE_KEY             | Publishable or legacy anon key for token verification                    |
@@ -100,6 +103,21 @@ over HTTPS in production and restrict `CORS_ORIGINS` to the actual frontend orig
 
 Backend settings load relative to `apps/api`; run API commands from that directory.
 No Supabase secret/service-role key or JWT signing secret is needed.
+
+### Pre-commit hooks
+
+Install the API development tools, then enable the repository hooks once:
+
+```powershell
+cd apps/api
+uv sync
+uv run pre-commit install
+```
+
+Before each commit, the hooks run Ruff checks, formatting, and MyPy type checks for
+API Python changes, plus ESLint for staged web TypeScript and JavaScript files. Run
+every hook manually from the repository root with
+`uv run --project apps/api pre-commit run --all-files`.
 
 ## API
 

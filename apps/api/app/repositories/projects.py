@@ -29,11 +29,11 @@ def owned_task(db: Session, task_id: UUID, user_id: UUID) -> Task:
     return task
 
 
-def project_tasks(db: Session, project_id: UUID) -> list[Task]:
+def project_tasks(db: Session, project_id: UUID, archived: bool = False) -> list[Task]:
     return list(
         db.scalars(
             select(Task)
-            .where(Task.project_id == project_id)
+            .where(Task.project_id == project_id, Task.archived == archived)
             .order_by(Task.status, Task.position, Task.created_at, Task.id)
         )
     )

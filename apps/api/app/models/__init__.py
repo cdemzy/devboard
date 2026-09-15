@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -25,11 +27,16 @@ class Base(DeclarativeBase):
 
 class Project(Base):
     __tablename__ = "projects"
+    __table_args__ = (UniqueConstraint("owner_id", "ticket_prefix"),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     owner_id: Mapped[UUID] = mapped_column(Uuid, index=True)
     name: Mapped[str] = mapped_column(String(120))
+    ticket_prefix: Mapped[str] = mapped_column(String(2))
+    next_ticket_number: Mapped[int] = mapped_column(Integer, default=1)
     description: Mapped[str] = mapped_column(Text, default="")
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
@@ -37,12 +44,26 @@ class Project(Base):
     # The migration adds the owner FK to Supabase-managed auth.users.
 
 
+class ProjectTag(Base):
+    __tablename__ = "project_tags"
+    __table_args__ = (UniqueConstraint("owner_id", "normalized_name"),)
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(Uuid, index=True)
+    name: Mapped[str] = mapped_column(String(40))
+    normalized_name: Mapped[str] = mapped_column(String(40))
+    color: Mapped[str] = mapped_column(String(16), default="purple")
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
         CheckConstraint("status IN ('todo', 'in_progress', 'done')"),
         CheckConstraint("priority IN ('low', 'medium', 'high')"),
+        CheckConstraint("complexity IN ('easy', 'standard', 'hard')"),
         CheckConstraint("position >= 0"),
+        CheckConstraint("ticket_number > 0"),
+        UniqueConstraint("project_id", "ticket_number"),
         Index("tasks_project_status_position_idx", "project_id", "status", "position"),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -51,7 +72,11 @@ class Task(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="todo")
     priority: Mapped[str] = mapped_column(String(10), default="medium")
+    complexity: Mapped[str] = mapped_column(String(10), default="standard")
     position: Mapped[int] = mapped_column(Integer, default=0)
+    ticket_number: Mapped[int] = mapped_column(Integer)
+    ticket_id: Mapped[str] = mapped_column(String(16))
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

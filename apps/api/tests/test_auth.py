@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import httpx
 
-from app.core.auth import get_user_id
+from app.core.auth import get_user_id, identity_cache
 from app.core.config import Settings
 
 
@@ -46,3 +46,25 @@ def test_invalid_token_and_auth_outage(client, monkeypatch):
             client.get("/projects", headers={"Authorization": "Bearer invalid"}).status_code
             == expected
         )
+
+
+def test_verified_identity_is_cached(client, monkeypatch):
+    app_user = uuid4()
+    calls = 0
+    identity_cache.clear()
+    client.app.dependency_overrides.pop(get_user_id)
+    monkeypatch.setattr(
+        "app.core.auth.get_settings", lambda: Settings(supabase_publishable_key="public-test-key")
+    )
+
+    def verify(url, headers, timeout):
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={"id": str(app_user)}, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr("app.core.auth.httpx.get", verify)
+    headers = {"Authorization": "Bearer cached-token"}
+
+    assert client.get("/projects", headers=headers).status_code == 200
+    assert client.get("/projects", headers=headers).status_code == 200
+    assert calls == 1
