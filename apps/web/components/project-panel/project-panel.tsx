@@ -19,7 +19,6 @@ interface ProjectPanelProps {
 	isCreatingProject: boolean
 	error: string
 	projectsLoadError: AppErrorInfo | null
-	isWideDesktop: boolean
 	mobileSidebar: ReturnType<typeof useMobileSidebar>
 	onReload: () => Promise<void>
 	onCreateProject: () => Promise<void>
@@ -38,7 +37,6 @@ export function ProjectPanel({
 	isCreatingProject,
 	error,
 	projectsLoadError,
-	isWideDesktop,
 	mobileSidebar,
 	onReload,
 	onCreateProject,
@@ -64,7 +62,7 @@ export function ProjectPanel({
 			onPointerMove={handleMobilePanelPointerMove}
 			onPointerUp={handleMobilePanelPointerEnd}
 			onPointerCancel={handleMobilePanelPointerEnd}
-			className={`project-panel flex min-h-screen min-w-0 flex-1 flex-col max-md:touch-pan-y max-md:relative max-md:z-30 max-md:bg-background md:h-dvh md:min-h-0 md:overflow-x-hidden md:overflow-y-auto ${isWideDesktop ? 'md:ml-64 md:w-[calc(100%-16rem)]' : 'md:ml-16 md:w-[calc(100%-4rem)]'} ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
+			className={`project-panel flex min-h-screen min-w-0 flex-1 flex-col max-md:touch-pan-y max-md:relative max-md:z-30 max-md:bg-background md:h-dvh md:min-h-0 md:overflow-x-hidden md:overflow-y-auto md:ml-16 md:w-[calc(100%-4rem)] xl:ml-64 xl:w-[calc(100%-16rem)] ${isMobilePanelVisible ? 'overflow-hidden shadow-2xl' : ''}`}
 		>
 			<header className="project-panel-mobile-header relative z-20 md:hidden">
 				<div className="project-panel-mobile-bar relative flex min-h-16 items-center justify-center px-4">

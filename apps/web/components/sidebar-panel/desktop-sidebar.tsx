@@ -32,7 +32,6 @@ export interface DesktopSidebarProps {
 	projects: Project[]
 	activeProjectId: string | null
 	isArchiveActive: boolean
-	isWideDesktop: boolean
 	isLoading: boolean
 	isCreatingProject: boolean
 	canCreateProjects: boolean
@@ -50,7 +49,6 @@ export function DesktopSidebar({
 	projects,
 	activeProjectId,
 	isArchiveActive,
-	isWideDesktop,
 	isLoading,
 	isCreatingProject,
 	canCreateProjects,
@@ -74,10 +72,10 @@ export function DesktopSidebar({
 	const [dropProjectIndex, setDropProjectIndex] = useState<number | null>(null)
 	const dropProjectIndexRef = useRef<number | null>(null)
 	const hasProjectDragMoved = useRef(false)
-	const sidebarCollapsed = !isWideDesktop && isSidebarCollapsed && !isSidebarHoverExpanded
-	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
-	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
-	const sidebarItemGapClass = sidebarCollapsed ? 'gap-0' : 'gap-1.5'
+	const sidebarCollapsed = isSidebarCollapsed && !isSidebarHoverExpanded
+	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] xl:max-w-44 xl:translate-x-0 xl:opacity-100 xl:transition-none ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
+	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap xl:max-w-44 xl:opacity-100 ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
+	const sidebarItemGapClass = `${sidebarCollapsed ? 'gap-0' : 'gap-1.5'} xl:gap-1.5`
 	const projectSensors = useSensors(
 		useSensor(PointerSensor),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -157,15 +155,16 @@ export function DesktopSidebar({
 	return (
 		<aside
 			onMouseEnter={() => {
-				if (!isWideDesktop && isSidebarCollapsed) setIsSidebarHoverExpanded(true)
+				if (window.matchMedia('(min-width: 1280px)').matches) return
+				if (isSidebarCollapsed) setIsSidebarHoverExpanded(true)
 			}}
 			onMouseLeave={() => {
-				if (isWideDesktop) return
+				if (window.matchMedia('(min-width: 1280px)').matches) return
 				setIsSidebarHoverExpanded(false)
 				setIsSidebarCollapsed(true)
 				onCloseAccount()
 			}}
-			className={`sidebar-panel fixed inset-y-0 left-0 z-40 hidden h-dvh flex-col border-r border-border bg-[#161b22] transition-[width] duration-200 md:flex ${sidebarCollapsed ? 'w-16' : 'w-64'}`}
+			className={`sidebar-panel fixed inset-y-0 left-0 z-40 hidden h-dvh flex-col border-r border-border bg-[#161b22] transition-[width] duration-200 md:flex xl:w-64 xl:transition-none ${sidebarCollapsed ? 'w-16' : 'w-64'}`}
 		>
 			<div className="sidebar-panel-brand flex h-16 items-center justify-start gap-5.5 border-b border-border pl-[21px] pr-5 text-base font-semibold tracking-tight">
 				<Layers3 size={22} className="shrink-0 text-primary" />
@@ -186,9 +185,9 @@ export function DesktopSidebar({
 									<span className="sidebar-panel-create-icon-skeleton flex w-8 shrink-0 items-center justify-center">
 										<span className="h-4 w-4 animate-pulse rounded bg-primary/45" />
 									</span>
-									{!sidebarCollapsed && (
-										<span className="sidebar-panel-create-label-skeleton h-3 flex-1 animate-pulse rounded bg-primary/45" />
-									)}
+									<span
+										className={`sidebar-panel-create-label-skeleton h-3 flex-1 animate-pulse rounded bg-primary/45 ${sidebarCollapsed ? 'hidden xl:block' : ''}`}
+									/>
 								</>
 							) : (
 								<>

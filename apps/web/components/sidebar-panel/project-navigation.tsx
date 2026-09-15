@@ -28,14 +28,14 @@ export function SidebarProjectSkeletons({ collapsed }: { collapsed: boolean }) {
 				<div
 					key={index}
 					aria-hidden="true"
-					className={`flex h-9 items-center justify-start rounded-md pl-2 pr-2 ${collapsed ? 'gap-0' : 'gap-1.5'}`}
+					className={`flex h-9 items-center justify-start rounded-md pl-2 pr-2 xl:gap-1.5 ${collapsed ? 'gap-0' : 'gap-1.5'}`}
 				>
 					<span className="flex w-8 shrink-0 items-center justify-center">
 						<span className="h-4 w-4 animate-pulse rounded bg-muted-foreground/20" />
 					</span>
-					{!collapsed && (
-						<span className="h-3 flex-1 animate-pulse rounded bg-muted-foreground/20" />
-					)}
+					<span
+						className={`sidebar-panel-project-label-skeleton h-3 flex-1 animate-pulse rounded bg-muted-foreground/20 ${collapsed ? 'hidden xl:block' : ''}`}
+					/>
 				</div>
 			))}
 		</div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useProjects } from '@/hooks/use-projects'
 import { SidebarPanel } from './sidebar-panel/sidebar-panel'
 import { useMobileSidebar } from './sidebar-panel/use-mobile-sidebar'
@@ -26,21 +26,11 @@ export function Dashboard({ email }: { email: string }) {
 		restore,
 		deleteArchivedProject,
 	} = useProjects()
-	const [isWideDesktop, setIsWideDesktop] = useState(false)
 	const [projectPanelView, setProjectPanelView] = useState<'board' | 'archived'>('board')
 	const [accountOpen, setAccountOpen] = useState(false)
 	const mobileSidebar = useMobileSidebar(() => setAccountOpen(false))
 	const { isMobilePanelVisible, isMobileDrawerRevealed, closeMobileProjects } =
 		mobileSidebar
-	useEffect(() => {
-		const mediaQuery = window.matchMedia('(min-width: 1280px)')
-		const handleViewportChange = () => setIsWideDesktop(mediaQuery.matches)
-
-		handleViewportChange()
-		mediaQuery.addEventListener('change', handleViewportChange)
-
-		return () => mediaQuery.removeEventListener('change', handleViewportChange)
-	}, [])
 
 	const project = projects.find((project) => project.id === active)
 	function selectProject(projectId: string) {
@@ -72,7 +62,6 @@ export function Dashboard({ email }: { email: string }) {
 				isMobileOpen={isMobilePanelVisible}
 				isMobileDrawerRevealed={isMobileDrawerRevealed}
 				isArchiveActive={projectPanelView === 'archived'}
-				isWideDesktop={isWideDesktop}
 				isLoading={loading}
 				isCreatingProject={isCreatingProject}
 				canCreateProjects={!projectsLoadError}
@@ -94,7 +83,6 @@ export function Dashboard({ email }: { email: string }) {
 				isCreatingProject={isCreatingProject}
 				error={error}
 				projectsLoadError={projectsLoadError}
-				isWideDesktop={isWideDesktop}
 				mobileSidebar={mobileSidebar}
 				onReload={load}
 				onCreateProject={createEmptyProject}
