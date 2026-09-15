@@ -1,4 +1,5 @@
 const encoder = new TextEncoder()
+export const accessTokenMaxAgeSeconds = 60 * 60 * 24 * 365
 
 async function signature(value: string, password: string) {
 	const key = await crypto.subtle.importKey(
@@ -15,7 +16,7 @@ async function signature(value: string, password: string) {
 }
 
 export async function createAccessToken(password: string) {
-	const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7
+	const expiresAt = Date.now() + 1000 * accessTokenMaxAgeSeconds
 	return `${expiresAt}.${await signature(String(expiresAt), password)}`
 }
 
