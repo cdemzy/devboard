@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import {
 	DndContext,
@@ -10,6 +10,7 @@ import {
 	useDroppable,
 	useDndContext,
 	DragOverlay,
+	MeasuringStrategy,
 	closestCorners,
 	pointerWithin,
 	type DragEndEvent,
@@ -157,19 +158,17 @@ function TaskCard({
 						{task.title}
 					</span>
 				</button>
-				<Tooltip label="Drag to move">
-					<button
-						type="button"
-						onClick={(event) => event.stopPropagation()}
-						aria-label={`Drag ${task.ticket_id} to move`}
-						disabled={disabled}
-						className="task-card-drag-handle touch-none rounded p-1 text-muted-foreground cursor-grab active:cursor-grabbing disabled:cursor-default"
-						{...attributes}
-						{...listeners}
-					>
-						<GripVertical size={15} />
-					</button>
-				</Tooltip>
+				<button
+					type="button"
+					onClick={(event) => event.stopPropagation()}
+					aria-label={`Drag ${task.ticket_id} to move`}
+					disabled={disabled}
+					className="task-card-drag-handle touch-none rounded p-1 text-muted-foreground cursor-grab active:cursor-grabbing disabled:cursor-default"
+					{...attributes}
+					{...listeners}
+				>
+					<GripVertical size={15} />
+				</button>
 			</div>
 			<div className="task-card-footer mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 text-muted-foreground">
 				<span
@@ -323,21 +322,38 @@ function NewTaskCard({
 function TaskDragPreview({ task }: { task: Task }) {
 	const statusStyle = statusStyles[task.status]
 	return (
-		<motion.div
-			initial={{ opacity: 0, scale: 0.96, y: 4 }}
-			animate={{ opacity: 1, scale: 1, y: 0 }}
-			transition={{ type: 'spring', stiffness: 520, damping: 30 }}
+		<div
 			className={`task-drag-preview w-72 rotate-1 rounded-lg border p-3 shadow-xl ${statusStyle.ticket}`}
 		>
-			<span
-				className={`mb-1 block text-[10px] font-medium tracking-wide ${statusStyle.accent}`}
-			>
-				{task.ticket_id}
-			</span>
-			<span className="block wrap-break-word text-[13px] font-medium leading-5">
-				{task.title}
-			</span>
-		</motion.div>
+			<div className="task-card-header flex items-start gap-1">
+				<div className="min-w-0 flex-1">
+					<span
+						className={`task-card-ticket mb-1 flex items-center gap-1 text-[10px] font-medium tracking-wide ${statusStyle.accent}`}
+					>
+						{task.ticket_id}
+						{task.description && <AlignLeft size={12} aria-label="Has description" />}
+					</span>
+					<span className="task-card-title block wrap-break-word first-letter:uppercase text-[13px] leading-5 font-medium">
+						{task.title}
+					</span>
+				</div>
+				<GripVertical size={15} className="shrink-0 text-muted-foreground" />
+			</div>
+			<div className="task-card-footer mt-4 grid grid-cols-2 items-center gap-2 text-muted-foreground">
+				<span
+					className={`task-card-priority flex items-center gap-1.5 text-[12px] leading-none capitalize ${task.priority === 'high' ? 'text-orange-300' : ''}`}
+				>
+					<Flag size={14} className="shrink-0" />
+					{task.priority}
+				</span>
+				<span
+					className={`task-card-complexity flex items-center gap-1.5 text-[12px] leading-none capitalize ${task.complexity === 'hard' ? 'text-orange-300' : ''}`}
+				>
+					<Gauge size={14} className="shrink-0" />
+					{task.complexity}
+				</span>
+			</div>
+		</div>
 	)
 }
 function Column({
@@ -352,11 +368,10 @@ function Column({
 	onCancelTask,
 	disabled,
 	loading,
-	pointerY,
-	activeTaskStatus,
 	isMobile,
 	isExpanded,
 	onToggleExpanded,
+	setDropIndicatorNode,
 }: {
 	status: Status
 	tasks: Task[]
@@ -369,55 +384,19 @@ function Column({
 	onCancelTask: () => void
 	disabled: boolean
 	loading: boolean
-	pointerY: number | null
-	activeTaskStatus: Status | null
 	isMobile: boolean
 	isExpanded: boolean
 	onToggleExpanded: () => void
+	setDropIndicatorNode: (node: HTMLDivElement | null) => void
 }) {
 	const { setNodeRef, isOver } = useDroppable({ id: status, disabled })
-	const { active, over } = useDndContext()
-	const taskListRef = useRef<HTMLDivElement>(null)
-	const [dropIndicatorTop, setDropIndicatorTop] = useState<number | null>(null)
+	const { over } = useDndContext()
 	const Icon = statusIcons[status]
 	const statusStyle = statusStyles[status]
 	const visibleTasks = isMobile && !isExpanded ? tasks.slice(0, 3) : tasks
 	const canToggleTasks = !loading && isMobile && tasks.length > 3
 	const containsOverTask = tasks.some((task) => task.id === over?.id)
-	const isDropColumn = over?.id === status || containsOverTask
 	const isEmptyColumnDropTarget = tasks.length === 0 && over?.id === status
-	const shouldAppendCrossStatusDrop =
-		status === 'done' && activeTaskStatus !== null && activeTaskStatus !== status
-	useLayoutEffect(() => {
-		if (
-			!isDropColumn ||
-			pointerY === null ||
-			tasks.length === 0 ||
-			!taskListRef.current
-		) {
-			setDropIndicatorTop(null)
-			return
-		}
-		const activeId = String(active?.id ?? '')
-		const cards = Array.from(
-			taskListRef.current.querySelectorAll<HTMLElement>('[data-task-id]'),
-		).filter((card) => card.dataset.taskId !== activeId)
-		if (shouldAppendCrossStatusDrop) {
-			const lastCard = cards.at(-1)
-			setDropIndicatorTop(lastCard ? lastCard.offsetTop + lastCard.offsetHeight + 4 : 4)
-			return
-		}
-		const nextCard = cards.find((card) => {
-			const rect = card.getBoundingClientRect()
-			return pointerY < rect.top + rect.height / 2
-		})
-		if (nextCard) {
-			setDropIndicatorTop(nextCard.offsetTop - 5)
-			return
-		}
-		const lastCard = cards.at(-1)
-		setDropIndicatorTop(lastCard ? lastCard.offsetTop + lastCard.offsetHeight + 4 : 4)
-	}, [active?.id, isDropColumn, pointerY, shouldAppendCrossStatusDrop, tasks.length])
 	return (
 		<motion.section
 			ref={setNodeRef}
@@ -451,20 +430,18 @@ function Column({
 				strategy={verticalListSortingStrategy}
 			>
 				<motion.div
-					ref={taskListRef}
 					layout={isMobile}
 					transition={{
 						layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
 					}}
 					className="kanban-task-list relative space-y-2"
 				>
-					{dropIndicatorTop !== null && (
-						<div
-							aria-hidden="true"
-							style={{ top: dropIndicatorTop }}
-							className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full ${statusStyle.drop}`}
-						/>
-					)}
+					<div
+						ref={setDropIndicatorNode}
+						aria-hidden="true"
+						className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full ${statusStyle.drop}`}
+						hidden
+					/>
 					{loading ? (
 						Array.from({ length: 3 }, (_, index) => (
 							<div
@@ -576,12 +553,13 @@ export function KanbanBoard({
 	loading?: boolean
 }) {
 	const [activeTask, setActiveTask] = useState<Task | null>(null)
-	const [pointerY, setPointerY] = useState<number | null>(null)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)
 	const [expandedStatuses, setExpandedStatuses] = useState<Set<Status>>(() => new Set())
 	const [newTaskStatus, setNewTaskStatus] = useState<Status | null>(null)
 	const dragStartPointerRef = useRef<{ x: number; y: number } | null>(null)
 	const dragPointerRef = useRef<{ x: number; y: number } | null>(null)
+	const dropIndicatorNodes = useRef(new Map<Status, HTMLDivElement>())
+	const dropIndicatorFrame = useRef<number | null>(null)
 	const previousNewTaskRequest = useRef(0)
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -621,6 +599,54 @@ export function KanbanBoard({
 		await createTask(status, title)
 		setNewTaskStatus(null)
 	}
+	function hideDropIndicators() {
+		dropIndicatorNodes.current.forEach((indicator) => {
+			indicator.hidden = true
+		})
+	}
+	function cancelDropIndicatorFrame() {
+		if (dropIndicatorFrame.current === null) return
+		cancelAnimationFrame(dropIndicatorFrame.current)
+		dropIndicatorFrame.current = null
+	}
+	function updateDropIndicator(
+		overId: string | number | undefined,
+		activeId: string,
+		pointerY: number,
+	) {
+		cancelDropIndicatorFrame()
+		dropIndicatorFrame.current = requestAnimationFrame(() => {
+			dropIndicatorFrame.current = null
+			const targetTask = tasks.find((task) => task.id === String(overId))
+			const status =
+				targetTask?.status ??
+				(statuses.includes(overId as Status) ? (overId as Status) : undefined)
+			if (!status) {
+				hideDropIndicators()
+				return
+			}
+			const indicator = dropIndicatorNodes.current.get(status)
+			const column = document.querySelector<HTMLElement>(`[data-kanban-column="${status}"]`)
+			if (!indicator || !column) return
+			const cards = Array.from(column.querySelectorAll<HTMLElement>('[data-task-id]')).filter(
+				(card) => card.dataset.taskId !== activeId,
+			)
+			const activeTask = tasks.find((task) => task.id === activeId)
+			const shouldAppend = status === 'done' && activeTask?.status !== status
+			const nextCard = shouldAppend
+				? undefined
+				: cards.find((card) => pointerY < card.getBoundingClientRect().top + card.offsetHeight / 2)
+			const lastCard = cards.at(-1)
+			const top = nextCard
+				? nextCard.offsetTop - 5
+				: lastCard
+					? lastCard.offsetTop + lastCard.offsetHeight + 4
+					: 4
+			hideDropIndicators()
+			indicator.style.top = `${top}px`
+			indicator.hidden = false
+		})
+	}
 	function onDragEnd({ active, over }: DragEndEvent) {
 		if (!over || active.id === over.id || disabled || loading) return
 		const targetTask = tasks.find((task) => task.id === over.id)
@@ -655,6 +681,7 @@ export function KanbanBoard({
 		<DndContext
 			sensors={sensors}
 			collisionDetection={collisionDetectionStrategy}
+			measuring={{ droppable: { strategy: MeasuringStrategy.BeforeDragging } }}
 			onDragStart={({ active, activatorEvent }) => {
 				const pointerEvent = activatorEvent as PointerEvent
 				const pointer =
@@ -663,29 +690,32 @@ export function KanbanBoard({
 						: null
 				dragStartPointerRef.current = pointer
 				dragPointerRef.current = pointer
-				setPointerY(pointer?.y ?? null)
+				cancelDropIndicatorFrame()
+				hideDropIndicators()
 				setActiveTask(tasks.find((task) => task.id === active.id) ?? null)
 			}}
-			onDragMove={({ delta }) => {
+			onDragMove={({ active, delta, over }) => {
 				if (!dragStartPointerRef.current) return
 				const pointer = {
 					x: dragStartPointerRef.current.x + delta.x,
 					y: dragStartPointerRef.current.y + delta.y,
 				}
 				dragPointerRef.current = pointer
-				setPointerY(pointer.y)
+				updateDropIndicator(over?.id, String(active.id), pointer.y)
 			}}
 			onDragCancel={() => {
 				dragStartPointerRef.current = null
 				dragPointerRef.current = null
-				setPointerY(null)
+				cancelDropIndicatorFrame()
+				hideDropIndicators()
 				setActiveTask(null)
 			}}
 			onDragEnd={(event) => {
 				onDragEnd(event)
 				dragStartPointerRef.current = null
 				dragPointerRef.current = null
-				setPointerY(null)
+				cancelDropIndicatorFrame()
+				hideDropIndicators()
 				setActiveTask(null)
 			}}
 		>
@@ -705,16 +735,22 @@ export function KanbanBoard({
 							onCancelTask={() => setNewTaskStatus(null)}
 							disabled={disabled}
 							loading={loading}
-							pointerY={pointerY}
-							activeTaskStatus={activeTask?.status ?? null}
 							isMobile={isMobileViewport}
 							isExpanded={expandedStatuses.has(status)}
 							onToggleExpanded={() => toggleColumnExpansion(status)}
+							setDropIndicatorNode={(node) => {
+								if (node) dropIndicatorNodes.current.set(status, node)
+								else dropIndicatorNodes.current.delete(status)
+							}}
 						/>
 					))}
 				</div>
 			</LayoutGroup>
-			<DragOverlay dropAnimation={null}>
+			<DragOverlay
+				adjustScale={false}
+				dropAnimation={null}
+				transition={() => undefined}
+			>
 				{activeTask ? <TaskDragPreview task={activeTask} /> : null}
 			</DragOverlay>
 		</DndContext>
