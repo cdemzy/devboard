@@ -49,10 +49,6 @@ test('mobile handles stay visible on the left and touch dragging reserves a visi
 		type: 'touchStart',
 		touchPoints: [{ x, y: startY }],
 	})
-	await session.send('Input.dispatchTouchEvent', {
-		type: 'touchMove',
-		touchPoints: [{ x, y: startY + 12 }],
-	})
 	const preview = page.locator(
 		'.sidebar-panel-mobile-drawer .sidebar-panel-project-drag-preview',
 	)
@@ -61,6 +57,9 @@ test('mobile handles stay visible on the left and touch dragging reserves a visi
 	await expect(preview).toHaveCSS('opacity', '1')
 	await expect(preview).toHaveText('Prompt stash')
 	await expect(trace).toBeVisible()
+	const originTraceBox = await trace.boundingBox()
+	if (!originTraceBox) throw new Error('Origin trace is missing on press')
+	expect(Math.round(originTraceBox.y)).toBe(Math.round(rowBox.y))
 	await expect
 		.poll(() => trace.evaluate((element) => element.getBoundingClientRect().height))
 		.toBe(rowBox.height)
@@ -223,7 +222,7 @@ for (const isScrolled of [false, true]) {
 			'.sidebar-panel-mobile-drawer .sidebar-panel-project-drag-preview',
 		)
 		const trace = list.locator('.sidebar-panel-project-drop-trace')
-		for (const delta of [12, 1, 2]) {
+		for (const delta of [0, 1, 2]) {
 			await session.send('Input.dispatchTouchEvent', {
 				type: 'touchMove',
 				touchPoints: [{ x, y: startY + delta }],

@@ -26,7 +26,9 @@ test('mobile drawer selects projects, closes, and releases scroll locking', asyn
 		.toBe(true)
 })
 
-test('touch swipes open and close the mobile drawer', async ({ page }) => {
+test('short intentional swipes toggle the mobile drawer while small nudges keep its state', async ({
+	page,
+}) => {
 	await page.setViewportSize({ width: 390, height: 844 })
 	await openDashboard(page)
 	const session = await page.context().newCDPSession(page)
@@ -43,7 +45,18 @@ test('touch swipes open and close the mobile drawer', async ({ page }) => {
 		}
 		await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
 	}
-	await swipe(8, 240)
+	await swipe(8, 28)
+	await expect(
+		page.getByRole('button', { name: 'Open projects', exact: true }),
+	).toHaveAttribute('aria-expanded', 'false')
+	await expect
+		.poll(() =>
+			page
+				.locator('.project-panel')
+				.evaluate((element) => Math.round(element.getBoundingClientRect().left)),
+		)
+		.toBe(0)
+	await swipe(8, 78)
 	await expect(
 		page.getByRole('button', { name: 'Close projects', exact: true }),
 	).toHaveAttribute('aria-expanded', 'true')
@@ -57,7 +70,18 @@ test('touch swipes open and close the mobile drawer', async ({ page }) => {
 				.evaluate((element) => Math.round(element.getBoundingClientRect().left)),
 		)
 		.toBe(304)
-	await swipe(370, 150)
+	await swipe(370, 350)
+	await expect(
+		page.getByRole('button', { name: 'Close projects', exact: true }),
+	).toHaveAttribute('aria-expanded', 'true')
+	await expect
+		.poll(() =>
+			page
+				.locator('.project-panel')
+				.evaluate((element) => Math.round(element.getBoundingClientRect().left)),
+		)
+		.toBe(304)
+	await swipe(370, 300)
 	await expect(
 		page.getByRole('button', { name: 'Open projects', exact: true }),
 	).toHaveAttribute('aria-expanded', 'false')

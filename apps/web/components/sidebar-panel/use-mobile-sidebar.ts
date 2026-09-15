@@ -171,7 +171,11 @@ export function useMobileSidebar(onCloseAccount: () => void) {
 						drawerWidth,
 						Math.max(0, drag.initialOffset + event.clientX - drag.startX),
 					)
-		const shouldOpen = finalOffset >= drawerWidth / 2
+		const swipeThreshold = Math.min(drawerWidth * 0.2, 64)
+		const shouldOpen =
+			drag.initialOffset === 0
+				? finalOffset >= swipeThreshold
+				: drawerWidth - finalOffset < swipeThreshold
 		setIsMobileProjectsOpen(shouldOpen)
 		void animate(mobilePanelX, shouldOpen ? drawerWidth : 0, mobileDrawerSpring)
 	}

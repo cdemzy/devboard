@@ -83,7 +83,7 @@ export function MobileProjectDrawer({
 	)
 	const restrictProjectDragToList = createProjectListDragConstraint(projectList)
 	const projectSensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+		useSensor(PointerSensor),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
 	)
 	function handleProjectDragStart({ active }: DragStartEvent) {
