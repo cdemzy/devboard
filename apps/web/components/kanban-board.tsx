@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import {
 	DndContext,
 	PointerSensor,
@@ -111,12 +111,14 @@ function TaskCard({
 	archive,
 	remove,
 	disabled,
+	isBoardDragging,
 }: {
 	task: Task
 	edit: (task: Task) => void
 	archive: (task: Task) => void
 	remove: (task: Task) => void
 	disabled: boolean
+	isBoardDragging: boolean
 }) {
 	const [actionsOpen, setActionsOpen] = useState(false)
 	const { attributes, listeners, setNodeRef, isDragging } = useSortable({
@@ -127,7 +129,7 @@ function TaskCard({
 	return (
 		<motion.article
 			ref={setNodeRef}
-			layout="position"
+			layout={isBoardDragging ? false : 'position'}
 			transition={{ layout: { duration: 0.22, ease: 'easeOut' } }}
 			onClick={() => edit(task)}
 			onMouseLeave={() => setActionsOpen(false)}
@@ -372,6 +374,7 @@ function Column({
 	isExpanded,
 	onToggleExpanded,
 	setDropIndicatorNode,
+	isBoardDragging,
 }: {
 	status: Status
 	tasks: Task[]
@@ -388,6 +391,7 @@ function Column({
 	isExpanded: boolean
 	onToggleExpanded: () => void
 	setDropIndicatorNode: (node: HTMLDivElement | null) => void
+	isBoardDragging: boolean
 }) {
 	const { setNodeRef, isOver } = useDroppable({ id: status, disabled })
 	const { over } = useDndContext()
@@ -400,7 +404,7 @@ function Column({
 	return (
 		<motion.section
 			ref={setNodeRef}
-			layout={isMobile}
+			layout={isMobile && !isBoardDragging}
 			transition={{
 				layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
 			}}
@@ -430,7 +434,7 @@ function Column({
 				strategy={verticalListSortingStrategy}
 			>
 				<motion.div
-					layout={isMobile}
+					layout={isMobile && !isBoardDragging}
 					transition={{
 						layout: { type: 'spring', stiffness: 340, damping: 34, mass: 0.72 },
 					}}
@@ -439,7 +443,7 @@ function Column({
 					<div
 						ref={setDropIndicatorNode}
 						aria-hidden="true"
-						className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full ${statusStyle.drop}`}
+					className={`kanban-drop-indicator pointer-events-none absolute left-2 right-2 z-10 h-0.5 rounded-full transition-none ${statusStyle.drop}`}
 						hidden
 					/>
 					{loading ? (
@@ -459,7 +463,7 @@ function Column({
 							{visibleTasks.map((task) => (
 								<motion.div
 									key={task.id}
-									layout="position"
+									layout={isBoardDragging ? false : 'position'}
 									initial={isMobile ? { opacity: 0, y: -10 } : false}
 									animate={{ opacity: 1, y: 0 }}
 									exit={isMobile ? { opacity: 0, y: -8 } : undefined}
@@ -475,6 +479,7 @@ function Column({
 										archive={archive}
 										remove={remove}
 										disabled={disabled}
+										isBoardDragging={isBoardDragging}
 									/>
 								</motion.div>
 							))}
@@ -507,6 +512,7 @@ function Column({
 			)}
 			{!loading && tasks.length === 0 && newTaskStatus !== status && (
 				<p
+					data-kanban-empty-state={status}
 					className={`kanban-empty-state relative flex min-h-[6.5rem] items-center justify-center rounded-lg border border-dashed px-3 py-3 text-center text-xs ${isEmptyColumnDropTarget ? statusStyle.emptyDrop : 'border-[#484f58] text-muted-foreground'}`}
 				>
 					{isEmptyColumnDropTarget && (
@@ -560,6 +566,10 @@ export function KanbanBoard({
 	const dragPointerRef = useRef<{ x: number; y: number } | null>(null)
 	const dropIndicatorNodes = useRef(new Map<Status, HTMLDivElement>())
 	const dropIndicatorFrame = useRef<number | null>(null)
+	const dropGap = useRef<{
+		element: HTMLElement
+		property: 'marginBottom' | 'marginTop'
+	} | null>(null)
 	const previousNewTaskRequest = useRef(0)
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -609,6 +619,11 @@ export function KanbanBoard({
 		cancelAnimationFrame(dropIndicatorFrame.current)
 		dropIndicatorFrame.current = null
 	}
+	function clearDropGap() {
+		if (!dropGap.current) return
+		dropGap.current.element.style[dropGap.current.property] = ''
+		dropGap.current = null
+	}
 	function updateDropIndicator(
 		overId: string | number | undefined,
 		activeId: string,
@@ -623,20 +638,40 @@ export function KanbanBoard({
 				(statuses.includes(overId as Status) ? (overId as Status) : undefined)
 			if (!status) {
 				hideDropIndicators()
+				clearDropGap()
 				return
 			}
 			const indicator = dropIndicatorNodes.current.get(status)
 			const column = document.querySelector<HTMLElement>(`[data-kanban-column="${status}"]`)
-			if (!indicator || !column) return
+			if (!indicator || !column) {
+				clearDropGap()
+				return
+			}
 			const cards = Array.from(column.querySelectorAll<HTMLElement>('[data-task-id]')).filter(
 				(card) => card.dataset.taskId !== activeId,
 			)
+			const activeCard = document.querySelector<HTMLElement>(`[data-task-id="${activeId}"]`)
 			const activeTask = tasks.find((task) => task.id === activeId)
 			const shouldAppend = status === 'done' && activeTask?.status !== status
 			const nextCard = shouldAppend
 				? undefined
 				: cards.find((card) => pointerY < card.getBoundingClientRect().top + card.offsetHeight / 2)
 			const lastCard = cards.at(-1)
+			const gapElement =
+				nextCard ??
+				lastCard ??
+				column.querySelector<HTMLElement>('[data-kanban-empty-state]')
+			const gapProperty = nextCard || !lastCard ? 'marginTop' : 'marginBottom'
+			if (
+				dropGap.current &&
+				(dropGap.current.element !== gapElement || dropGap.current.property !== gapProperty)
+			) {
+				clearDropGap()
+			}
+			if (gapElement) {
+				gapElement.style[gapProperty] = `${(activeCard?.offsetHeight ?? 104) + 8}px`
+				dropGap.current = { element: gapElement, property: gapProperty }
+			}
 			const top = nextCard
 				? nextCard.offsetTop - 5
 				: lastCard
@@ -692,6 +727,7 @@ export function KanbanBoard({
 				dragPointerRef.current = pointer
 				cancelDropIndicatorFrame()
 				hideDropIndicators()
+				clearDropGap()
 				setActiveTask(tasks.find((task) => task.id === active.id) ?? null)
 			}}
 			onDragMove={({ active, delta, over }) => {
@@ -708,9 +744,11 @@ export function KanbanBoard({
 				dragPointerRef.current = null
 				cancelDropIndicatorFrame()
 				hideDropIndicators()
+				clearDropGap()
 				setActiveTask(null)
 			}}
 			onDragEnd={(event) => {
+				clearDropGap()
 				onDragEnd(event)
 				dragStartPointerRef.current = null
 				dragPointerRef.current = null
@@ -719,33 +757,32 @@ export function KanbanBoard({
 				setActiveTask(null)
 			}}
 		>
-			<LayoutGroup id="kanban-columns">
-				<div className="kanban-board-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
-					{statuses.map((status) => (
-						<Column
-							key={status}
-							status={status}
-							tasks={columnTasks(tasks, status)}
-							edit={edit}
-							archive={archive}
-							remove={remove}
-							newTaskStatus={newTaskStatus}
-							onStartTask={setNewTaskStatus}
-							onCreateTask={handleCreateTask}
-							onCancelTask={() => setNewTaskStatus(null)}
-							disabled={disabled}
-							loading={loading}
-							isMobile={isMobileViewport}
-							isExpanded={expandedStatuses.has(status)}
-							onToggleExpanded={() => toggleColumnExpansion(status)}
-							setDropIndicatorNode={(node) => {
-								if (node) dropIndicatorNodes.current.set(status, node)
-								else dropIndicatorNodes.current.delete(status)
-							}}
-						/>
-					))}
-				</div>
-			</LayoutGroup>
+			<div className="kanban-board-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
+				{statuses.map((status) => (
+					<Column
+						key={status}
+						status={status}
+						tasks={columnTasks(tasks, status)}
+						edit={edit}
+						archive={archive}
+						remove={remove}
+						newTaskStatus={newTaskStatus}
+						onStartTask={setNewTaskStatus}
+						onCreateTask={handleCreateTask}
+						onCancelTask={() => setNewTaskStatus(null)}
+						disabled={disabled}
+						loading={loading}
+						isMobile={isMobileViewport}
+						isExpanded={expandedStatuses.has(status)}
+						onToggleExpanded={() => toggleColumnExpansion(status)}
+						setDropIndicatorNode={(node) => {
+							if (node) dropIndicatorNodes.current.set(status, node)
+							else dropIndicatorNodes.current.delete(status)
+						}}
+						isBoardDragging={activeTask !== null}
+					/>
+				))}
+			</div>
 			<DragOverlay
 				adjustScale={false}
 				dropAnimation={null}
