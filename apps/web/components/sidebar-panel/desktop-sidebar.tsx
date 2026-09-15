@@ -235,6 +235,7 @@ export function DesktopSidebar({
 											<SortableProjectLink
 												project={item}
 												isActive={!isArchiveActive && activeProjectId === item.id}
+												isCollapsed={sidebarCollapsed}
 												isProjectListDragging={Boolean(draggedProjectId)}
 												onSelect={() => onSelectProject(item.id)}
 												variant="sidebar"

@@ -77,3 +77,34 @@ test('narrow desktop sidebar still expands on hover while wide desktop stays ope
 	await expect(sidebar).toHaveCSS('transition-property', 'none')
 	await expect(page.locator('.project-panel')).toHaveCSS('margin-left', '256px')
 })
+
+test('collapsed sidebar hides drag handles even when a project keeps focus', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1100, height: 900 })
+	await openDashboard(page, createProjects(['First project', 'Second project']))
+	const sidebar = page.locator('.sidebar-panel')
+	const handles = sidebar.locator('.sidebar-panel-project-drag-handle')
+	const firstHandle = handles.first()
+	for (const focusedButton of [
+		sidebar.getByRole('button', { name: 'First project', exact: true }),
+		firstHandle,
+	]) {
+		await sidebar.hover()
+		await expect(sidebar).toHaveCSS('width', '256px')
+		await focusedButton.focus()
+		await expect(firstHandle).toHaveCSS('opacity', '1')
+		await page.mouse.move(500, 500)
+		await expect(firstHandle).toHaveCSS('visibility', 'hidden')
+		await expect(sidebar).toHaveCSS('width', '64px')
+		for (const handle of await handles.all()) {
+			await expect(handle).toHaveCSS('visibility', 'hidden')
+		}
+		await page.getByLabel('Project name').focus()
+		await expect(firstHandle).toHaveCSS('visibility', 'hidden')
+	}
+	await page.setViewportSize({ width: 1440, height: 900 })
+	await sidebar.getByRole('button', { name: 'First project', exact: true }).focus()
+	await expect(firstHandle).toHaveCSS('visibility', 'visible')
+	await expect(firstHandle).toHaveCSS('opacity', '1')
+})

@@ -45,6 +45,7 @@ export function SidebarProjectSkeletons({ collapsed }: { collapsed: boolean }) {
 interface SortableProjectLinkProps {
 	project: Project
 	isActive: boolean
+	isCollapsed?: boolean
 	onSelect: () => void
 	variant: 'sidebar' | 'drawer'
 	labelClass?: string
@@ -57,6 +58,7 @@ interface SortableProjectLinkProps {
 export function SortableProjectLink({
 	project,
 	isActive,
+	isCollapsed = false,
 	onSelect,
 	variant,
 	labelClass,
@@ -136,7 +138,7 @@ export function SortableProjectLink({
 				ref={setActivatorNodeRef}
 				type="button"
 				aria-label={`Drag ${project.name} to reorder`}
-				className={`sidebar-panel-project-drag-handle flex shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isSidebar ? `ml-auto p-0 ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}` : 'order-first h-7 w-7 opacity-100'}`}
+				className={`sidebar-panel-project-drag-handle flex shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isSidebar && isCollapsed ? 'max-xl:invisible' : ''} ${isSidebar ? `ml-auto p-0 ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}` : 'order-first h-7 w-7 opacity-100'}`}
 				{...attributes}
 				{...listeners}
 			>
