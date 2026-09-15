@@ -1,6 +1,7 @@
 'use client'
 
 import {
+	Fragment,
 	useCallback,
 	useEffect,
 	useRef,
@@ -11,11 +12,16 @@ import {
 import {
 	closestCenter,
 	DndContext,
+	DragOverlay,
 	KeyboardSensor,
 	PointerSensor,
 	useSensor,
 	useSensors,
 	type DragEndEvent,
+	type DragMoveEvent,
+	type DragOverEvent,
+	type DragStartEvent,
+	type Modifier,
 } from '@dnd-kit/core'
 import {
 	arrayMove,
@@ -24,13 +30,13 @@ import {
 	useSortable,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { animate, AnimatePresence, motion, useMotionValue } from 'motion/react'
 import {
 	Archive,
 	CircleUserRound,
 	CircleAlert,
 	FolderKanban,
+	GripVertical,
 	Layers3,
 	LogOut,
 	Menu,
@@ -48,6 +54,22 @@ import { Button } from './ui/button'
 import { ConfirmDialog } from './ui/confirm-dialog'
 
 const projectsLoadErrorToastId = 'projects-load-error'
+
+function createProjectListDragConstraint(projectList: HTMLElement | null): Modifier {
+	return ({ activeNodeRect, transform }) => {
+		if (!projectList || !activeNodeRect) return { ...transform, x: 0 }
+
+		const listRect = projectList.getBoundingClientRect()
+		return {
+			...transform,
+			x: 0,
+			y: Math.min(
+				Math.max(transform.y, listRect.top - activeNodeRect.top),
+				listRect.bottom + activeNodeRect.height - activeNodeRect.bottom,
+			),
+		}
+	}
+}
 
 function AccountMenu({
 	email,
@@ -163,6 +185,8 @@ interface SortableProjectLinkProps {
 	variant: 'sidebar' | 'drawer'
 	labelClass?: string
 	itemGapClass?: string
+	dropTracePosition?: 'before' | 'after'
+	isProjectListDragging?: boolean
 }
 
 function SortableProjectLink({
@@ -172,38 +196,111 @@ function SortableProjectLink({
 	variant,
 	labelClass,
 	itemGapClass,
+	dropTracePosition,
+	isProjectListDragging = false,
 }: SortableProjectLinkProps) {
-	const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+	const {
+		attributes,
+		isDragging,
+		listeners,
+		setActivatorNodeRef,
+		setNodeRef,
+		transition,
+	} = useSortable({
 		id: project.id,
 	})
 	const style: CSSProperties = {
-		transform: CSS.Translate.toString(transform),
 		transition,
-		zIndex: isDragging ? 10 : undefined,
 	}
 	const isSidebar = variant === 'sidebar'
+	const traceClass = dropTracePosition
+		? 'workspace-project-drop-trace bg-primary/5 ring-1 ring-inset ring-dashed ring-primary/55'
+		: ''
+	const toneClass = isDragging
+		? 'opacity-0'
+		: isActive
+			? 'bg-accent text-foreground'
+			: isProjectListDragging
+				? 'text-muted-foreground'
+				: 'text-muted-foreground hover:bg-accent hover:text-foreground'
 
 	return (
-		<button
+		<div
 			ref={setNodeRef}
-			type="button"
 			style={style}
-			onClick={onSelect}
-			aria-label={isSidebar && !labelClass ? project.name : undefined}
-			aria-current={isActive ? 'page' : undefined}
-			className={`workspace-${variant}-project-link workspace-project-sortable-link flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors touch-none ${isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'} ${isDragging ? 'opacity-50' : ''}`}
-			{...attributes}
-			{...listeners}
+			data-project-id={project.id}
+			className={`workspace-${variant}-project-link workspace-project-sortable-link group flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors touch-none ${toneClass} ${traceClass}`}
 		>
-			{isSidebar ? (
-				<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
-					<FolderKanban size={15} />
+			<button
+				type="button"
+				onClick={onSelect}
+				aria-label={isSidebar && !labelClass ? project.name : undefined}
+				aria-current={isActive ? 'page' : undefined}
+				className={`workspace-project-select-button flex min-w-0 flex-1 items-center ${isSidebar ? itemGapClass : 'gap-2.5'} text-left`}
+			>
+				{isSidebar ? (
+					<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
+						<FolderKanban size={15} />
+					</span>
+				) : (
+					<FolderKanban size={17} className="shrink-0" />
+				)}
+				<span className={isSidebar ? `truncate ${labelClass}` : 'truncate'}>
+					{project.name}
 				</span>
-			) : (
-				<FolderKanban size={17} className="shrink-0" />
-			)}
-			<span className={isSidebar ? `truncate ${labelClass}` : 'truncate'}>{project.name}</span>
-		</button>
+			</button>
+			<button
+				ref={setActivatorNodeRef}
+				type="button"
+				aria-label={`Drag ${project.name} to reorder`}
+				className={`workspace-project-drag-handle ml-auto flex shrink-0 items-center justify-center rounded-sm p-0 text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
+				{...attributes}
+				{...listeners}
+			>
+				<GripVertical aria-hidden="true" size={16} />
+			</button>
+		</div>
+	)
+}
+
+function ProjectDragPreview({
+	project,
+	width,
+	height,
+}: {
+	project: Project
+	width: number | null
+	height: number | null
+}) {
+	const previewInset = 3
+	const previewStyle =
+		width && height
+			? {
+					width: Math.max(width - previewInset * 2, 0),
+					height: height * 0.82,
+					transform: `translate(${previewInset}px, ${height * 0.09}px)`,
+				}
+			: undefined
+
+	return (
+		<div
+			style={previewStyle}
+			className="workspace-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl"
+		>
+			<FolderKanban size={15} className="shrink-0" />
+			<span className="truncate">{project.name}</span>
+			<GripVertical size={16} className="ml-auto shrink-0 text-muted-foreground" />
+		</div>
+	)
+}
+
+function ProjectDropTrace({ height }: { height: number | null }) {
+	return (
+		<div
+			aria-hidden="true"
+			style={height ? { height } : undefined}
+			className="workspace-project-drop-trace h-9 w-full rounded-md border border-dashed border-primary/55 bg-primary/5"
+		/>
 	)
 }
 
@@ -248,10 +345,40 @@ function MobileProjectDrawer({
 	onReportError,
 }: MobileProjectDrawerProps) {
 	const accountRef = useRef<HTMLDivElement>(null)
+	const [projectList, setProjectList] = useState<HTMLDivElement | null>(null)
+	const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null)
+	const [dropProjectId, setDropProjectId] = useState<string | null>(null)
+	const [dropProjectPlacement, setDropProjectPlacement] = useState<'before' | 'after'>(
+		'before',
+	)
+	const restrictProjectDragToList = createProjectListDragConstraint(projectList)
 	const projectSensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
 	)
+	function handleProjectDragStart({ active }: DragStartEvent) {
+		setDraggedProjectId(String(active.id))
+	}
+	function handleProjectDragOver({ active, over }: DragOverEvent) {
+		setDropProjectId(over ? String(over.id) : null)
+		const draggedRect = active.rect.current.translated
+		setDropProjectPlacement(
+			draggedRect &&
+				over &&
+				draggedRect.top + draggedRect.height / 2 > over.rect.top + over.rect.height / 2
+				? 'after'
+				: 'before',
+		)
+	}
+	function clearProjectDropTrace() {
+		setDraggedProjectId(null)
+		setDropProjectId(null)
+		setDropProjectPlacement('before')
+	}
+	function handleProjectDragEnd(event: DragEndEvent) {
+		clearProjectDropTrace()
+		onReorderProjects(event)
+	}
 	return (
 		<aside
 			id="mobile-project-drawer"
@@ -299,36 +426,51 @@ function MobileProjectDrawer({
 					aria-label="Projects"
 					className="workspace-mobile-drawer-project-list relative -mr-3 min-h-0 flex-1"
 				>
-					<div className="workspace-mobile-drawer-project-scroll h-full space-y-1 overflow-y-auto pb-12 pr-3">
+					<div className="workspace-mobile-drawer-project-scroll h-full overflow-y-auto pb-12 pr-3">
 						{isLoading ? (
 							<SidebarProjectSkeletons collapsed={false} />
 						) : (
 							<DndContext
 								collisionDetection={closestCenter}
-								onDragEnd={onReorderProjects}
+								modifiers={[restrictProjectDragToList]}
+								onDragCancel={clearProjectDropTrace}
+								onDragEnd={handleProjectDragEnd}
+								onDragOver={handleProjectDragOver}
+								onDragStart={handleProjectDragStart}
 								sensors={projectSensors}
 							>
-								<SortableContext
-									items={projects.map((project) => project.id)}
-									strategy={verticalListSortingStrategy}
+								<div
+									ref={setProjectList}
+									className="workspace-mobile-project-sort-list space-y-1"
 								>
-									{projects.map((project) => (
-										<SortableProjectLink
-											key={project.id}
-											project={project}
-											isActive={activeProjectId === project.id}
-											onSelect={() => onSelectProject(project.id)}
-											variant="drawer"
-										/>
-									))}
-								</SortableContext>
+									<SortableContext
+										items={projects.map((project) => project.id)}
+										strategy={verticalListSortingStrategy}
+									>
+										{projects.map((project) => (
+											<SortableProjectLink
+												key={project.id}
+												project={project}
+												isActive={activeProjectId === project.id}
+												isProjectListDragging={Boolean(draggedProjectId)}
+												dropTracePosition={
+													draggedProjectId !== project.id && dropProjectId === project.id
+														? dropProjectPlacement
+														: undefined
+												}
+												onSelect={() => onSelectProject(project.id)}
+												variant="drawer"
+											/>
+										))}
+									</SortableContext>
+								</div>
 							</DndContext>
 						)}
 					</div>
 					{canCreateProjects && (
 						<Button
 							asChild
-								className="workspace-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
+							className="workspace-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
 							size="sm"
 						>
 							<motion.button
@@ -385,15 +527,26 @@ export function Workspace({ email }: { email: string }) {
 	const projectOrderRevision = useRef(0)
 	const mobileDrawerDrag = useRef<MobileDrawerDragState | null>(null)
 	const sidebarAccountRef = useRef<HTMLDivElement>(null)
+	const [projectList, setProjectList] = useState<HTMLElement | null>(null)
+	const [activeProject, setActiveProject] = useState<Project | null>(null)
+	const [activeProjectWidth, setActiveProjectWidth] = useState<number | null>(null)
+	const [activeProjectHeight, setActiveProjectHeight] = useState<number | null>(null)
+	const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null)
+	const [dropProjectId, setDropProjectId] = useState<string | null>(null)
+	const [dropProjectPlacement, setDropProjectPlacement] = useState<'before' | 'after'>(
+		'before',
+	)
+	const hasProjectDragMoved = useRef(false)
 	const sidebarCollapsed = !isWideDesktop && isSidebarCollapsed && !isSidebarHoverExpanded
 	const sidebarLabelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] ${sidebarCollapsed ? 'max-w-0 -translate-x-1 opacity-0 duration-0' : 'max-w-44 translate-x-0 opacity-100 duration-200'}`
 	const sidebarStaticLabelClass = `overflow-hidden whitespace-nowrap ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'}`
 	const sidebarItemGapClass = sidebarCollapsed ? 'gap-0' : 'gap-1.5'
 	const isMobilePanelVisible = isMobileViewport && isMobileProjectsOpen
 	const projectSensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+		useSensor(PointerSensor),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
 	)
+	const restrictProjectDragToList = createProjectListDragConstraint(projectList)
 
 	const load = useCallback(async () => {
 		const current = ++request.current
@@ -625,16 +778,84 @@ export function Workspace({ email }: { email: string }) {
 			.catch(() => undefined)
 			.then(async () => {
 				try {
-					await api('/projects/order', json('PUT', {
-						project_ids: orderedProjects.map((project) => project.id),
-					}))
+					await api(
+						'/projects/order',
+						json('PUT', {
+							project_ids: orderedProjects.map((project) => project.id),
+						}),
+					)
 				} catch (error) {
 					if (projectOrderRevision.current === revision) {
 						setProjects(previousProjects)
-						setError(error instanceof Error ? error.message : 'Unable to save project order.')
+						setError(
+							error instanceof Error ? error.message : 'Unable to save project order.',
+						)
 					}
 				}
 			})
+	}
+
+	function handleProjectDragStart({ active }: DragStartEvent) {
+		const activeId = String(active.id)
+		const activeIndex = projects.findIndex((project) => project.id === activeId)
+		const nextProject = projects[activeIndex + 1]
+		const previousProject = projects[activeIndex - 1]
+
+		hasProjectDragMoved.current = false
+		setDraggedProjectId(activeId)
+		if (nextProject) {
+			setDropProjectId(nextProject.id)
+			setDropProjectPlacement('before')
+		} else if (previousProject) {
+			setDropProjectId(previousProject.id)
+			setDropProjectPlacement('after')
+		} else {
+			setDropProjectId(null)
+		}
+		setActiveProject(projects[activeIndex] ?? null)
+		setActiveProjectWidth(
+			document.querySelector<HTMLElement>(`[data-project-id="${active.id}"]`)
+				?.offsetWidth ?? null,
+		)
+		setActiveProjectHeight(
+			document.querySelector<HTMLElement>(`[data-project-id="${active.id}"]`)
+				?.offsetHeight ?? null,
+		)
+	}
+
+	function clearProjectDropTrace() {
+		hasProjectDragMoved.current = false
+		setDraggedProjectId(null)
+		setDropProjectId(null)
+		setDropProjectPlacement('before')
+		setActiveProject(null)
+		setActiveProjectWidth(null)
+		setActiveProjectHeight(null)
+	}
+
+	function handleProjectDragEnd(event: DragEndEvent) {
+		const didMove = hasProjectDragMoved.current
+		clearProjectDropTrace()
+		if (didMove) handleProjectOrderEnd(event)
+	}
+
+	function handleProjectDragMove({ active, delta, over }: DragMoveEvent) {
+		if (Math.abs(delta.y) < 2) return
+
+		hasProjectDragMoved.current = true
+		if (!over || active.id === over.id) {
+			setDropProjectId(null)
+			return
+		}
+
+		const draggedRect = active.rect.current.translated
+		setDropProjectId(String(over.id))
+		setDropProjectPlacement(
+			draggedRect &&
+				draggedRect.top + draggedRect.height / 2 > over.rect.top + over.rect.height / 2
+				? 'after'
+				: 'before',
+		)
 	}
 
 	function openArchive() {
@@ -727,32 +948,64 @@ export function Workspace({ email }: { email: string }) {
 					)}
 					<nav
 						aria-label="Projects"
-						className="workspace-project-list -mr-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-2"
+						className="workspace-project-list -mr-2 min-h-0 flex-1 overflow-y-auto pr-2"
 					>
 						{loading ? (
 							<SidebarProjectSkeletons collapsed={sidebarCollapsed} />
 						) : (
 							<DndContext
 								collisionDetection={closestCenter}
-								onDragEnd={handleProjectOrderEnd}
+								modifiers={[restrictProjectDragToList]}
+								onDragCancel={clearProjectDropTrace}
+								onDragEnd={handleProjectDragEnd}
+								onDragMove={handleProjectDragMove}
+								onDragStart={handleProjectDragStart}
 								sensors={projectSensors}
 							>
-								<SortableContext
-									items={projects.map((project) => project.id)}
-									strategy={verticalListSortingStrategy}
+								<div
+									ref={setProjectList}
+									className="workspace-project-sort-list space-y-1"
 								>
-									{projects.map((item) => (
-										<SortableProjectLink
-											key={item.id}
-											project={item}
-											isActive={workspaceView === 'board' && active === item.id}
-											onSelect={() => selectProject(item.id)}
-											variant="sidebar"
-											itemGapClass={sidebarItemGapClass}
-											labelClass={sidebarLabelClass}
+									<SortableContext
+										items={projects.map((project) => project.id)}
+										strategy={verticalListSortingStrategy}
+									>
+										{projects
+											.filter((item) => item.id !== draggedProjectId)
+											.map((item) => {
+												const isDropTarget = dropProjectId === item.id
+
+												return (
+													<Fragment key={item.id}>
+														{isDropTarget && dropProjectPlacement === 'before' && (
+															<ProjectDropTrace height={activeProjectHeight} />
+														)}
+														<SortableProjectLink
+															project={item}
+															isActive={workspaceView === 'board' && active === item.id}
+															isProjectListDragging={Boolean(draggedProjectId)}
+															onSelect={() => selectProject(item.id)}
+															variant="sidebar"
+															itemGapClass={sidebarItemGapClass}
+															labelClass={sidebarLabelClass}
+														/>
+														{isDropTarget && dropProjectPlacement === 'after' && (
+															<ProjectDropTrace height={activeProjectHeight} />
+														)}
+													</Fragment>
+												)
+											})}
+									</SortableContext>
+								</div>
+								<DragOverlay adjustScale={false} dropAnimation={null}>
+									{activeProject ? (
+										<ProjectDragPreview
+											project={activeProject}
+											width={activeProjectWidth}
+											height={activeProjectHeight}
 										/>
-									))}
-								</SortableContext>
+									) : null}
+								</DragOverlay>
 							</DndContext>
 						)}
 					</nav>
@@ -879,9 +1132,7 @@ export function Workspace({ email }: { email: string }) {
 						<p className="workspace-project-load-error-code mb-6 text-xs font-medium tracking-wide text-muted-foreground">
 							Error code: {projectsLoadError.code}
 						</p>
-						<Button onClick={() => void load()}>
-							Retry
-						</Button>
+						<Button onClick={() => void load()}>Retry</Button>
 					</div>
 				) : workspaceView === 'archived' ? (
 					<motion.div
