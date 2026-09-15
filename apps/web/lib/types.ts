@@ -39,6 +39,7 @@ export type Task = {
 	archived: boolean
 	created_at: string
 	updated_at: string
+	optimistic_key?: string
 }
 export type TaskInput = Pick<
 	Task,

@@ -833,9 +833,10 @@ export function ProjectView({
 	function createInlineTask(status: Status, title: string) {
 		const now = new Date().toISOString()
 		const ticketNumber = nextOptimisticTicketNumber.current
+		const optimisticKey = crypto.randomUUID()
 		nextOptimisticTicketNumber.current += 1
 		const optimisticTask: Task = {
-			id: `pending-task-${crypto.randomUUID()}`,
+			id: `pending-task-${optimisticKey}`,
 			project_id: project.id,
 			title,
 			description: '',
@@ -848,6 +849,7 @@ export function ProjectView({
 			archived: false,
 			created_at: now,
 			updated_at: now,
+			optimistic_key: optimisticKey,
 		}
 		setTasks((current) => [...current, optimisticTask])
 		void api<Task>(
@@ -862,7 +864,11 @@ export function ProjectView({
 		)
 			.then((task) => {
 				setTasks((current) =>
-					current.map((item) => (item.id === optimisticTask.id ? task : item)),
+					current.map((item) =>
+						item.id === optimisticTask.id
+							? { ...task, optimistic_key: optimisticTask.optimistic_key }
+							: item,
+					),
 				)
 			})
 			.catch((error) => {

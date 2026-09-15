@@ -462,7 +462,7 @@ function Column({
 						<AnimatePresence initial={false}>
 							{visibleTasks.map((task) => (
 								<motion.div
-									key={task.id}
+									key={task.optimistic_key ?? task.id}
 									layout={isBoardDragging ? false : 'position'}
 									initial={isMobile ? { opacity: 0, y: -10 } : false}
 									animate={{ opacity: 1, y: 0 }}
