@@ -113,7 +113,7 @@ export function SortableProjectLink({
 			style={style}
 			data-project-id={isDragSource ? undefined : project.id}
 			aria-hidden={isDragSource || undefined}
-			className={`sidebar-panel-${variant}-project-link sidebar-panel-project-sortable-link group flex w-full items-center ${isDragSource ? 'sidebar-panel-project-drag-source absolute inset-x-0 pointer-events-none' : ''} ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors ${toneClass}`}
+			className={`sidebar-panel-${variant}-project-link sidebar-panel-project-sortable-link group flex w-full items-center ${isDragSource ? 'sidebar-panel-project-drag-source absolute inset-x-0 pointer-events-none' : 'relative'} ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors ${toneClass}`}
 		>
 			<button
 				type="button"
@@ -121,7 +121,7 @@ export function SortableProjectLink({
 				onPointerDown={handleSelectPointerDown}
 				aria-label={isSidebar && !labelClass ? project.name : undefined}
 				aria-current={isActive ? 'page' : undefined}
-				className={`sidebar-panel-project-select-button flex min-w-0 flex-1 items-center touch-manipulation ${isSidebar ? itemGapClass : 'gap-2.5'} text-left`}
+				className={`sidebar-panel-project-select-button after:absolute after:inset-0 after:rounded-md after:content-[''] flex min-w-0 flex-1 items-center touch-manipulation ${isSidebar ? itemGapClass : 'gap-2.5'} text-left`}
 			>
 				{isSidebar ? (
 					<span className="sidebar-panel-icon flex w-8 shrink-0 items-center justify-center">
@@ -138,7 +138,7 @@ export function SortableProjectLink({
 				ref={setActivatorNodeRef}
 				type="button"
 				aria-label={`Drag ${project.name} to reorder`}
-				className={`sidebar-panel-project-drag-handle flex shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isSidebar && isCollapsed ? 'max-xl:invisible' : ''} ${isSidebar ? `ml-auto p-0 ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}` : 'order-first h-7 w-7 opacity-100'}`}
+				className={`sidebar-panel-project-drag-handle relative z-10 flex shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isSidebar && isCollapsed ? 'max-xl:invisible' : ''} ${isSidebar ? `ml-auto p-0 ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}` : 'order-first h-7 w-7 opacity-100'}`}
 				{...attributes}
 				{...listeners}
 			>

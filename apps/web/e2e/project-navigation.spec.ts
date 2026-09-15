@@ -112,3 +112,22 @@ test('project ordering persists and failed ordering rolls back', async ({ page }
 	await expect(page.locator('.project-panel-error')).toContainText('Unable to save order')
 	await expect(entries.nth(2)).toHaveAttribute('data-project-id', 'project-1')
 })
+
+test('project row padding selects the project', async ({ page }) => {
+	await openDashboard(page, createProjects(['First project', 'Second project']))
+	const projectName = page.getByLabel('Project name', { exact: true })
+	const secondRow = page.locator(
+		'.sidebar-panel-project-sort-list [data-project-id="project-2"]',
+	)
+	await secondRow.click({ position: { x: 2, y: 2 } })
+	await expect(projectName).toHaveValue('Second project')
+	const firstRow = page.locator(
+		'.sidebar-panel-project-sort-list [data-project-id="project-1"]',
+	)
+	const bounds = await firstRow.boundingBox()
+	if (!bounds) throw new Error('Project row is missing')
+	await firstRow.click({
+		position: { x: bounds.width - 2, y: bounds.height - 2 },
+	})
+	await expect(projectName).toHaveValue('First project')
+})
