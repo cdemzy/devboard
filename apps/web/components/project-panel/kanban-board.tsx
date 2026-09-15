@@ -37,8 +37,8 @@ import {
 } from 'lucide-react'
 import { columnTasks } from '@/lib/board'
 import { statuses, statusLabels, type Status, type Task } from '@/lib/types'
-import { Button } from './ui/button'
-import { Tooltip } from './ui/tooltip'
+import { Button } from '../ui/button'
+import { Tooltip } from '../ui/tooltip'
 const statusIcons = {
 	todo: CircleDashed,
 	in_progress: Circle,

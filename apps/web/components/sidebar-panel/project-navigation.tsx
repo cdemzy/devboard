@@ -79,7 +79,7 @@ export function SortableProjectLink({
 	}
 	const isSidebar = variant === 'sidebar'
 	const traceClass = dropTracePosition
-		? 'workspace-project-drop-trace bg-primary/5 ring-1 ring-inset ring-dashed ring-primary/55'
+		? 'sidebar-panel-project-drop-trace bg-primary/5 ring-1 ring-inset ring-dashed ring-primary/55'
 		: ''
 	const toneClass = isDragging
 		? 'opacity-0'
@@ -109,7 +109,7 @@ export function SortableProjectLink({
 			ref={setNodeRef}
 			style={style}
 			data-project-id={project.id}
-			className={`workspace-${variant}-project-link workspace-project-sortable-link group flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors ${toneClass} ${traceClass}`}
+			className={`sidebar-panel-${variant}-project-link sidebar-panel-project-sortable-link group flex w-full items-center ${isSidebar ? `justify-start ${itemGapClass}` : 'gap-2.5 px-3 py-2.5 text-[15px]'} rounded-md ${isSidebar ? 'py-2 px-1.5 text-sm' : ''} text-left transition-colors ${toneClass} ${traceClass}`}
 		>
 			<button
 				type="button"
@@ -117,10 +117,10 @@ export function SortableProjectLink({
 				onPointerDown={handleSelectPointerDown}
 				aria-label={isSidebar && !labelClass ? project.name : undefined}
 				aria-current={isActive ? 'page' : undefined}
-				className={`workspace-project-select-button flex min-w-0 flex-1 items-center touch-manipulation ${isSidebar ? itemGapClass : 'gap-2.5'} text-left`}
+				className={`sidebar-panel-project-select-button flex min-w-0 flex-1 items-center touch-manipulation ${isSidebar ? itemGapClass : 'gap-2.5'} text-left`}
 			>
 				{isSidebar ? (
-					<span className="workspace-sidebar-icon flex w-8 shrink-0 items-center justify-center">
+					<span className="sidebar-panel-icon flex w-8 shrink-0 items-center justify-center">
 						<FolderKanban size={15} />
 					</span>
 				) : (
@@ -134,7 +134,7 @@ export function SortableProjectLink({
 				ref={setActivatorNodeRef}
 				type="button"
 				aria-label={`Drag ${project.name} to reorder`}
-				className={`workspace-project-drag-handle ml-auto flex shrink-0 items-center justify-center rounded-sm p-0 text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
+				className={`sidebar-panel-project-drag-handle ml-auto flex shrink-0 items-center justify-center rounded-sm p-0 text-muted-foreground transition-opacity touch-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-100' : isProjectListDragging ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
 				{...attributes}
 				{...listeners}
 			>
@@ -168,7 +168,7 @@ export function ProjectDragPreview({
 	return (
 		<div
 			style={previewStyle}
-			className={`workspace-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl ${isHidden ? 'opacity-0' : ''}`}
+			className={`sidebar-panel-project-drag-preview flex box-border items-center gap-2.5 rounded-md border border-primary/65 bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl ${isHidden ? 'opacity-0' : ''}`}
 		>
 			<FolderKanban size={15} className="shrink-0" />
 			<span className="truncate">{project.name}</span>
@@ -188,10 +188,10 @@ export function ProjectDropTrace({
 		<div
 			aria-hidden="true"
 			style={height ? { height } : undefined}
-			className="workspace-project-drop-trace box-border h-9 w-full rounded-md border border-dashed border-primary/55 bg-primary/5 p-[3px]"
+			className="sidebar-panel-project-drop-trace box-border h-9 w-full rounded-md border border-dashed border-primary/55 bg-primary/5 p-[3px]"
 		>
 			{project && (
-				<div className="workspace-project-drop-preview flex h-full items-center gap-2.5 rounded-sm bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl">
+				<div className="sidebar-panel-project-drop-preview flex h-full items-center gap-2.5 rounded-sm bg-[#21262d] px-2.5 text-sm text-foreground shadow-xl">
 					<FolderKanban size={15} className="shrink-0" />
 					<span className="truncate">{project.name}</span>
 					<GripVertical size={16} className="ml-auto shrink-0 text-muted-foreground" />

@@ -7,7 +7,7 @@ import { getAppErrorInfo, type AppErrorInfo } from '@/lib/errors'
 import type { Project } from '@/lib/types'
 const projectsLoadErrorToastId = 'projects-load-error'
 
-export function useWorkspaceProjects() {
+export function useProjects() {
 	const [projects, setProjects] = useState<Project[]>([])
 	const [archivedProjects, setArchivedProjects] = useState<Project[]>([])
 	const [active, setActive] = useState<string | null>(null)

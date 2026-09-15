@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test'
-import { openWorkspace } from './helpers/workspace'
+import { openDashboard } from './helpers/dashboard'
 
 test('account menu dismisses outside and logs out', async ({ page }) => {
-	const { user } = await openWorkspace(page)
-	await page.locator('.workspace-account-trigger').click()
-	await expect(page.locator('.workspace-sidebar .workspace-account-email')).toHaveText(
+	const { user } = await openDashboard(page)
+	await page.locator('.sidebar-panel-account-trigger').click()
+	await expect(page.locator('.sidebar-panel .sidebar-panel-account-email')).toHaveText(
 		user.email,
 	)
 	await page.getByRole('heading', { name: 'Make room for your next idea' }).click()
-	await expect(page.locator('.workspace-account-menu')).toHaveCount(0)
-	await page.locator('.workspace-account-trigger').click()
+	await expect(page.locator('.sidebar-panel-account-menu')).toHaveCount(0)
+	await page.locator('.sidebar-panel-account-trigger').click()
 	await page.getByRole('button', { name: 'Log out', exact: true }).click()
 	await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
 	await page.getByLabel('Email', { exact: true }).fill(user.email)

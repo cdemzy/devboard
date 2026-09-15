@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase'
 import { AuthScreen } from '@/components/auth-screen'
-import { Workspace } from '@/components/workspace'
+import { Dashboard } from '@/components/dashboard'
 export default function Page() {
 	const [session, setSession] = useState<Session | null>(null)
 	const [loading, setLoading] = useState(true)
@@ -43,7 +43,7 @@ export default function Page() {
 				className="app-loading grid min-h-screen place-items-center text-muted-foreground"
 				role="status"
 			>
-				Opening your workspace…
+				Opening your projects…
 			</main>
 		)
 	if (error)
@@ -58,7 +58,7 @@ export default function Page() {
 			</main>
 		)
 	return session ? (
-		<Workspace key={session.user.id} email={session.user.email ?? 'Your account'} />
+		<Dashboard key={session.user.id} email={session.user.email ?? 'Your account'} />
 	) : (
 		<AuthScreen />
 	)

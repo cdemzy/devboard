@@ -39,8 +39,8 @@ export function AuthScreen() {
 				<div className="auth-brand mb-12 flex items-center gap-2.5 font-semibold tracking-tight">
 					<Layers3 className="text-primary" size={24} /> DevBoard
 				</div>
-				<h1 className="text-2xl font-semibold tracking-tight">
-					{signup ? 'Create your workspace' : 'Welcome back'}
+				<h1 className="auth-title text-2xl font-semibold tracking-tight">
+					{signup ? 'Create your account' : 'Welcome back'}
 				</h1>
 				<p className="mb-7 mt-2 text-muted-foreground">
 					{signup

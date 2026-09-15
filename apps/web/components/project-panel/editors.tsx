@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { LayersPlus, LoaderCircle, Minimize2, Trash2, X } from 'lucide-react'
 import type { Priority, Project, ProjectTag, Status, Task, TaskInput } from '@/lib/types'
 import { statusLabels, statuses } from '@/lib/types'
-import { Button } from './ui/button'
-import { Tooltip } from './ui/tooltip'
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
+import { Button } from '../ui/button'
+import { Tooltip } from '../ui/tooltip'
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { api } from '@/lib/api'
 
 function capitalizeFirst(value: string) {

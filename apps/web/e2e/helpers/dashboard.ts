@@ -18,7 +18,7 @@ export function createProjects(names: string[], archived = false): Project[] {
 	}))
 }
 
-export async function openWorkspace(
+export async function openDashboard(
 	page: Page,
 	initialProjects: Project[] = [],
 	options: { rejectProjectsLoad?: boolean } = {},
@@ -192,10 +192,8 @@ export async function openWorkspace(
 	await page.getByLabel('Email', { exact: true }).fill(user.email)
 	await page.getByLabel('Password', { exact: true }).fill('strong-password')
 	await page.getByRole('button', { name: 'Create account', exact: true }).click()
-	await expect(page.locator('.workspace-shell')).toBeVisible()
-	await expect(
-		page.locator('.workspace-shell [aria-label="Loading projects"]'),
-	).toHaveCount(0)
+	await expect(page.locator('.dashboard')).toBeVisible()
+	await expect(page.locator('.dashboard [aria-label="Loading projects"]')).toHaveCount(0)
 	if (rejectProjectsLoad) {
 		await expect(
 			page.getByRole('heading', { name: 'Unable to load projects' }),

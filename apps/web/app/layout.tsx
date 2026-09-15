@@ -4,7 +4,7 @@ import { Toaster } from 'sonner'
 import './globals.css'
 export const metadata: Metadata = {
 	title: 'DevBoard',
-	description: 'A focused workspace for your projects and tasks.',
+	description: 'A focused board for your projects and tasks.',
 }
 export default function RootLayout({
 	children,

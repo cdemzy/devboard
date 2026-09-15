@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { openWorkspace } from './helpers/workspace'
+import { openDashboard } from './helpers/dashboard'
 
 test('task editing, drag persistence, rollback and keyboard movement', async ({
 	page,
 }, testInfo) => {
 	const browserErrors: string[] = []
 	page.on('pageerror', (error) => browserErrors.push(error.message))
-	const service = await openWorkspace(page)
+	const service = await openDashboard(page)
 	await page.getByRole('button', { name: 'Create your first project' }).click()
 	await page.getByLabel('Project name').fill('Developer portal')
 	await page.getByLabel('Project name').blur()

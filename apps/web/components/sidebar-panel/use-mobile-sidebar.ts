@@ -23,7 +23,7 @@ export const mobileButtonTapTransition = {
 	mass: 0.45,
 } as const
 
-export function useMobileProjects(onCloseAccount: () => void) {
+export function useMobileSidebar(onCloseAccount: () => void) {
 	const [isMobileProjectsOpen, setIsMobileProjectsOpen] = useState(false)
 	const [isMobileDrawerRevealed, setIsMobileDrawerRevealed] = useState(false)
 	const [isMobileViewport, setIsMobileViewport] = useState(false)

@@ -73,8 +73,8 @@
 }
 
 @layer components {
-	.workspace-sidebar-brand,
-	.workspace-brand,
+	.sidebar-panel-brand,
+	.project-panel-brand,
 	.auth-brand {
 		user-select: none;
 	}

@@ -25,7 +25,7 @@ import {
 	SidebarProjectSkeletons,
 	SortableProjectLink,
 } from './project-navigation'
-import { mobileButtonTapTransition } from './use-mobile-projects'
+import { mobileButtonTapTransition } from './use-mobile-sidebar'
 interface MobileProjectDrawerProps {
 	email: string
 	projects: Project[]
@@ -101,20 +101,20 @@ export function MobileProjectDrawer({
 			id="mobile-project-drawer"
 			aria-hidden={!isOpen}
 			inert={!isOpen}
-			className="workspace-mobile-drawer fixed inset-y-0 left-0 z-20 flex w-[78%] max-w-sm flex-col bg-[#161b22] md:hidden"
+			className="sidebar-panel-mobile-drawer fixed inset-y-0 left-0 z-20 flex w-[78%] max-w-sm flex-col bg-[#161b22] md:hidden"
 		>
-			<header className="workspace-mobile-drawer-header flex h-16 shrink-0 items-center px-5">
-				<div className="workspace-mobile-drawer-brand flex items-center gap-2.5 text-[17px] font-semibold tracking-tight">
+			<header className="sidebar-panel-mobile-drawer-header flex h-16 shrink-0 items-center px-5">
+				<div className="sidebar-panel-mobile-drawer-brand flex items-center gap-2.5 text-[17px] font-semibold tracking-tight">
 					<Layers3 size={23} className="text-primary" />
 					DevBoard
 				</div>
 				<div
 					ref={accountRef}
-					className="workspace-mobile-drawer-account relative ml-auto"
+					className="sidebar-panel-mobile-drawer-account relative ml-auto"
 				>
 					<Button
 						asChild
-						className="workspace-mobile-drawer-account-trigger !h-10 !w-10 rounded-full border border-border bg-[#21262d] shadow-sm hover:bg-accent"
+						className="sidebar-panel-mobile-drawer-account-trigger !h-10 !w-10 rounded-full border border-border bg-[#21262d] shadow-sm hover:bg-accent"
 						variant="ghost"
 						size="icon"
 					>
@@ -138,12 +138,12 @@ export function MobileProjectDrawer({
 					/>
 				</div>
 			</header>
-			<div className="workspace-mobile-drawer-content flex min-h-0 flex-1 flex-col p-3">
+			<div className="sidebar-panel-mobile-drawer-content flex min-h-0 flex-1 flex-col p-3">
 				<nav
 					aria-label="Projects"
-					className="workspace-mobile-drawer-project-list relative -mr-3 min-h-0 flex-1"
+					className="sidebar-panel-mobile-drawer-project-list relative -mr-3 min-h-0 flex-1"
 				>
-					<div className="workspace-mobile-drawer-project-scroll h-full overflow-y-auto pb-12 pr-3">
+					<div className="sidebar-panel-mobile-drawer-project-scroll h-full overflow-y-auto pb-12 pr-3">
 						{isLoading ? (
 							<SidebarProjectSkeletons collapsed={false} />
 						) : (
@@ -158,7 +158,7 @@ export function MobileProjectDrawer({
 							>
 								<div
 									ref={setProjectList}
-									className="workspace-mobile-project-sort-list space-y-1"
+									className="sidebar-panel-mobile-project-sort-list space-y-1"
 								>
 									<SortableContext
 										items={projects.map((project) => project.id)}
@@ -187,7 +187,7 @@ export function MobileProjectDrawer({
 					{canCreateProjects && (
 						<Button
 							asChild
-							className="workspace-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
+							className="sidebar-panel-mobile-drawer-create absolute bottom-3 left-3 z-10 !h-9 rounded-full px-3 text-sm shadow-lg"
 							size="sm"
 						>
 							<motion.button
@@ -203,9 +203,9 @@ export function MobileProjectDrawer({
 						</Button>
 					)}
 				</nav>
-				<footer className="workspace-mobile-drawer-footer mt-auto border-t border-border pt-3">
+				<footer className="sidebar-panel-mobile-drawer-footer mt-auto border-t border-border pt-3">
 					<Button
-						className="workspace-mobile-drawer-archive w-full justify-start text-[15px]"
+						className="sidebar-panel-mobile-drawer-archive w-full justify-start text-[15px]"
 						variant="ghost"
 						onClick={onOpenArchive}
 					>

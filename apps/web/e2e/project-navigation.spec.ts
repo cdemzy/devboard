@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { openWorkspace, createProjects } from './helpers/workspace'
+import { openDashboard, createProjects } from './helpers/dashboard'
 
 test('sidebar project drag trace preserves the original insertion slot', async ({
 	page,
 }) => {
-	const service = await openWorkspace(
+	const service = await openDashboard(
 		page,
 		createProjects(['First project', 'Second project', 'Third project']),
 	)
@@ -21,10 +21,10 @@ test('sidebar project drag trace preserves the original insertion slot', async (
 		name: 'Drag First project to reorder',
 		exact: true,
 	})
-	const trace = page.locator('.workspace-project-drop-trace')
+	const trace = page.locator('.sidebar-panel-project-drop-trace')
 	const projectListEntries = () =>
 		page
-			.locator('.workspace-project-sort-list > *')
+			.locator('.sidebar-panel-project-sort-list > *')
 			.evaluateAll((items) =>
 				items.map((item) => item.getAttribute('data-project-id') ?? 'trace'),
 			)
@@ -32,7 +32,7 @@ test('sidebar project drag trace preserves the original insertion slot', async (
 	await expect(dragHandle).toBeVisible()
 	const dragHandleBox = await dragHandle.boundingBox()
 	const thirdProjectBox = await page
-		.locator('.workspace-project-sort-list [data-project-id="project-3"]')
+		.locator('.sidebar-panel-project-sort-list [data-project-id="project-3"]')
 		.boundingBox()
 	if (!dragHandleBox || !thirdProjectBox)
 		throw new Error('Project drag target is missing')
@@ -60,11 +60,11 @@ test('sidebar project drag trace preserves the original insertion slot', async (
 })
 
 test('project ordering persists and failed ordering rolls back', async ({ page }) => {
-	const service = await openWorkspace(
+	const service = await openDashboard(
 		page,
 		createProjects(['First project', 'Second project', 'Third project']),
 	)
-	const entries = page.locator('.workspace-project-sort-list [data-project-id]')
+	const entries = page.locator('.sidebar-panel-project-sort-list [data-project-id]')
 	async function dragFirstProjectAfterThird() {
 		await page
 			.getByRole('button', { name: 'Drag First project to reorder', exact: true })
@@ -78,12 +78,12 @@ test('project ordering persists and failed ordering rolls back', async ({ page }
 		if (!handle || !target) throw new Error('Project drag target is missing')
 		await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
 		await page.mouse.down()
-		await expect(page.locator('.workspace-project-drop-trace')).toBeVisible()
+		await expect(page.locator('.sidebar-panel-project-drop-trace')).toBeVisible()
 		await page.mouse.move(target.x + target.width / 2, target.y + target.height - 2, {
 			steps: 12,
 		})
-		await expect(page.locator('.workspace-project-sort-list > *').last()).toHaveClass(
-			/workspace-project-drop-trace/,
+		await expect(page.locator('.sidebar-panel-project-sort-list > *').last()).toHaveClass(
+			/sidebar-panel-project-drop-trace/,
 		)
 		await page.mouse.up()
 	}
@@ -103,12 +103,12 @@ test('project ordering persists and failed ordering rolls back', async ({ page }
 	if (!handle || !target) throw new Error('Project drag target is missing')
 	await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
 	await page.mouse.down()
-	await expect(page.locator('.workspace-project-drop-trace')).toBeVisible()
+	await expect(page.locator('.sidebar-panel-project-drop-trace')).toBeVisible()
 	await page.mouse.move(target.x + target.width / 2, target.y + 2, { steps: 12 })
-	await expect(page.locator('.workspace-project-sort-list > *').first()).toHaveClass(
-		/workspace-project-drop-trace/,
+	await expect(page.locator('.sidebar-panel-project-sort-list > *').first()).toHaveClass(
+		/sidebar-panel-project-drop-trace/,
 	)
 	await page.mouse.up()
-	await expect(page.locator('.workspace-error')).toContainText('Unable to save order')
+	await expect(page.locator('.project-panel-error')).toContainText('Unable to save order')
 	await expect(entries.nth(2)).toHaveAttribute('data-project-id', 'project-1')
 })

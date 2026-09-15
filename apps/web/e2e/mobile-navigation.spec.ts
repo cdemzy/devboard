@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { openWorkspace, createProjects } from './helpers/workspace'
+import { openDashboard, createProjects } from './helpers/dashboard'
 
 test('mobile drawer selects projects, closes, and releases scroll locking', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 390, height: 844 })
-	await openWorkspace(page, createProjects(['First project', 'Second project']))
+	await openDashboard(page, createProjects(['First project', 'Second project']))
 	const drawer = page.locator('#mobile-project-drawer')
 	await expect(drawer).toHaveAttribute('inert', '')
 	await page.getByRole('button', { name: 'Open projects', exact: true }).click()
@@ -28,7 +28,7 @@ test('mobile drawer selects projects, closes, and releases scroll locking', asyn
 
 test('touch swipes open and close the mobile drawer', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 })
-	await openWorkspace(page)
+	await openDashboard(page)
 	const session = await page.context().newCDPSession(page)
 	async function swipe(startX: number, endX: number) {
 		await session.send('Input.dispatchTouchEvent', {
@@ -53,7 +53,7 @@ test('touch swipes open and close the mobile drawer', async ({ page }) => {
 	await expect
 		.poll(() =>
 			page
-				.locator('.workspace-main')
+				.locator('.project-panel')
 				.evaluate((element) => Math.round(element.getBoundingClientRect().left)),
 		)
 		.toBe(304)
