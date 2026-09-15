@@ -380,6 +380,7 @@ export function ProjectView({
 	const [tasks, setTasks] = useState<Task[]>([])
 	const [archivedTasks, setArchivedTasks] = useState<Task[]>([])
 	const [view, setView] = useState<'board' | 'archived'>('board')
+	const [hoveredView, setHoveredView] = useState<'board' | 'archived' | null>(null)
 	const [archivedTasksLoading, setArchivedTasksLoading] = useState(false)
 	const [loading, setLoading] = useState(true)
 	const [busy, setBusy] = useState(false)
@@ -1375,29 +1376,61 @@ export function ProjectView({
 				</header>
 				<div className="project-view-toolbar mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
 					<nav className="project-view-navigation" aria-label="Project task views">
-					<div className="project-view-tab-list flex items-center gap-1">
-						<button
-							onClick={() => setView('board')}
-							aria-label="Board"
-							className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === 'board' ? 'bg-[#30363d] text-foreground shadow-sm' : 'text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground'}`}
+						<div
+							className="project-view-tab-list flex items-center gap-1"
+							onPointerLeave={() => setHoveredView(null)}
 						>
-							<LayoutDashboard
-								size={14}
-								className={view === 'board' ? 'text-primary' : ''}
-							/>
-							<span className="hidden md:inline">Board</span>
-						</button>
-						<button
-							onClick={() => {
-								setView('archived')
-								void loadArchivedTasks()
-							}}
-							aria-label="Archived tasks"
-							className={`project-view-tab flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${view === 'archived' ? 'bg-[#30363d] text-foreground shadow-sm' : 'text-muted-foreground hover:bg-[#30363d]/70 hover:text-foreground'}`}
-						>
-							<Archive size={14} />
-							<span className="hidden md:inline">Archived tasks</span>
-						</button>
+							<button
+								type="button"
+								onClick={() => setView('board')}
+								onPointerEnter={() => setHoveredView('board')}
+								aria-label="Board"
+								aria-pressed={view === 'board'}
+								className={`project-view-tab relative isolate flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${view === 'board' || hoveredView === 'board' ? 'text-foreground' : 'text-muted-foreground'}`}
+							>
+								{(hoveredView ?? view) === 'board' && (
+									<motion.span
+										aria-hidden="true"
+										layoutId="project-view-tab-pill"
+										transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+										className={`project-view-tab-pill pointer-events-none absolute inset-0 -z-10 rounded-full ${view === 'board' ? 'bg-[#30363d] shadow-sm' : 'bg-[#30363d]/70'}`}
+									/>
+								)}
+								<span className="relative z-10 flex items-center gap-2">
+									<LayoutDashboard
+										size={14}
+										className={`project-view-tab-icon ${view === 'board' ? 'text-primary' : ''}`}
+									/>
+									<span className="view-title hidden md:inline">Board</span>
+								</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									setView('archived')
+									void loadArchivedTasks()
+								}}
+								onPointerEnter={() => setHoveredView('archived')}
+								aria-label="Archived tasks"
+								aria-pressed={view === 'archived'}
+								className={`project-view-tab relative isolate flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${view === 'archived' || hoveredView === 'archived' ? 'text-foreground' : 'text-muted-foreground'}`}
+							>
+								{(hoveredView ?? view) === 'archived' && (
+									<motion.span
+										aria-hidden="true"
+										layoutId="project-view-tab-pill"
+										transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+										className={`project-view-tab-pill pointer-events-none absolute inset-0 -z-10 rounded-full ${view === 'archived' ? 'bg-[#30363d] shadow-sm' : 'bg-[#30363d]/70'}`}
+									/>
+								)}
+								<span className="relative z-10 flex items-center gap-2">
+									<Archive
+										size={14}
+										className={`project-view-tab-icon ${view === 'archived' ? 'text-primary' : ''}`}
+									/>
+									<span className="view-title hidden md:inline">Archived tasks</span>
+								</span>
+							</button>
 						</div>
 					</nav>
 					<section
