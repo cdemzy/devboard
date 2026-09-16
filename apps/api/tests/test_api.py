@@ -59,10 +59,12 @@ def test_cors_allows_vercel_preview_origins_via_regex():
     api = create_app(
         Settings(
             cors_origins=["https://devboard-cd.vercel.app"],
-            cors_origin_regex=r"https://devboard-cd-[a-z0-9-]+\.vercel\.app",
+            cors_origin_regex=(
+                r"https://devboard-[a-z0-9-]+-charles-projects-9a8d7d9d\.vercel\.app"
+            ),
         )
     )
-    preview_origin = "https://devboard-cd-git-feature-branch-team.vercel.app"
+    preview_origin = "https://devboard-git-bug-de-44-api-fixes-charles-projects-9a8d7d9d.vercel.app"
     with TestClient(api) as cors_client:
         allowed = cors_client.options(
             "/projects",
@@ -71,16 +73,27 @@ def test_cors_allows_vercel_preview_origins_via_regex():
                 "Access-Control-Request-Method": "GET",
             },
         )
+        also_allowed = cors_client.options(
+            "/projects",
+            headers={
+                "Origin": "https://devboard-cw17b4p7l-charles-projects-9a8d7d9d.vercel.app",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
         denied = cors_client.options(
             "/projects",
             headers={
-                "Origin": "https://evil-app.vercel.app",
+                "Origin": "https://devboard-cw17b4p7l-other-team.vercel.app",
                 "Access-Control-Request-Method": "GET",
             },
         )
 
     assert allowed.status_code == 200
     assert allowed.headers["access-control-allow-origin"] == preview_origin
+    assert (
+        also_allowed.headers["access-control-allow-origin"]
+        == "https://devboard-cw17b4p7l-charles-projects-9a8d7d9d.vercel.app"
+    )
     assert "access-control-allow-origin" not in denied.headers
 
 
