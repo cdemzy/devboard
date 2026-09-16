@@ -95,11 +95,12 @@ over HTTPS in production and restrict `CORS_ORIGINS` to the actual frontend orig
 | apps/web/.env.local | NEXT_PUBLIC_API_URL                  | FastAPI base URL, default http://localhost:8000                          |
 | apps/web/.env.local | NEXT_PUBLIC_SUPABASE_URL             | Supabase project URL                                                     |
 | apps/web/.env.local | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | Browser-safe publishable or legacy anon key                              |
-| apps/web/.env.local | APP_ACCESS_PASSWORD                  | Server-only global password required before the app loads                |
 | apps/api/.env       | DATABASE_URL                         | Server-only SQLAlchemy psycopg PostgreSQL URL                            |
 | apps/api/.env       | SUPABASE_URL                         | Same Supabase project URL                                                |
 | apps/api/.env       | SUPABASE_PUBLISHABLE_KEY             | Publishable or legacy anon key for token verification                    |
 | apps/api/.env       | CORS_ORIGINS                         | JSON list of allowed frontend origins, default ["http://localhost:3000"] |
+| apps/api/.env       | CORS_ORIGIN_REGEX                    | Optional fullmatch regex for dynamic origins (Vercel previews)           |
+| apps/api/.env       | ENABLE_DOCS                          | Enable `/docs` and OpenAPI when true; default false                      |
 
 Backend settings load relative to `apps/api`; run API commands from that directory.
 No Supabase secret/service-role key or JWT signing secret is needed.

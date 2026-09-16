@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     supabase_publishable_key: str = ""
     auth_identity_cache_ttl_seconds: int = 60
     cors_origins: list[str] = ["http://localhost:3000"]
+    # Optional regex for dynamic hosts (e.g. Vercel preview URLs). Uses fullmatch.
+    cors_origin_regex: str | None = None
+    # Keep OpenAPI UI off unless explicitly enabled (local only).
+    enable_docs: bool = False
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
