@@ -55,6 +55,35 @@ def test_cors_allows_tag_order_reordering(client):
     assert "PUT" in response.headers["access-control-allow-methods"]
 
 
+def test_cors_allows_vercel_preview_origins_via_regex():
+    api = create_app(
+        Settings(
+            cors_origins=["https://devboard-cd.vercel.app"],
+            cors_origin_regex=r"https://devboard-cd-[a-z0-9-]+\.vercel\.app",
+        )
+    )
+    preview_origin = "https://devboard-cd-git-feature-branch-team.vercel.app"
+    with TestClient(api) as cors_client:
+        allowed = cors_client.options(
+            "/projects",
+            headers={
+                "Origin": preview_origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        denied = cors_client.options(
+            "/projects",
+            headers={
+                "Origin": "https://evil-app.vercel.app",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == preview_origin
+    assert "access-control-allow-origin" not in denied.headers
+
+
 def test_requires_authentication(client):
     app.dependency_overrides.pop(get_user_id)
     assert client.get("/projects").status_code == 401

@@ -99,6 +99,8 @@ over HTTPS in production and restrict `CORS_ORIGINS` to the actual frontend orig
 | apps/api/.env       | SUPABASE_URL                         | Same Supabase project URL                                                |
 | apps/api/.env       | SUPABASE_PUBLISHABLE_KEY             | Publishable or legacy anon key for token verification                    |
 | apps/api/.env       | CORS_ORIGINS                         | JSON list of allowed frontend origins, default ["http://localhost:3000"] |
+| apps/api/.env       | CORS_ORIGIN_REGEX                    | Optional fullmatch regex for dynamic origins (Vercel previews)           |
+| apps/api/.env       | ENABLE_DOCS                          | Enable `/docs` and OpenAPI when true; default false                      |
 
 Backend settings load relative to `apps/api`; run API commands from that directory.
 No Supabase secret/service-role key or JWT signing secret is needed.
